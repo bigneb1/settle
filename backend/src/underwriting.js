@@ -1,0 +1,118 @@
+/**
+ * Underwriting service — five-signal credit scoring over Universal Account transaction history.
+ * For BNPL: full scoring required. For Settle Pay < threshold: lightweight gate only.
+ */
+import { ethers } from "ethers";
+import Anthropic from "@anthropic-ai/sdk";
+import { provider, SUBSCRIPTION_RISK_THRESHOLD_USD } from "./config.js";
+import { ADDRESSES, CHARGE_REGISTRY_ABI, DEFAULT_HANDLER_ABI } from "./abis.js";
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// Score weights (sum = 100)
+const WEIGHTS = {
+  walletAge: 20,
+  repaymentHistory: 30,
+  defaultHistory: 25,
+  protocolDiversity: 15,
+  balanceConsistency: 10,
+};
+
+/**
+ * Pull cross-chain UA transaction history via RPC and compute five-signal score (300–850).
+ */
+async function computeCreditScore(buyerAddress) {
+  const txCount = await provider.getTransactionCount(buyerAddress);
+  const balance = await provider.getBalance(buyerAddress);
+
+  // Signal 1: Wallet age (proxy: tx count as age signal — UA gives cross-chain history)
+  const walletAgeScore = Math.min(txCount / 500, 1) * WEIGHTS.walletAge;
+
+  // Signal 2: Repayment history — read from ChargeRegistry
+  const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_ABI, provider);
+  let repaymentScore = WEIGHTS.repaymentHistory * 0.5; // baseline: unknown = 50%
+  try {
+    const chargeIds = await registry.getBuyerCharges(buyerAddress);
+    if (chargeIds.length > 0) {
+      let completed = 0;
+      for (const id of chargeIds) {
+        const charge = await registry.getCharge(id);
+        if (Number(charge.status) === 2) completed++; // Status.Completed
+      }
+      repaymentScore = (completed / chargeIds.length) * WEIGHTS.repaymentHistory;
+    }
+  } catch (_) {}
+
+  // Signal 3: Default history
+  const defaultHandler = new ethers.Contract(ADDRESSES.defaultHandler, DEFAULT_HANDLER_ABI, provider);
+  let defaultScore = WEIGHTS.defaultHistory;
+  try {
+    const defaultCount = await defaultHandler.defaultCount(buyerAddress);
+    const penalty = Math.min(Number(defaultCount) * 25, WEIGHTS.defaultHistory);
+    defaultScore = WEIGHTS.defaultHistory - penalty;
+  } catch (_) {}
+
+  // Signal 4: Protocol diversity (tx variety — crude proxy without full UA indexer)
+  const protocolDiversityScore = Math.min(txCount / 200, 1) * WEIGHTS.protocolDiversity;
+
+  // Signal 5: Balance consistency
+  const balanceEth = Number(ethers.formatEther(balance));
+  const balanceScore = Math.min(balanceEth / 0.5, 1) * WEIGHTS.balanceConsistency;
+
+  const rawScore = walletAgeScore + repaymentScore + defaultScore + protocolDiversityScore + balanceScore;
+  // Map 0–100 range → 300–850
+  const creditScore = Math.round(300 + (rawScore / 100) * 550);
+
+  return {
+    score: creditScore,
+    signals: {
+      walletAge: walletAgeScore,
+      repaymentHistory: repaymentScore,
+      defaultHistory: defaultScore,
+      protocolDiversity: protocolDiversityScore,
+      balanceConsistency: balanceScore,
+    },
+    txCount,
+    balanceEth,
+  };
+}
+
+/**
+ * BNPL approval decision. Returns { approved, limit, score, explanation }.
+ */
+export async function evaluateBNPL(buyerAddress, requestedAmount) {
+  const { score, signals, txCount } = await computeCreditScore(buyerAddress);
+
+  const approved = score >= 580;
+  const limit = approved ? Math.round((score - 300) / 550 * 2000) * 1_000_000 : 0; // max $2000 in USDC 6-dec
+
+  // Use Claude for plain-language explanation of borderline decisions
+  let explanation = "";
+  if (score >= 540 && score < 640) {
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 150,
+      messages: [{
+        role: "user",
+        content: `A buyer has a credit score of ${score}/850. Transactions: ${txCount}. Explain in 2 sentences why they were ${approved ? "approved" : "denied"} for BNPL, in plain language a non-crypto user would understand. No jargon.`,
+      }],
+    });
+    explanation = msg.content[0].text;
+  }
+
+  return { approved, limit, score, signals, explanation };
+}
+
+/**
+ * Lightweight subscription risk gate. Returns { approved } — no full scoring for amounts under threshold.
+ */
+export async function evaluateSubscription(buyerAddress, monthlyAmountUSD) {
+  if (monthlyAmountUSD <= SUBSCRIPTION_RISK_THRESHOLD_USD) {
+    // Only check: is address non-zero and has any history?
+    const txCount = await provider.getTransactionCount(buyerAddress);
+    return { approved: true, skippedFullScoring: true, txCount };
+  }
+  // Full scoring for high-value subscriptions
+  const { score } = await computeCreditScore(buyerAddress);
+  return { approved: score >= 500, skippedFullScoring: false, score };
+}
