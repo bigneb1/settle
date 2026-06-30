@@ -1,0 +1,20 @@
+{
+  "name": "settle-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sweep-agent": "node src/sweepAgent.js",
+    "underwriting": "node src/underwriting.js",
+    "payout-executor": "node src/payoutExecutor.js",
+    "dev": "node --watch src/sweepAgent.js"
+  },
+  "dependencies": {
+    "ethers": "^6.13.4",
+    "@anthropic-ai/sdk": "^0.30.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
