@@ -16,18 +16,32 @@ export function getMagic(): MagicInstance {
   return _magic
 }
 
-export async function loginWithEmail(email: string) {
+/**
+ * Kicks off email magic-link login. `onEmailSent` fires as soon as the link is
+ * dispatched (the SDK's "email-sent" event) — not when the user finishes
+ * clicking it, which can take arbitrarily long and shouldn't block the UI.
+ */
+export async function loginWithEmail(email: string, onEmailSent?: () => void) {
   const magic = getMagic()
-  await magic.auth.loginWithMagicLink({ email })
+  const handle = magic.auth.loginWithMagicLink({ email, showUI: false })
+  if (onEmailSent) handle.on('email-sent', onEmailSent)
+  await handle
   return magic.user.getInfo()
 }
 
 export async function loginWithGoogle() {
   const magic = getMagic()
-  await (magic as any).oauth2.loginWithRedirect({
+  await magic.oauth2.loginWithRedirect({
     provider: 'google',
     redirectURI: window.location.origin + '/auth/callback',
   })
+}
+
+/** Completes the Google OAuth redirect flow — call this from the /auth/callback route. */
+export async function completeGoogleRedirect(): Promise<string | null> {
+  const magic = getMagic()
+  const result = await magic.oauth2.getRedirectResult()
+  return result?.magic?.userMetadata?.wallets?.ethereum?.publicAddress ?? null
 }
 
 export async function logout() {

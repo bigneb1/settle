@@ -20,10 +20,12 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
     if (!email) return
     setLoading(true)
     try {
-      const info = await loginWithEmail(email)
-      onConnected((info as any).publicAddress || info.email || '')
-    } catch {
-      setSent(true)
+      const info = await loginWithEmail(email, () => setSent(true))
+      const address = info?.wallets?.ethereum?.publicAddress
+      if (address) onConnected(address)
+    } catch (err) {
+      console.error('[magic] email login failed:', err)
+      setSent(false)
     } finally {
       setLoading(false)
     }
@@ -150,10 +152,12 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
                 MetaMask
               </button>
               <button
-                className="w-full flex items-center gap-3 bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-4 py-3 text-sm text-[#e8e8e8] hover:border-[#2e2e2e] transition-colors"
+                disabled
+                title="Coming soon"
+                className="w-full flex items-center gap-3 bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-4 py-3 text-sm text-[#6b6b6b] opacity-50 cursor-not-allowed"
               >
                 <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex-shrink-0" />
-                WalletConnect
+                WalletConnect <span className="text-[10px] ml-auto">Coming soon</span>
               </button>
             </div>
           )}

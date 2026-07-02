@@ -1,12 +1,8 @@
-import { ArrowRight, Zap, RefreshCw, Shield, TrendingUp } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, Zap, RefreshCw, Shield, TrendingUp, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-
-const STATS = [
-  { label: 'Total Volume', value: '$2.4M', sub: 'USDC settled' },
-  { label: 'Active Charges', value: '1,847', sub: 'across all buyers' },
-  { label: 'Merchants', value: '62', sub: 'onboarded' },
-  { label: 'Avg Credit Score', value: '718', sub: 'protocol-wide' },
-]
+import { getProtocolStats, type ProtocolStats } from '../lib/contracts'
+import { formatUSDC } from '../lib/format'
 
 const FEATURES = [
   {
@@ -30,6 +26,23 @@ const FEATURES = [
 ]
 
 export default function Landing() {
+  const [stats, setStats] = useState<ProtocolStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  useEffect(() => {
+    getProtocolStats()
+      .then(setStats)
+      .catch(err => console.error('[landing] failed to load protocol stats', err))
+      .finally(() => setStatsLoading(false))
+  }, [])
+
+  const STATS = [
+    { label: 'Total Volume', value: stats ? formatUSDC(stats.totalVolumeUSDC) : '—', sub: 'USDC settled on-chain' },
+    { label: 'Active Charges', value: stats ? stats.activeCharges.toLocaleString() : '—', sub: 'across all buyers' },
+    { label: 'Merchants', value: stats ? stats.merchantCount.toLocaleString() : '—', sub: 'onboarded' },
+    { label: 'Avg Credit Score', value: stats?.avgScore ? stats.avgScore.toString() : '—', sub: 'protocol-wide' },
+  ]
+
   return (
     <div className="px-6 py-10 max-w-5xl mx-auto lg:mx-0 lg:max-w-none">
       {/* Hero */}
@@ -61,12 +74,14 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats bar — live on-chain reads, not sample data */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-[#1e1e1e] border border-[#1e1e1e] rounded-sm mb-10 overflow-hidden">
         {STATS.map(s => (
           <div key={s.label} className="bg-[#111111] px-5 py-4">
             <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-1.5">{s.label}</p>
-            <p className="text-2xl font-mono font-bold text-[#00d4aa]">{s.value}</p>
+            <p className="text-2xl font-mono font-bold text-[#00d4aa]">
+              {statsLoading ? <Loader2 size={18} className="animate-spin" /> : s.value}
+            </p>
             <p className="text-xs text-[#9b9b9b] mt-0.5">{s.sub}</p>
           </div>
         ))}

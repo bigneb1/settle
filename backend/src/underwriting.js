@@ -6,6 +6,7 @@ import { ethers } from "ethers";
 import Anthropic from "@anthropic-ai/sdk";
 import { provider, SUBSCRIPTION_RISK_THRESHOLD_USD } from "./config.js";
 import { ADDRESSES, CHARGE_REGISTRY_ABI, DEFAULT_HANDLER_ABI } from "./abis.js";
+import { getCrossChainSignal } from "./particleBalances.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -52,12 +53,28 @@ async function computeCreditScore(buyerAddress) {
     defaultScore = WEIGHTS.defaultHistory - penalty;
   } catch (_) {}
 
-  // Signal 4: Protocol diversity (tx variety — crude proxy without full UA indexer)
-  const protocolDiversityScore = Math.min(txCount / 200, 1) * WEIGHTS.protocolDiversity;
+  // Signal 4 & 5: cross-chain diversity and balance, via Particle Network's
+  // getTokens RPC across 8 chains. Falls back to the single-chain tx-count
+  // proxy if Particle credentials aren't configured, so scoring still works
+  // without them — but the cross-chain claim only holds once they are.
+  const crossChain = await getCrossChainSignal(buyerAddress);
 
-  // Signal 5: Balance consistency
-  const balanceEth = Number(ethers.formatEther(balance));
-  const balanceScore = Math.min(balanceEth / 0.5, 1) * WEIGHTS.balanceConsistency;
+  let protocolDiversityScore;
+  let balanceScore;
+  let balanceEth = Number(ethers.formatEther(balance));
+
+  if (crossChain) {
+    // Diversity: fraction of scanned chains where the buyer holds any balance.
+    protocolDiversityScore = (crossChain.chainsWithBalance / crossChain.chainsScanned) * WEIGHTS.protocolDiversity;
+    // Balance consistency: aggregate native-token value across all chains, not just Arbitrum.
+    const totalNativeEth = Number(ethers.formatEther(crossChain.totalNativeWei));
+    balanceEth = totalNativeEth;
+    balanceScore = Math.min(totalNativeEth / 0.5, 1) * WEIGHTS.balanceConsistency;
+  } else {
+    // Single-chain fallback (Particle Network not configured)
+    protocolDiversityScore = Math.min(txCount / 200, 1) * WEIGHTS.protocolDiversity;
+    balanceScore = Math.min(balanceEth / 0.5, 1) * WEIGHTS.balanceConsistency;
+  }
 
   const rawScore = walletAgeScore + repaymentScore + defaultScore + protocolDiversityScore + balanceScore;
   // Map 0–100 range → 300–850
@@ -72,6 +89,7 @@ async function computeCreditScore(buyerAddress) {
       protocolDiversity: protocolDiversityScore,
       balanceConsistency: balanceScore,
     },
+    crossChain: crossChain ? { chainsWithBalance: crossChain.chainsWithBalance, chainsScanned: crossChain.chainsScanned } : null,
     txCount,
     balanceEth,
   };

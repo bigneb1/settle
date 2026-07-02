@@ -14,16 +14,38 @@ const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_A
 const engine = new ethers.Contract(ADDRESSES.scheduleEngine, SCHEDULE_ENGINE_ABI, sweepAgentWallet);
 
 /**
+ * Record a charge cycle's outcome on-chain and, if successful, pay the merchant.
+ * Shared by the cron sweep loop (backend-initiated, for charges with a delegated
+ * session) and the buyer-initiated flow (api/payments/confirm.js), which verifies
+ * a real Universal Account cross-chain transfer landed before calling this.
+ */
+export async function settleCharge(chargeId, amount, success) {
+  const tx = await engine.recordSweepOutcome(chargeId, success ? amount : 0n, success);
+  await tx.wait();
+  console.log(`[settle] Outcome recorded: chargeId=${chargeId} success=${success} tx=${tx.hash}`);
+
+  if (success) {
+    const charge = await registry.getCharge(chargeId);
+    await executePayout(charge.merchant, amount, BigInt(chargeId));
+  }
+
+  return { recordTxHash: tx.hash };
+}
+
+/**
  * Execute a Universal Account cross-chain sweep for a buyer's due charge.
- * In production this calls the Particle Network Universal Accounts SDK.
+ *
+ * NOTE: this only covers charges that are due on the recurring cron schedule and
+ * assumes a pre-authorized session for the buyer's Universal Account — that
+ * delegation mechanism (session keys / spending limits granted at checkout) is
+ * not yet implemented, so this currently simulates the sweep rather than
+ * executing a real UA transaction. Buyer-initiated payments (the "Pay Now"
+ * button on the Dashboard) execute a REAL Universal Account transaction from the
+ * frontend instead, and land here via api/payments/confirm.js -> settleCharge().
  * Returns { success, amountSwept }.
  */
 async function executeUniversalSweep(buyerAddress, amountRequired) {
-  // TODO: Replace with actual Particle Network UA SDK call:
-  //   const ua = new UniversalAccount({ projectId, clientKey, signer: buyerSigner });
-  //   const tx = await ua.sendUniversalTransaction({ to: settleVault, amount: amountRequired, token: "USDC" });
-  //   return { success: tx.status === "confirmed", amountSwept: amountRequired };
-  console.log(`[sweep] UA sweep for ${buyerAddress}: ${amountRequired / 1e6} USDC`);
+  console.log(`[sweep] Simulated UA sweep for ${buyerAddress}: ${amountRequired / 1e6} USDC (no session-key delegation configured — see settleCharge() for the real buyer-initiated path)`);
   return { success: true, amountSwept: amountRequired };
 }
 
@@ -40,20 +62,14 @@ async function processDueCharges() {
       if (Number(charge.status) !== 0) continue;
       if (Number(charge.nextDueAt) > now) continue;
 
-      console.log(`[sweep] Processing charge ${i}: type=${charge.chargeType} amount=${charge.amountPerCycle / 1e6n} USDC`);
+      console.log(`[sweep] Processing charge ${i}: type=${charge.chargeType} amount=${charge.amountPerCycle / 1_000_000n} USDC`);
 
-      const { success, amountSwept } = await executeUniversalSweep(
+      const { success } = await executeUniversalSweep(
         charge.buyer,
         charge.amountPerCycle
       );
 
-      const tx = await engine.recordSweepOutcome(i, success ? charge.amountPerCycle : 0n, success);
-      await tx.wait();
-      console.log(`[sweep] Outcome recorded: chargeId=${i} success=${success} tx=${tx.hash}`);
-
-      if (success) {
-        await executePayout(charge.merchant, charge.amountPerCycle, BigInt(i));
-      }
+      await settleCharge(i, charge.amountPerCycle, success);
     } catch (err) {
       console.error(`[sweep] Error on charge ${i}:`, err.message);
     }

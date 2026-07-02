@@ -12,7 +12,7 @@ export async function executePayout(merchant, grossAmount, chargeId) {
   try {
     const tx = await router.executePayout(merchant, grossAmount, chargeId);
     await tx.wait();
-    console.log(`[payout] Settled chargeId=${chargeId} merchant=${merchant} gross=${grossAmount / 1e6n} USDC tx=${tx.hash}`);
+    console.log(`[payout] Settled chargeId=${chargeId} merchant=${merchant} gross=${grossAmount / 1_000_000n} USDC tx=${tx.hash}`);
     return { success: true, txHash: tx.hash };
   } catch (err) {
     console.error(`[payout] Failed for chargeId=${chargeId}:`, err.message);

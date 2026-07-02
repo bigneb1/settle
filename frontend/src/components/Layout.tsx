@@ -7,6 +7,7 @@ import SettleLogo from './SettleLogo'
 import ConnectWallet from './ConnectWallet'
 import { shortAddr } from '../lib/format'
 import { logout } from '../lib/magic'
+import { useWallet } from '../context/WalletContext'
 
 const NAV = [
   { to: '/', label: 'Home', icon: Home, end: true },
@@ -15,12 +16,6 @@ const NAV = [
   { to: '/merchant', label: 'Merchant', icon: Store, end: false },
   { to: '/merchant/onboard', label: 'Onboard', icon: PlusCircle, end: false },
 ]
-
-interface Props {
-  wallet: string | null
-  onConnected: (addr: string) => void
-  onLogout: () => void
-}
 
 function Sidebar({ wallet, onConnect, onLogout, onClose }: {
   wallet: string | null
@@ -95,13 +90,14 @@ function Sidebar({ wallet, onConnect, onLogout, onClose }: {
   )
 }
 
-export default function Layout({ wallet, onConnected, onLogout }: Props) {
+export default function Layout() {
+  const { address: wallet, connect, disconnect } = useWallet()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showConnect, setShowConnect] = useState(false)
 
   function handleLogout() {
     logout().catch(console.error)
-    onLogout()
+    disconnect()
     setDrawerOpen(false)
   }
 
@@ -148,7 +144,7 @@ export default function Layout({ wallet, onConnected, onLogout }: Props) {
       {showConnect && !wallet && (
         <ConnectWallet
           onClose={() => setShowConnect(false)}
-          onConnected={addr => { onConnected(addr); setShowConnect(false) }}
+          onConnected={addr => { connect(addr); setShowConnect(false) }}
         />
       )}
     </div>

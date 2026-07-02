@@ -8,6 +8,9 @@
   "functions": {
     "api/cron/sweep.js": {
       "maxDuration": 60
+    },
+    "api/payments/confirm.js": {
+      "maxDuration": 30
     }
   }
 }

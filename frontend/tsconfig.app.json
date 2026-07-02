@@ -15,6 +15,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* @particle-network/universal-account-sdk's package.json "exports" field has no
+       "types" condition, so bundler resolution can't find its (real, present) .d.ts.
+       Point at it directly — a standard workaround for this class of packaging bug. */
+    "paths": {
+      "@particle-network/universal-account-sdk": ["./node_modules/@particle-network/universal-account-sdk/dist/index.d.ts"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
