@@ -7,4 +7,9 @@ export default defineConfig({
   define: {
     global: 'globalThis',
   },
+  server: {
+    // Allows preview via the cloudflared tunnel (random *.trycloudflare.com host each run).
+    // Local/dev-only convenience — not meant to ship.
+    allowedHosts: true,
+  },
 })

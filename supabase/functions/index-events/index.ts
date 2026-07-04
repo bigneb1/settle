@@ -1,8 +1,12 @@
 /**
  * Supabase Edge Function: index-events
  * Subscribes to all five Settle contract events via RPC polling and populates Supabase tables.
- * Deploy with: supabase functions deploy index-events --project-ref <ref>
- * Set as a scheduled function (every 30s) via Supabase dashboard or pg_cron.
+ * Scheduled every 5 minutes via pg_cron (see supabase/migrations/006_schedule_index_events_cron.sql).
+ *
+ * Contract addresses and RPC URL are public, already-verified deployment info
+ * (see README "Deployed Contracts"), not secrets — hardcoded as fallbacks so
+ * this function works without any dashboard-configured Edge Function secrets.
+ * Still overridable via env vars if the deployment ever changes.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ethers } from "https://esm.sh/ethers@6";
@@ -16,9 +20,9 @@ const provider = new ethers.JsonRpcProvider(
   Deno.env.get("ARBITRUM_SEPOLIA_RPC_URL") || "https://sepolia-rollup.arbitrum.io/rpc"
 );
 
-const CHARGE_REGISTRY = Deno.env.get("CHARGE_REGISTRY_ADDR")!;
-const SCHEDULE_ENGINE = Deno.env.get("SCHEDULE_ENGINE_ADDR")!;
-const PAYOUT_ROUTER = Deno.env.get("PAYOUT_ROUTER_ADDR")!;
+const CHARGE_REGISTRY = Deno.env.get("CHARGE_REGISTRY_ADDR") || "0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC";
+const SCHEDULE_ENGINE = Deno.env.get("SCHEDULE_ENGINE_ADDR") || "0xA9e658f4E3C4F3510677c0cF9b5c592e9CB9f04C";
+const PAYOUT_ROUTER = Deno.env.get("PAYOUT_ROUTER_ADDR") || "0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C";
 
 const REGISTRY_ABI = [
   "event ChargeCreated(uint256 indexed chargeId, address indexed buyer, address indexed merchant, uint8 chargeType, uint256 amountPerCycle, uint256 totalCycles)",

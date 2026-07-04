@@ -11,6 +11,15 @@
     },
     "api/payments/confirm.js": {
       "maxDuration": 30
+    },
+    "api/dca/confirm.js": {
+      "maxDuration": 30
+    },
+    "api/checkout/create.js": {
+      "maxDuration": 45
+    },
+    "api/merchant/onboard.js": {
+      "maxDuration": 30
     }
   }
 }

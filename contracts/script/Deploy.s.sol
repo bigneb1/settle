@@ -12,7 +12,6 @@ import "../src/DefaultHandler.sol";
 /// Run: forge script script/Deploy.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify
 contract DeploySettle is Script {
     function run() external {
-        address deployer = vm.envAddress("DEPLOYER_ADDRESS");
         address usdcAddress = vm.envAddress("USDC_ADDRESS");
         address treasury = vm.envAddress("PROTOCOL_TREASURY");
         address sweepAgent = vm.envAddress("SWEEP_AGENT_ADDRESS");
@@ -43,10 +42,12 @@ contract DeploySettle is Script {
         chargeRegistry.setScheduleEngine(address(scheduleEngine));
         scheduleEngine.setSweepAgent(sweepAgent);
 
-        // settlementCaller for PayoutRouter and LiquidityPool is the deployer (backend signer);
-        // in production replace with dedicated backend hot wallet
-        payoutRouter.setSettlementCaller(deployer);
-        liquidityPool.setSettlementCaller(deployer);
+        // settlementCaller for PayoutRouter and LiquidityPool must be the sweep-agent
+        // wallet — that's what actually signs executePayout/frontCapital/recordRepayment
+        // in the backend (payoutExecutor.js, sweepAgent.js), not the deployer key.
+        // The deployer retains fallback authority anyway via each contract's owner() check.
+        payoutRouter.setSettlementCaller(sweepAgent);
+        liquidityPool.setSettlementCaller(sweepAgent);
         defaultHandler.setScheduleEngine(address(scheduleEngine));
 
         vm.stopBroadcast();

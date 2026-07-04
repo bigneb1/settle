@@ -1,5 +1,7 @@
 import { createPublicClient, http, parseAbi } from 'viem'
 import { arbitrumSepolia } from 'viem/chains'
+import { BrowserProvider, Contract } from 'ethers'
+import { getMagic } from './magic'
 
 export const publicClient = createPublicClient({
   chain: arbitrumSepolia,
@@ -12,6 +14,7 @@ export const ADDRESSES = {
   payoutRouter: import.meta.env.VITE_PAYOUT_ROUTER_ADDR as `0x${string}` | undefined,
   liquidityPool: import.meta.env.VITE_LIQUIDITY_POOL_ADDR as `0x${string}` | undefined,
   defaultHandler: import.meta.env.VITE_DEFAULT_HANDLER_ADDR as `0x${string}` | undefined,
+  dcaPlan: import.meta.env.VITE_DCA_PLAN_ADDR as `0x${string}` | undefined,
   usdc: (import.meta.env.VITE_USDC_ADDRESS || '0xaf88d065e77c8cC2239327C5EDb3A432268e5831') as `0x${string}`,
 }
 
@@ -63,6 +66,47 @@ export const DEFAULT_HANDLER_ABI = parseAbi([
   'function defaultCount(address) view returns (uint256)',
   'function canAccessBNPL(address) view returns (bool, string)',
 ] as const)
+
+export const DCA_PLAN_ABI = parseAbi([
+  'function planCount() view returns (uint256)',
+  'function getOwnerPlans(address planOwner) view returns (uint256[])',
+] as const)
+
+// Same JSON-ABI workaround as CHARGE_REGISTRY_GET_CHARGE_ABI above — getPlan's
+// tuple return breaks abitype's human-readable parser under this project's TS version.
+export const DCA_PLAN_GET_PLAN_ABI = [
+  {
+    type: 'function',
+    name: 'getPlan',
+    stateMutability: 'view',
+    inputs: [{ name: 'planId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'owner', type: 'address' },
+          { name: 'targetChainId', type: 'uint256' },
+          { name: 'targetToken', type: 'address' },
+          { name: 'amountPerCycleUSD', type: 'uint256' },
+          { name: 'cycleSeconds', type: 'uint256' },
+          { name: 'nextDueAt', type: 'uint256' },
+          { name: 'cyclesCompleted', type: 'uint256' },
+          { name: 'totalCycles', type: 'uint256' },
+          { name: 'status', type: 'uint8' },
+          { name: 'createdAt', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+] as const
+
+// Plain EOA writes (create/cancel) — no Universal Account involved, just the
+// buyer's Magic wallet sending a normal Arbitrum Sepolia transaction.
+const DCA_PLAN_WRITE_ABI = [
+  'function createPlan(uint256 targetChainId, address targetToken, uint256 amountPerCycleUSD, uint256 cycleSeconds, uint256 totalCycles) returns (uint256)',
+  'function cancelPlan(uint256 planId)',
+]
 
 export interface OnChainCharge {
   id: number
@@ -154,4 +198,130 @@ export async function getBuyerCharges(buyer: `0x${string}`): Promise<OnChainChar
     })
   )
   return charges
+}
+
+export interface OnChainDcaPlan {
+  id: number
+  owner: `0x${string}`
+  targetChainId: bigint
+  targetToken: `0x${string}`
+  amountPerCycleUSD: bigint
+  cycleSeconds: bigint
+  nextDueAt: bigint
+  cyclesCompleted: bigint
+  totalCycles: bigint
+  status: number
+  createdAt: bigint
+}
+
+export async function getOwnerDcaPlans(owner: `0x${string}`): Promise<OnChainDcaPlan[]> {
+  if (!ADDRESSES.dcaPlan) return []
+  const ids = await publicClient.readContract({
+    address: ADDRESSES.dcaPlan,
+    abi: DCA_PLAN_ABI,
+    functionName: 'getOwnerPlans',
+    args: [owner],
+  })
+  const plans = await Promise.all(
+    ids.map(async id => {
+      const p = await publicClient.readContract({
+        address: ADDRESSES.dcaPlan!,
+        abi: DCA_PLAN_GET_PLAN_ABI,
+        functionName: 'getPlan',
+        args: [id],
+      })
+      return { id: Number(id), ...p }
+    })
+  )
+  return plans
+}
+
+function getDcaPlanWriteContract() {
+  if (!ADDRESSES.dcaPlan) throw new Error('DCAPlan contract address is not configured (VITE_DCA_PLAN_ADDR)')
+  const magic = getMagic()
+  const provider = new BrowserProvider(magic.rpcProvider as never)
+  return provider.getSigner().then(signer => new Contract(ADDRESSES.dcaPlan!, DCA_PLAN_WRITE_ABI, signer))
+}
+
+export async function createDcaPlan(params: {
+  targetChainId: bigint
+  targetToken: `0x${string}`
+  amountPerCycleUSD: bigint
+  cycleSeconds: bigint
+  totalCycles: bigint
+}): Promise<{ txHash: string }> {
+  const dca = await getDcaPlanWriteContract()
+  const tx = await dca.createPlan(
+    params.targetChainId,
+    params.targetToken,
+    params.amountPerCycleUSD,
+    params.cycleSeconds,
+    params.totalCycles
+  )
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash }
+}
+
+export async function cancelDcaPlan(planId: number): Promise<{ txHash: string }> {
+  const dca = await getDcaPlanWriteContract()
+  const tx = await dca.cancelPlan(planId)
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash }
+}
+
+export interface MerchantStats {
+  totalCollected: bigint
+  totalPaidOut: bigint
+  totalFees: bigint
+  subscriberCount: bigint
+  mode: number
+}
+
+export async function getMerchantStats(merchant: `0x${string}`): Promise<MerchantStats | null> {
+  if (!ADDRESSES.payoutRouter) return null
+  const [totalCollected, totalPaidOut, totalFees, subscriberCount, mode] = await publicClient.readContract({
+    address: ADDRESSES.payoutRouter,
+    abi: PAYOUT_ROUTER_ABI,
+    functionName: 'getMerchantStats',
+    args: [merchant],
+  })
+  return { totalCollected, totalPaidOut, totalFees, subscriberCount, mode }
+}
+
+export async function getMerchantSubscriptionCharges(merchant: `0x${string}`): Promise<OnChainCharge[]> {
+  if (!ADDRESSES.chargeRegistry) return []
+  const ids = await publicClient.readContract({
+    address: ADDRESSES.chargeRegistry,
+    abi: CHARGE_REGISTRY_ABI,
+    functionName: 'getMerchantCharges',
+    args: [merchant],
+  })
+  const charges = await Promise.all(
+    ids.map(async id => {
+      const c = await publicClient.readContract({
+        address: ADDRESSES.chargeRegistry!,
+        abi: CHARGE_REGISTRY_GET_CHARGE_ABI,
+        functionName: 'getCharge',
+        args: [id],
+      })
+      return { id: Number(id), ...c }
+    })
+  )
+  return charges.filter(c => c.chargeType === 1)
+}
+
+const PAYOUT_ROUTER_WRITE_ABI = ['function configureMerchant(address merchant, uint8 mode)']
+
+function getPayoutRouterWriteContract() {
+  if (!ADDRESSES.payoutRouter) throw new Error('PayoutRouter contract address is not configured (VITE_PAYOUT_ROUTER_ADDR)')
+  const magic = getMagic()
+  const provider = new BrowserProvider(magic.rpcProvider as never)
+  return provider.getSigner().then(signer => new Contract(ADDRESSES.payoutRouter!, PAYOUT_ROUTER_WRITE_ABI, signer))
+}
+
+export async function configureMerchantPayout(merchant: `0x${string}`, mode: 0 | 1): Promise<{ txHash: string }> {
+  const router = await getPayoutRouterWriteContract()
+  const tx = await router.configureMerchant(merchant, mode)
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash }
 }

@@ -49,3 +49,15 @@ export const DEFAULT_HANDLER_ABI = [
   "function canAccessBNPL(address buyer) view returns (bool, string)",
   "event DefaultFlagged(address indexed buyer, uint256 chargeId, uint8 reason, uint256 recordId)",
 ];
+
+export const DCA_PLAN_ABI = [
+  "function planCount() view returns (uint256)",
+  "function getPlan(uint256 planId) view returns (tuple(address owner, uint256 targetChainId, address targetToken, uint256 amountPerCycleUSD, uint256 cycleSeconds, uint256 nextDueAt, uint256 cyclesCompleted, uint256 totalCycles, uint8 status, uint256 createdAt))",
+  "function createPlan(uint256 targetChainId, address targetToken, uint256 amountPerCycleUSD, uint256 cycleSeconds, uint256 totalCycles) returns (uint256)",
+  "function recordBuyExecuted(uint256 planId, uint256 amountUSD, string transactionId)",
+  "function cancelPlan(uint256 planId)",
+  "function getOwnerPlans(address planOwner) view returns (uint256[])",
+  "event PlanCreated(uint256 indexed planId, address indexed owner, uint256 targetChainId, address targetToken, uint256 amountPerCycleUSD, uint256 cycleSeconds, uint256 totalCycles)",
+  "event BuyExecuted(uint256 indexed planId, uint256 cycleNumber, uint256 amountUSD, string transactionId)",
+  "event PlanCancelled(uint256 indexed planId)",
+];

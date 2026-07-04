@@ -1,16 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Plus, Trash2 } from 'lucide-react'
+import { useWallet } from '../context/WalletContext'
+import { configureMerchantPayout } from '../lib/contracts'
+import { submitMerchantOnboarding, type MerchantOnboardingProduct } from '../lib/api'
 
-type Step = 1 | 2 | 3
+type Step = 1 | 2 | 3 | 4
 
 interface FormData {
   businessName: string
-  address: string
   chain: string
   payoutMode: 0 | 1
   payoutChain: string
   payoutAsset: string
+  products: MerchantOnboardingProduct[]
 }
 
 const CHAINS = ['arbitrum', 'ethereum', 'polygon', 'optimism', 'base']
@@ -19,45 +22,93 @@ const ASSETS = ['usdc', 'usdt', 'eth']
 const STEPS = [
   { n: 1 as Step, label: 'Business Info' },
   { n: 2 as Step, label: 'Payout Config' },
-  { n: 3 as Step, label: 'Confirm' },
+  { n: 3 as Step, label: 'Products' },
+  { n: 4 as Step, label: 'Confirm' },
 ]
 
+function emptyProduct(): MerchantOnboardingProduct {
+  return { name: '', category: '', price: '', period: 'monthly', chargeType: 1, totalCycles: 0, cycleSeconds: 2592000 }
+}
+
 export default function MerchantOnboard() {
+  const { address } = useWallet()
   const [step, setStep] = useState<Step>(1)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const navigate = useNavigate()
 
   const [form, setForm] = useState<FormData>({
     businessName: '',
-    address: '0xaBcD1234567890abcdef1234567890abcDEF1234',
     chain: 'arbitrum',
     payoutMode: 0,
     payoutChain: 'arbitrum',
     payoutAsset: 'usdc',
+    products: [],
   })
 
-  function update(k: keyof FormData, v: any) {
+  function update<K extends keyof FormData>(k: K, v: FormData[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
-  function next() { setStep(s => (s < 3 ? (s + 1) as Step : s) ) }
-  function prev() { setStep(s => (s > 1 ? (s - 1) as Step : s) ) }
+  function updateProduct(i: number, patch: Partial<MerchantOnboardingProduct>) {
+    setForm(f => ({ ...f, products: f.products.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) }))
+  }
 
-  function submit() {
+  function addProduct() {
+    setForm(f => ({ ...f, products: [...f.products, emptyProduct()] }))
+  }
+
+  function removeProduct(i: number) {
+    setForm(f => ({ ...f, products: f.products.filter((_, idx) => idx !== i) }))
+  }
+
+  function next() { setStep(s => (s < 4 ? (s + 1) as Step : s)) }
+  function prev() { setStep(s => (s > 1 ? (s - 1) as Step : s)) }
+
+  async function submit() {
+    if (!address) return
     setSubmitting(true)
-    setTimeout(() => { setSubmitting(false); setDone(true) }, 2000)
+    setSubmitError(null)
+    try {
+      const { txHash } = await configureMerchantPayout(address as `0x${string}`, form.payoutMode)
+      await submitMerchantOnboarding({
+        merchantAddress: address,
+        businessName: form.businessName,
+        chain: form.chain,
+        payoutMode: form.payoutMode,
+        payoutChain: form.payoutChain,
+        payoutAsset: form.payoutAsset,
+        configureTxHash: txHash,
+        products: form.products
+          .filter(p => p.name && p.price)
+          .map(p => ({ ...p, price: String(Math.round(Number(p.price) * 1_000_000)) })),
+      })
+      setDone(true)
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Registration failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!address) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
+        <p className="text-sm text-muted-foreground">Connect your wallet to register as a merchant.</p>
+      </div>
+    )
   }
 
   if (done) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
-        <CheckCircle size={48} className="text-[#00d4aa] mb-4" />
-        <h2 className="text-xl font-semibold text-[#e8e8e8] mb-2">Merchant Registered</h2>
-        <p className="text-sm text-[#9b9b9b] mb-6">Your merchant profile is live on Arbitrum Sepolia.</p>
+        <CheckCircle size={48} className="text-primary mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Merchant Registered</h2>
+        <p className="text-sm text-muted-foreground mb-6">Your merchant profile is live on Arbitrum Sepolia.</p>
         <button
           onClick={() => navigate('/merchant')}
-          className="bg-[#00d4aa] text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-[#00bfa0] transition-colors"
+          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
         >
           Open Merchant Dashboard
         </button>
@@ -68,8 +119,8 @@ export default function MerchantOnboard() {
   return (
     <div className="px-6 py-8 max-w-2xl">
       <div className="mb-8">
-        <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-1">Setup</p>
-        <h1 className="text-2xl font-semibold text-[#e8e8e8]">Merchant Onboarding</h1>
+        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Setup</p>
+        <h1 className="text-2xl font-semibold text-foreground">Merchant Onboarding</h1>
       </div>
 
       {/* Stepper */}
@@ -78,54 +129,54 @@ export default function MerchantOnboard() {
           <div key={s.n} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-colors ${
-                step > s.n ? 'bg-[#00d4aa] text-black' :
-                step === s.n ? 'border-2 border-[#00d4aa] text-[#00d4aa]' :
-                'border border-[#1e1e1e] text-[#9b9b9b]'
+                step > s.n ? 'bg-primary text-black' :
+                step === s.n ? 'border-2 border-primary text-primary' :
+                'border border-border text-muted-foreground'
               }`}>
                 {step > s.n ? '✓' : s.n}
               </div>
-              <span className={`text-[10px] mt-1.5 whitespace-nowrap ${step === s.n ? 'text-[#00d4aa]' : 'text-[#9b9b9b]'}`}>
+              <span className={`text-[10px] mt-1.5 whitespace-nowrap ${step === s.n ? 'text-primary' : 'text-muted-foreground'}`}>
                 {s.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`flex-1 h-px mx-3 mb-5 ${step > s.n ? 'bg-[#00d4aa]' : 'bg-[#1e1e1e]'}`} />
+              <div className={`flex-1 h-px mx-3 mb-5 ${step > s.n ? 'bg-primary' : 'bg-border'}`} />
             )}
           </div>
         ))}
       </div>
 
       {/* Step content */}
-      <div className="bg-[#111111] border border-[#1e1e1e] rounded-sm p-6 mb-5">
+      <div className="bg-card border border-border rounded-sm p-6 mb-5">
         {step === 1 && (
           <div className="space-y-5">
-            <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-2">Business Information</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Business Information</p>
             <div>
-              <label className="block text-xs text-[#9b9b9b] mb-2 uppercase tracking-widest">Business Name</label>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Business Name</label>
               <input
                 type="text"
                 value={form.businessName}
                 onChange={e => update('businessName', e.target.value)}
                 placeholder="Acme Corp"
-                className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-3 py-2.5 text-sm text-[#e8e8e8] placeholder-[#9b9b9b] outline-none focus:border-[#00d4aa] transition-colors"
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
               />
             </div>
             <div>
-              <label className="block text-xs text-[#9b9b9b] mb-2 uppercase tracking-widest">Wallet Address</label>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Wallet Address</label>
               <input
                 type="text"
-                value={form.address}
+                value={address}
                 readOnly
-                className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-3 py-2.5 text-sm font-mono text-[#9b9b9b] outline-none cursor-default"
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm font-mono text-muted-foreground outline-none cursor-default"
               />
-              <p className="text-[10px] text-[#9b9b9b] mt-1">Auto-filled from connected wallet</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Auto-filled from connected wallet</p>
             </div>
             <div>
-              <label className="block text-xs text-[#9b9b9b] mb-2 uppercase tracking-widest">Operating Chain</label>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Operating Chain</label>
               <select
                 value={form.chain}
                 onChange={e => update('chain', e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-3 py-2.5 text-sm text-[#e8e8e8] outline-none focus:border-[#00d4aa] transition-colors"
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
               >
                 {CHAINS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
@@ -135,9 +186,9 @@ export default function MerchantOnboard() {
 
         {step === 2 && (
           <div className="space-y-5">
-            <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-2">Payout Configuration</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Payout Configuration</p>
             <div>
-              <label className="block text-xs text-[#9b9b9b] mb-3 uppercase tracking-widest">Payout Mode</label>
+              <label className="block text-xs text-muted-foreground mb-3 uppercase tracking-widest">Payout Mode</label>
               <div className="grid grid-cols-2 gap-2">
                 {[{ v: 0, label: 'One-Time', desc: 'Paid per charge (BNPL)' }, { v: 1, label: 'Recurring', desc: 'Paid each billing cycle' }].map(m => (
                   <button
@@ -145,32 +196,32 @@ export default function MerchantOnboard() {
                     onClick={() => update('payoutMode', m.v as 0 | 1)}
                     className={`text-left p-4 rounded-sm border transition-colors ${
                       form.payoutMode === m.v
-                        ? 'border-[#00d4aa] bg-[#0d2b24]'
-                        : 'border-[#1e1e1e] bg-[#0a0a0a] hover:border-[#2e2e2e]'
+                        ? 'border-primary bg-primary-subtle'
+                        : 'border-border bg-background hover:border-muted-foreground/30'
                     }`}
                   >
-                    <p className={`text-sm font-medium mb-1 ${form.payoutMode === m.v ? 'text-[#00d4aa]' : 'text-[#e8e8e8]'}`}>{m.label}</p>
-                    <p className="text-xs text-[#9b9b9b]">{m.desc}</p>
+                    <p className={`text-sm font-medium mb-1 ${form.payoutMode === m.v ? 'text-primary' : 'text-foreground'}`}>{m.label}</p>
+                    <p className="text-xs text-muted-foreground">{m.desc}</p>
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <label className="block text-xs text-[#9b9b9b] mb-2 uppercase tracking-widest">Payout Chain</label>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Payout Chain</label>
               <select
                 value={form.payoutChain}
                 onChange={e => update('payoutChain', e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-3 py-2.5 text-sm text-[#e8e8e8] outline-none focus:border-[#00d4aa] transition-colors"
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
               >
                 {CHAINS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[#9b9b9b] mb-2 uppercase tracking-widest">Payout Asset</label>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Payout Asset</label>
               <select
                 value={form.payoutAsset}
                 onChange={e => update('payoutAsset', e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm px-3 py-2.5 text-sm text-[#e8e8e8] outline-none focus:border-[#00d4aa] transition-colors"
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
               >
                 {ASSETS.map(a => <option key={a} value={a}>{a.toUpperCase()}</option>)}
               </select>
@@ -180,23 +231,93 @@ export default function MerchantOnboard() {
 
         {step === 3 && (
           <div className="space-y-4">
-            <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-4">Review &amp; Confirm</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">Products (optional)</p>
+              <button onClick={addProduct} className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover transition-colors">
+                <Plus size={13} /> Add product
+              </button>
+            </div>
+            {form.products.length === 0 && (
+              <p className="text-xs text-muted-foreground">No products yet — you can add these later from your merchant dashboard.</p>
+            )}
+            {form.products.map((p, i) => (
+              <div key={i} className="border border-border rounded-sm p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Product {i + 1}</span>
+                  <button onClick={() => removeProduct(i)} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={p.name}
+                    onChange={e => updateProduct(i, { name: e.target.value })}
+                    placeholder="Product name"
+                    className="col-span-2 bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                  />
+                  <input
+                    type="text"
+                    value={p.category}
+                    onChange={e => updateProduct(i, { category: e.target.value })}
+                    placeholder="Category"
+                    className="bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                  />
+                  <input
+                    type="number"
+                    value={p.price}
+                    onChange={e => updateProduct(i, { price: e.target.value })}
+                    placeholder="Price (USD)"
+                    className="bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                  />
+                  <select
+                    value={p.chargeType}
+                    onChange={e => updateProduct(i, { chargeType: Number(e.target.value) as 0 | 1 })}
+                    className="bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                  >
+                    <option value={1}>Subscription</option>
+                    <option value={0}>BNPL</option>
+                  </select>
+                  {p.chargeType === 0 && (
+                    <input
+                      type="number"
+                      value={p.totalCycles || ''}
+                      onChange={e => updateProduct(i, { totalCycles: Number(e.target.value) })}
+                      placeholder="Installments"
+                      className="bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Review &amp; Confirm</p>
             {[
               { label: 'Business Name', value: form.businessName || '(none)' },
-              { label: 'Wallet', value: form.address, mono: true },
+              { label: 'Wallet', value: address, mono: true },
               { label: 'Chain', value: form.chain },
               { label: 'Payout Mode', value: form.payoutMode === 0 ? 'One-Time' : 'Recurring' },
               { label: 'Payout Chain', value: form.payoutChain },
               { label: 'Payout Asset', value: form.payoutAsset.toUpperCase() },
+              { label: 'Products', value: String(form.products.filter(p => p.name && p.price).length) },
             ].map(row => (
-              <div key={row.label} className="flex justify-between items-center py-2 border-b border-[#1e1e1e] last:border-0">
-                <span className="text-xs text-[#9b9b9b] uppercase tracking-widest">{row.label}</span>
-                <span className={`text-sm ${row.mono ? 'font-mono text-xs' : ''} text-[#e8e8e8]`}>{row.value}</span>
+              <div key={row.label} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                <span className="text-xs text-muted-foreground uppercase tracking-widest">{row.label}</span>
+                <span className={`text-sm ${row.mono ? 'font-mono text-xs' : ''} text-foreground`}>{row.value}</span>
               </div>
             ))}
-            <div className="bg-[#0d2b24] border border-[#00d4aa]/20 rounded-sm p-3 mt-4">
-              <p className="text-xs text-[#00d4aa]">This will call <span className="font-mono">PayoutRouter.configureMerchant()</span> on Arbitrum Sepolia. A 2.5% protocol fee applies to all payouts.</p>
+            <div className="bg-primary-subtle border border-primary/20 rounded-sm p-3 mt-4">
+              <p className="text-xs text-primary">This will call <span className="font-mono">PayoutRouter.configureMerchant()</span> on Arbitrum Sepolia from your connected wallet. A 2.5% protocol fee applies to all payouts.</p>
             </div>
+            {submitError && (
+              <div className="bg-red-900/20 border border-red-800/40 rounded-sm p-3">
+                <p className="text-xs text-red-400">{submitError}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -206,15 +327,15 @@ export default function MerchantOnboard() {
         {step > 1 && (
           <button
             onClick={prev}
-            className="flex-1 bg-transparent border border-[#1e1e1e] text-[#9b9b9b] hover:text-[#e8e8e8] font-medium text-sm py-2.5 rounded-sm transition-colors"
+            className="flex-1 bg-transparent border border-border text-muted-foreground hover:text-foreground font-medium text-sm py-2.5 rounded-sm transition-colors"
           >
             Back
           </button>
         )}
-        {step < 3 ? (
+        {step < 4 ? (
           <button
             onClick={next}
-            className="flex-1 bg-[#00d4aa] text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-[#00bfa0] transition-colors"
+            className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
           >
             Continue
           </button>
@@ -222,7 +343,7 @@ export default function MerchantOnboard() {
           <button
             onClick={submit}
             disabled={submitting}
-            className="flex-1 bg-[#00d4aa] text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-[#00bfa0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? 'Broadcasting…' : 'Register Merchant'}
           </button>

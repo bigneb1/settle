@@ -27,8 +27,28 @@ export const STATUS_LABEL: Record<number, string> = {
 }
 
 export const STATUS_COLOR: Record<number, string> = {
-  0: 'text-[#00d4aa] bg-[#0d2b24]',
-  1: 'text-[#9b9b9b] bg-[#1e1e1e]',
-  2: 'text-yellow-400 bg-yellow-900/30',
-  3: 'text-red-400 bg-red-900/30',
+  0: 'text-primary bg-primary-subtle',
+  1: 'text-muted-foreground bg-border',
+  2: 'text-warning bg-warning/10',
+  3: 'text-destructive bg-destructive/10',
+}
+
+// DCAPlan's status enum is only 2 states (0=Active, 1=Cancelled) — do not reuse
+// STATUS_LABEL/STATUS_COLOR above, which are keyed for ChargeRegistry's 4-state
+// enum where index 1 is "Completed", not "Cancelled".
+export const DCA_STATUS_LABEL: Record<number, string> = {
+  0: 'Active', 1: 'Cancelled',
+}
+
+export const DCA_STATUS_COLOR: Record<number, string> = {
+  0: 'text-primary bg-primary-subtle',
+  1: 'text-muted-foreground bg-border',
+}
+
+export function formatCycleSeconds(seconds: number | bigint): string {
+  const s = Number(seconds)
+  if (s === 604800) return 'Weekly'
+  if (s === 2592000) return 'Monthly'
+  const days = Math.round(s / 86400)
+  return `Every ${days}d`
 }

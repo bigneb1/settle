@@ -1,11 +1,16 @@
 import { Magic } from 'magic-sdk'
-import { OAuthExtension } from '@magic-ext/oauth2'
 
 type MagicInstance = ReturnType<typeof createMagic>
 
 function createMagic() {
   return new Magic(import.meta.env.VITE_MAGIC_PUBLISHABLE_KEY || 'pk_live_placeholder', {
-    extensions: [new OAuthExtension()],
+    // Without this, magic.rpcProvider defaults to Ethereum mainnet — harmless for
+    // signRootHash/sign7702Authorization (chain-agnostic), but plain EOA writes
+    // (DCAPlan.createPlan/cancelPlan) need to land on Arbitrum Sepolia specifically.
+    network: {
+      rpcUrl: import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
+      chainId: 421614,
+    },
   })
 }
 
@@ -27,21 +32,6 @@ export async function loginWithEmail(email: string, onEmailSent?: () => void) {
   if (onEmailSent) handle.on('email-sent', onEmailSent)
   await handle
   return magic.user.getInfo()
-}
-
-export async function loginWithGoogle() {
-  const magic = getMagic()
-  await magic.oauth2.loginWithRedirect({
-    provider: 'google',
-    redirectURI: window.location.origin + '/auth/callback',
-  })
-}
-
-/** Completes the Google OAuth redirect flow — call this from the /auth/callback route. */
-export async function completeGoogleRedirect(): Promise<string | null> {
-  const magic = getMagic()
-  const result = await magic.oauth2.getRedirectResult()
-  return result?.magic?.userMetadata?.wallets?.ethereum?.publicAddress ?? null
 }
 
 export async function logout() {

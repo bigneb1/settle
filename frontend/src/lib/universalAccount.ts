@@ -12,6 +12,7 @@
 import {
   UniversalAccount,
   SUPPORTED_TOKEN_TYPE,
+  SUPPORTED_TARGET_TOKENS,
   UNIVERSAL_ACCOUNT_VERSION,
   type IAssetsResponse,
   type ITransaction,
@@ -174,4 +175,69 @@ export async function payChargeCycleCrossChain(params: {
 
   console.log(`[UA] chargeId=${chargeId} settled via UA tx ${result.transactionId} (destination hash: ${destinationTxHash ?? 'unknown'})`)
   return { transactionId: result.transactionId, destinationTxHash }
+}
+
+export interface DcaTargetToken {
+  type: string
+  label: string
+  chainId: number
+  address: `0x${string}`
+  decimals: number
+}
+
+const DCA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
+
+/**
+ * DCA targets: ETH and BTC on the same destination chain the payment flow
+ * already uses, sourced from Particle's own supported-token registry rather
+ * than hand-rolled addresses. Deliberately small — no strategy picker.
+ */
+export function getDcaTargetTokens(): DcaTargetToken[] {
+  return SUPPORTED_TARGET_TOKENS
+    .filter(t => t.chainId === DCA_DESTINATION_CHAIN_ID && (t.type === SUPPORTED_TOKEN_TYPE.ETH || t.type === SUPPORTED_TOKEN_TYPE.BTC))
+    .map(t => ({
+      type: t.type,
+      label: t.type.toUpperCase(),
+      chainId: t.chainId,
+      address: t.address as `0x${string}`,
+      decimals: t.decimals,
+    }))
+}
+
+export interface DcaBuyResult {
+  transactionId: string
+}
+
+/**
+ * Executes one DCA cycle: buys amountPerCycleUSD worth of targetToken, sourced
+ * from wherever the buyer's Universal Account balance sits, landing directly in
+ * their own account on targetChainId (no separate settlement address needed —
+ * unlike payChargeCycleCrossChain, there's no merchant to pay here). Confirmed
+ * server-side via Particle's transaction status, not an on-chain receipt check
+ * (see api/dca/confirm.js) — so only transactionId is needed, no destination hash.
+ */
+export async function executeDcaBuy(params: {
+  ownerAddress: string
+  targetChainId: number
+  targetToken: `0x${string}`
+  amountPerCycleUSD: bigint // 6 decimals
+}): Promise<DcaBuyResult> {
+  const { ownerAddress, targetChainId, targetToken, amountPerCycleUSD } = params
+  const ua = getUniversalAccount(ownerAddress)
+
+  const transaction = await ua.createBuyTransaction({
+    token: { chainId: targetChainId, address: targetToken },
+    amountInUSD: (Number(amountPerCycleUSD) / 1e6).toString(),
+  })
+
+  if (!transaction) throw new Error('Universal Account could not construct a route for this buy')
+
+  const authorizations = await signEIP7702Authorizations(transaction.userOps)
+  const signature = await signRootHash(transaction.rootHash)
+  const result = await ua.sendTransaction(transaction, signature, authorizations)
+
+  if (!result?.transactionId) throw new Error('Universal Account buy transaction failed to submit')
+
+  console.log(`[UA] DCA buy submitted: ${result.transactionId}`)
+  return { transactionId: result.transactionId }
 }

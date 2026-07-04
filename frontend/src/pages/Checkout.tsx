@@ -1,27 +1,29 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
-import { formatUSDC, shortAddr } from '../lib/format'
-
-const MOCK_WALLET = '0xaBcD1234567890abcdef1234567890abcDEF1234'
-const MOCK_BALANCE = 2_480_000_000n // $2,480 USDC
+import { ArrowLeft, CheckCircle, AlertCircle, XCircle } from 'lucide-react'
+import { BrowserProvider } from 'ethers'
+import { formatUSDC } from '../lib/format'
+import { useWallet } from '../context/WalletContext'
+import { getMagic } from '../lib/magic'
+import { createCheckoutCharge, type CheckoutResult } from '../lib/api'
 
 export default function Checkout() {
   const { state } = useLocation()
   const navigate = useNavigate()
+  const { address, balance } = useWallet()
   const [confirming, setConfirming] = useState(false)
-  const [done, setDone] = useState(false)
+  const [result, setResult] = useState<CheckoutResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const item = state?.item || {
     id: 1, name: 'Demo Item', merchantName: 'Demo Merchant',
-    price: 15_000_000n, period: 'monthly', type: 0,
+    price: 15_000_000n, period: 'monthly', type: 0, totalCycles: 6,
   }
 
   const price = BigInt(item.price)
   const fee = price / 40n // 2.5%
   const total = price + fee
-  const cycles = item.type === 0 ? 6 : 0
-  const insufficient = MOCK_BALANCE < price
+  const cycles = item.type === 0 ? Number(item.totalCycles || 6) : 0
 
   const schedule = item.type === 0 ? Array.from({ length: cycles }, (_, i) => ({
     cycle: i + 1,
@@ -29,21 +31,43 @@ export default function Checkout() {
     amount: price,
   })) : []
 
-  function handleConfirm() {
-    if (insufficient) return
+  async function handleConfirm() {
+    if (!address) return
     setConfirming(true)
-    setTimeout(() => { setConfirming(false); setDone(true) }, 2000)
+    setError(null)
+    try {
+      const ts = Math.floor(Date.now() / 1000)
+      const message = `Settle checkout: catalogItemId=${item.id} buyer=${address} ts=${ts}`
+      const magic = getMagic()
+      const signer = await new BrowserProvider(magic.rpcProvider as never).getSigner()
+      const signature = await signer.signMessage(message)
+      const outcome = await createCheckoutCharge(address, item.id, ts, signature)
+      setResult(outcome)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Checkout failed')
+    } finally {
+      setConfirming(false)
+    }
   }
 
-  if (done) {
+  if (!address) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
-        <CheckCircle size={48} className="text-[#00d4aa] mb-4" />
-        <h2 className="text-xl font-semibold text-[#e8e8e8] mb-2">Charge Created</h2>
-        <p className="text-sm text-[#9b9b9b] mb-6">Your {item.type === 0 ? 'BNPL charge' : 'subscription'} is now active on-chain.</p>
+        <p className="text-sm text-muted-foreground">Connect your wallet to check out.</p>
+      </div>
+    )
+  }
+
+  if (result?.approved === true) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
+        <CheckCircle size={48} className="text-primary mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Charge Created</h2>
+        <p className="text-sm text-muted-foreground mb-1">Your {item.type === 0 ? 'BNPL charge' : 'subscription'} is now active on-chain.</p>
+        <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{result.chargeId}</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="bg-[#00d4aa] text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-[#00bfa0] transition-colors"
+          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
         >
           View Dashboard
         </button>
@@ -51,66 +75,86 @@ export default function Checkout() {
     )
   }
 
+  if (result?.approved === false) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center max-w-md mx-auto">
+        <XCircle size={48} className="text-destructive mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Not Approved</h2>
+        {result.explanation ? (
+          <p className="text-sm text-muted-foreground mb-6">{result.explanation}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground mb-6">Your credit score ({result.score}) didn't meet the threshold for this charge.</p>
+        )}
+        <button
+          onClick={() => navigate('/catalog')}
+          className="bg-card border border-border text-foreground font-semibold text-sm px-6 py-2.5 rounded-sm hover:border-muted-foreground/30 transition-colors"
+        >
+          Back to Catalog
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="px-6 py-8 max-w-4xl">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[#9b9b9b] hover:text-[#e8e8e8] text-sm mb-7 transition-colors">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-7 transition-colors">
         <ArrowLeft size={15} /> Back to Catalog
       </button>
 
       <div className="mb-7">
-        <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-1">Payment</p>
-        <h1 className="text-2xl font-semibold text-[#e8e8e8]">Checkout</h1>
+        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Payment</p>
+        <h1 className="text-2xl font-semibold text-foreground">Checkout</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Order summary */}
         <div className="space-y-4">
-          <div className="bg-[#111111] border border-[#1e1e1e] rounded-sm p-5">
-            <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-4">Order Summary</p>
+          <div className="bg-card border border-border rounded-sm p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Order Summary</p>
             <div className="mb-4">
-              <p className="text-xs text-[#9b9b9b] mb-0.5">From merchant</p>
-              <p className="text-sm font-medium text-[#e8e8e8]">{item.merchantName}</p>
+              <p className="text-xs text-muted-foreground mb-0.5">From merchant</p>
+              <p className="text-sm font-medium text-foreground">{item.merchantName}</p>
             </div>
             <div className="mb-4">
-              <p className="text-xs text-[#9b9b9b] mb-0.5">Item</p>
-              <p className="text-sm font-medium text-[#e8e8e8]">{item.name}</p>
+              <p className="text-xs text-muted-foreground mb-0.5">Item</p>
+              <p className="text-sm font-medium text-foreground">{item.name}</p>
             </div>
             <div className="mb-4">
-              <p className="text-xs text-[#9b9b9b] mb-0.5">Charge type</p>
+              <p className="text-xs text-muted-foreground mb-0.5">Charge type</p>
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-sm ${item.type === 0 ? 'bg-purple-900/40 text-purple-400' : 'bg-blue-900/40 text-blue-400'}`}>
                 {item.type === 0 ? `BNPL · ${cycles} installments` : 'Subscription · Indefinite'}
               </span>
             </div>
-            <div className="border-t border-[#1e1e1e] pt-4 space-y-2">
+            <div className="border-t border-border pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-[#9b9b9b]">{item.type === 0 ? 'Per installment' : 'Per cycle'}</span>
-                <span className="font-mono text-[#e8e8e8]">{formatUSDC(price)}</span>
+                <span className="text-muted-foreground">{item.type === 0 ? 'Per installment' : 'Per cycle'}</span>
+                <span className="font-mono text-foreground">{formatUSDC(price)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-[#9b9b9b]">Protocol fee (2.5%)</span>
-                <span className="font-mono text-[#9b9b9b]">{formatUSDC(fee)}</span>
+                <span className="text-muted-foreground">Protocol fee (2.5%)</span>
+                <span className="font-mono text-muted-foreground">{formatUSDC(fee)}</span>
               </div>
-              <div className="flex justify-between text-sm font-semibold border-t border-[#1e1e1e] pt-2 mt-2">
-                <span className="text-[#e8e8e8]">First payment due</span>
-                <span className="font-mono text-[#00d4aa]">{formatUSDC(total)}</span>
+              <div className="flex justify-between text-sm font-semibold border-t border-border pt-2 mt-2">
+                <span className="text-foreground">First payment due</span>
+                <span className="font-mono text-primary">{formatUSDC(total)}</span>
               </div>
             </div>
           </div>
 
           {/* BNPL schedule */}
           {item.type === 0 && (
-            <div className="bg-[#111111] border border-[#1e1e1e] rounded-sm p-5">
-              <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-4">Installment Schedule</p>
+            <div className="bg-card border border-border rounded-sm p-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Installment Schedule</p>
               <div className="space-y-2">
                 {schedule.map(s => (
                   <div key={s.cycle} className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${s.cycle === 1 ? 'bg-[#00d4aa] text-black' : 'bg-[#1e1e1e] text-[#9b9b9b]'}`}>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${s.cycle === 1 ? 'bg-primary text-black' : 'bg-border text-muted-foreground'}`}>
                         {s.cycle}
                       </div>
-                      <span className="text-xs text-[#9b9b9b]">{s.date}</span>
+                      <span className="text-xs text-muted-foreground">{s.date}</span>
                     </div>
-                    <span className="font-mono text-xs text-[#e8e8e8]">{formatUSDC(s.amount)}</span>
+                    <span className="font-mono text-xs text-foreground">{formatUSDC(s.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -120,51 +164,58 @@ export default function Checkout() {
 
         {/* Payment */}
         <div className="space-y-4">
-          <div className="bg-[#111111] border border-[#1e1e1e] rounded-sm p-5">
-            <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-4">Payment Source</p>
-            <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-sm p-4 mb-4">
-              <p className="text-xs text-[#9b9b9b] mb-1">Universal Account</p>
-              <p className="font-mono text-sm text-[#e8e8e8]">{shortAddr(MOCK_WALLET)}</p>
+          <div className="bg-card border border-border rounded-sm p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Payment Source</p>
+            <div className="bg-background border border-border rounded-sm p-4 mb-4">
+              <p className="text-xs text-muted-foreground mb-1">Universal Account</p>
+              <p className="font-mono text-sm text-foreground">{address.slice(0, 6)}...{address.slice(-4)}</p>
               <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-[#9b9b9b]">USDC Balance</p>
-                <p className="font-mono text-sm text-[#00d4aa]">{formatUSDC(MOCK_BALANCE)}</p>
+                <p className="text-xs text-muted-foreground">USDC Balance</p>
+                <p className="font-mono text-sm text-primary">{balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '—'}</p>
               </div>
             </div>
 
-            {insufficient && (
+            {item.type === 0 && (
+              <div className="flex items-center gap-2 bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-4">
+                <AlertCircle size={14} className="text-primary flex-shrink-0" />
+                <p className="text-xs text-primary">BNPL doesn't require funds now — approval is based on your on-chain credit score.</p>
+              </div>
+            )}
+
+            {error && (
               <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/40 rounded-sm p-3 mb-4">
                 <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
-                <p className="text-xs text-red-400">Insufficient balance for this payment</p>
+                <p className="text-xs text-red-400">{error}</p>
               </div>
             )}
 
             <button
               onClick={handleConfirm}
-              disabled={confirming || insufficient}
-              className="w-full bg-[#00d4aa] text-black font-semibold text-sm py-3 rounded-sm hover:bg-[#00bfa0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={confirming}
+              className="w-full bg-primary text-black font-semibold text-sm py-3 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
             >
               {confirming ? 'Broadcasting…' : `Confirm ${item.type === 0 ? 'BNPL Charge' : 'Subscription'}`}
             </button>
-            <p className="text-[10px] text-[#9b9b9b] text-center mt-3">
+            <p className="text-[10px] text-muted-foreground text-center mt-3">
               Transaction will be signed via your Universal Account on Arbitrum Sepolia
             </p>
           </div>
 
-          <div className="bg-[#111111] border border-[#1e1e1e] rounded-sm p-4">
-            <p className="text-xs text-[#9b9b9b] uppercase tracking-widest mb-3">What happens next</p>
-            <ul className="space-y-2 text-xs text-[#9b9b9b]">
+          <div className="bg-card border border-border rounded-sm p-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">What happens next</p>
+            <ul className="space-y-2 text-xs text-muted-foreground">
               {item.type === 0 ? (
                 <>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">1.</span> Charge created on ChargeRegistry</li>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">2.</span> Merchant receives full amount from LiquidityPool</li>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">3.</span> ScheduleEngine sweeps your UA every 30 days</li>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">4.</span> After all cycles, charge is marked Completed</li>
+                  <li className="flex gap-2"><span className="text-primary">1.</span> Charge created on ChargeRegistry</li>
+                  <li className="flex gap-2"><span className="text-primary">2.</span> Merchant is paid each cycle via PayoutRouter as ScheduleEngine sweeps your wallet</li>
+                  <li className="flex gap-2"><span className="text-primary">3.</span> ScheduleEngine sweeps your UA every 30 days</li>
+                  <li className="flex gap-2"><span className="text-primary">4.</span> After all cycles, charge is marked Completed</li>
                 </>
               ) : (
                 <>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">1.</span> Subscription created on ChargeRegistry</li>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">2.</span> ScheduleEngine sweeps every cycle</li>
-                  <li className="flex gap-2"><span className="text-[#00d4aa]">3.</span> Cancel anytime from your Dashboard</li>
+                  <li className="flex gap-2"><span className="text-primary">1.</span> Subscription created on ChargeRegistry</li>
+                  <li className="flex gap-2"><span className="text-primary">2.</span> ScheduleEngine sweeps every cycle</li>
+                  <li className="flex gap-2"><span className="text-primary">3.</span> Cancel anytime from your Dashboard</li>
                 </>
               )}
             </ul>

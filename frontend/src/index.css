@@ -1,8 +1,55 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
+/* Tailwind v4 has no JS config file — class-based dark mode needs this
+   custom variant instead of the old darkMode: 'class' option. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  /* "Soft white" light theme — matches Lunex's palette exactly. */
+  --background: 210 14% 91%;
+  --foreground: 210 9% 11%;
+  --card: 210 14% 95%;
+  --border: 210 13% 82%;
+  --muted-foreground: 210 7% 40%;
+  --primary: 168 100% 32%;
+  --primary-hover: 168 100% 27%;
+  --primary-subtle: 168 60% 90%;
+  --destructive: 0 84% 60%;
+  --warning: 38 92% 50%;
+  color-scheme: light;
+}
+
+.dark {
+  /* Exact HSL conversions of Settle's original hardcoded hex palette —
+     zero visual change from before, just expressed as tokens. */
+  --background: 0 0% 4%;      /* #0a0a0a */
+  --foreground: 0 0% 91%;     /* #e8e8e8 */
+  --card: 0 0% 7%;            /* #111111 */
+  --border: 0 0% 12%;         /* #1e1e1e */
+  --muted-foreground: 0 0% 61%; /* #9b9b9b */
+  --primary: 168 100% 42%;     /* #00d4aa */
+  --primary-hover: 170 100% 37%; /* #00bfa0 */
+  --primary-subtle: 166 54% 11%; /* #0d2b24 */
+  --destructive: 0 84% 60%;    /* #ef4444 */
+  --warning: 38 92% 50%;       /* #f59e0b */
   color-scheme: dark;
+}
+
+/* @theme inline (not plain @theme) because these values reference other CSS
+   variables that change via the .dark class swap — plain @theme can fail to
+   re-resolve on toggle since its values are meant to be static theme constants. */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-border: hsl(var(--border));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-hover: hsl(var(--primary-hover));
+  --color-primary-subtle: hsl(var(--primary-subtle));
+  --color-destructive: hsl(var(--destructive));
+  --color-warning: hsl(var(--warning));
 }
 
 * {
@@ -11,8 +58,8 @@
 
 html, body, #root {
   height: 100%;
-  background-color: #0a0a0a;
-  color: #e8e8e8;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   margin: 0;
@@ -23,30 +70,38 @@ html, body, #root {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
 
-/* Dark scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
 
 /* Table */
 table { border-collapse: collapse; width: 100%; }
 th {
-  color: #9b9b9b;
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 10px 16px;
   text-align: left;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid hsl(var(--border));
   white-space: nowrap;
 }
 td {
   padding: 12px 16px;
-  border-bottom: 1px solid #161616;
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
   font-size: 13px;
-  color: #e8e8e8;
+  color: hsl(var(--foreground));
 }
 tr:last-child td { border-bottom: none; }
-tbody tr:hover td { background: #131313; }
+tbody tr:hover td { background: hsl(var(--card)); }
+
+/* Landing page hero background */
+.grid-bg {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.8) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.8) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
