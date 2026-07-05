@@ -35,18 +35,21 @@ export async function settleCharge(chargeId, amount, success) {
 /**
  * Execute a Universal Account cross-chain sweep for a buyer's due charge.
  *
- * NOTE: this only covers charges that are due on the recurring cron schedule and
- * assumes a pre-authorized session for the buyer's Universal Account — that
- * delegation mechanism (session keys / spending limits granted at checkout) is
- * not yet implemented, so this currently simulates the sweep rather than
- * executing a real UA transaction. Buyer-initiated payments (the "Pay Now"
- * button on the Dashboard) execute a REAL Universal Account transaction from the
- * frontend instead, and land here via api/payments/confirm.js -> settleCharge().
- * Returns { success, amountSwept }.
+ * This covers charges that are due on the recurring cron schedule and assumes
+ * a pre-authorized session for the buyer's Universal Account. That delegation
+ * mechanism (session keys / spending limits granted at checkout) is NOT yet
+ * implemented, so this returns { success: false, simulated: true } — it does
+ * NOT execute a real UA transaction and does NOT claim funds were swept.
+ *
+ * processDueCharges() checks `simulated` and skips on-chain settlement in that
+ * case, so the merchant is never paid out for a sweep that didn't actually
+ * happen. The real execution path is buyer-initiated: the "Pay Now" button on
+ * the Dashboard runs a real Universal Account transaction from the frontend,
+ * verified server-side by api/payments/confirm.js before settleCharge() pays out.
  */
 async function executeUniversalSweep(buyerAddress, amountRequired) {
-  console.log(`[sweep] Simulated UA sweep for ${buyerAddress}: ${amountRequired / 1e6} USDC (no session-key delegation configured — see settleCharge() for the real buyer-initiated path)`);
-  return { success: true, amountSwept: amountRequired };
+  console.log(`[sweep] No real UA sweep for ${buyerAddress}: ${amountRequired / 1e6} USDC (session-key delegation not implemented — buyer must use the Pay Now button)`);
+  return { success: false, simulated: true, amountSwept: 0n };
 }
 
 async function processDueCharges() {
@@ -64,12 +67,18 @@ async function processDueCharges() {
 
       console.log(`[sweep] Processing charge ${i}: type=${charge.chargeType} amount=${charge.amountPerCycle / 1_000_000n} USDC`);
 
-      const { success } = await executeUniversalSweep(
-        charge.buyer,
-        charge.amountPerCycle
-      );
+      const result = await executeUniversalSweep(charge.buyer, charge.amountPerCycle);
 
-      await settleCharge(i, charge.amountPerCycle, success);
+      // Never settle on-chain for a simulated sweep — that would record a
+      // successful outcome and pay the merchant for funds that were never
+      // actually swept. The charge stays Active; the buyer's "Pay Now" button
+      // remains the real path.
+      if (result.simulated) {
+        console.log(`[sweep] Skipping on-chain settlement for charge ${i} — no real sweep occurred (buyer-initiated Pay Now required)`);
+        continue;
+      }
+
+      await settleCharge(i, charge.amountPerCycle, result.success);
     } catch (err) {
       console.error(`[sweep] Error on charge ${i}:`, err.message);
     }

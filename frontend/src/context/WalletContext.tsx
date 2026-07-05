@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { IAssetsResponse } from '@particle-network/universal-account-sdk'
 import { getUnifiedBalance, isUniversalAccountConfigured } from '../lib/universalAccount'
+import { getUser } from '../lib/magic'
 
 interface WalletContextValue {
   address: string | null
@@ -32,6 +33,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (address) refreshBalance()
   }, [address, refreshBalance])
+
+  // Restore an existing Magic session on mount so a page refresh keeps the
+  // wallet connected. getUser() returns null if the Magic session has lapsed.
+  useEffect(() => {
+    let cancelled = false
+    getUser()
+      .then(u => {
+        const addr = u?.wallets?.ethereum?.publicAddress
+        if (!cancelled && addr) connect(addr)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const connect = useCallback((addr: string) => setAddress(addr), [])
   const disconnect = useCallback(() => {

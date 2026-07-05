@@ -12,8 +12,13 @@ const CYCLE_OPTIONS = [
   { label: 'Monthly', seconds: 2592000 },
 ]
 
+const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
+
 export default function Dca() {
   const { address, uaConfigured, refreshBalance } = useWallet()
+  // Particle's UA SDK only supports mainnet chains — on the Sepolia dev
+  // deployment the cross-chain buy can't settle, so gate the button honestly.
+  const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID !== 421614
   const targetTokens = getDcaTargetTokens()
 
   const [plans, setPlans] = useState<OnChainDcaPlan[]>([])
@@ -274,15 +279,24 @@ export default function Dca() {
                       <td>
                         <div className="flex items-center gap-1.5">
                           {p.status === 0 && uaConfigured && (
-                            <button
-                              onClick={() => handleExecuteBuy(p)}
-                              disabled={executingId === p.id}
-                              className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-primary-subtle text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
-                              title="Execute this buy cycle via Universal Account, sourced from whatever chain your balance sits on"
-                            >
-                              {executingId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
-                              {isDue ? 'Buy Now' : 'Buy Early'}
-                            </button>
+                            uaAvailable ? (
+                              <button
+                                onClick={() => handleExecuteBuy(p)}
+                                disabled={executingId === p.id}
+                                className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-primary-subtle text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                title="Execute this buy cycle via Universal Account, sourced from whatever chain your balance sits on"
+                              >
+                                {executingId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+                                {isDue ? 'Buy Now' : 'Buy Early'}
+                              </button>
+                            ) : (
+                              <span
+                                className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-border text-muted-foreground cursor-not-allowed"
+                                title="Cross-chain buy requires Arbitrum One mainnet — coming soon"
+                              >
+                                <Zap size={11} /> Mainnet soon
+                              </span>
+                            )
                           )}
                           {p.status === 0 && (
                             <button
