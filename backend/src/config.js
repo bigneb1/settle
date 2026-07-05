@@ -2,12 +2,9 @@ import { ethers } from "ethers";
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 
-export const ARBITRUM_SEPOLIA_RPC = process.env.ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc";
 export const ARBITRUM_RPC = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
 
-export const provider = new ethers.JsonRpcProvider(
-  process.env.NODE_ENV === "production" ? ARBITRUM_RPC : ARBITRUM_SEPOLIA_RPC
-);
+export const provider = new ethers.JsonRpcProvider(ARBITRUM_RPC);
 
 export const sweepAgentWallet = new ethers.Wallet(
   process.env.SWEEP_AGENT_PRIVATE_KEY,

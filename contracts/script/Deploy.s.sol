@@ -9,7 +9,7 @@ import "../src/LiquidityPool.sol";
 import "../src/DefaultHandler.sol";
 
 /// @notice Full deploy + wiring sequence for Settle v2.
-/// Run: forge script script/Deploy.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify
+/// Run: forge script script/Deploy.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify
 contract DeploySettle is Script {
     function run() external {
         address usdcAddress = vm.envAddress("USDC_ADDRESS");

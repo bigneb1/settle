@@ -44,11 +44,9 @@ function ScoreGauge({ score }: { score: number | null }) {
 
 export default function Dashboard() {
   const { address, balance, balanceLoading, uaConfigured, refreshBalance } = useWallet()
-  // Particle's Universal Accounts SDK only supports mainnet chains (its CHAIN_ID
-  // enum has zero testnet entries). On the Sepolia dev deployment, UA cross-chain
-  // settlement can't reach the destination, so "Pay Now" would always fail at
-  // runtime. Gate it honestly until the mainnet migration lands.
-  const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID !== 421614
+  // UA cross-chain settlement is available when Particle credentials are set and
+  // the destination chain is the supported mainnet (Arbitrum One, 42161).
+  const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
   const [charges, setCharges] = useState<OnChainCharge[]>([])
   const [chargesLoading, setChargesLoading] = useState(false)
   const [payingId, setPayingId] = useState<number | null>(null)
@@ -232,9 +230,9 @@ export default function Dashboard() {
                           ) : (
                             <span
                               className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-border text-muted-foreground cursor-not-allowed"
-                              title="Cross-chain settlement requires Arbitrum One mainnet — coming soon"
+                              title="Particle Network credentials not configured — set VITE_PARTICLE_* to enable cross-chain settlement"
                             >
-                              <Zap size={11} /> Mainnet soon
+                              <Zap size={11} /> UA disabled
                             </span>
                           )
                         )}

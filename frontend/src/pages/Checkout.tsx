@@ -197,7 +197,7 @@ export default function Checkout() {
               {confirming ? 'Broadcasting…' : `Confirm ${item.type === 0 ? 'BNPL Charge' : 'Subscription'}`}
             </button>
             <p className="text-[10px] text-muted-foreground text-center mt-3">
-              Transaction will be signed via your Universal Account on Arbitrum Sepolia
+              Transaction will be signed via your Universal Account on Arbitrum
             </p>
           </div>
 

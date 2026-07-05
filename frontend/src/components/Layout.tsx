@@ -72,7 +72,7 @@ function Sidebar({ wallet, onConnect, onLogout, onClose }: {
               <span className="font-mono text-xs text-foreground truncate">{shortAddr(wallet)}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground">Arbitrum Sepolia</span>
+              <span className="text-[10px] text-muted-foreground">Arbitrum</span>
               <span className="text-border">·</span>
               <button
                 onClick={onLogout}

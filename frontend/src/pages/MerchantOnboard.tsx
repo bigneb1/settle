@@ -105,7 +105,7 @@ export default function MerchantOnboard() {
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
         <CheckCircle size={48} className="text-primary mb-4" />
         <h2 className="text-xl font-semibold text-foreground mb-2">Merchant Registered</h2>
-        <p className="text-sm text-muted-foreground mb-6">Your merchant profile is live on Arbitrum Sepolia.</p>
+        <p className="text-sm text-muted-foreground mb-6">Your merchant profile is live on Arbitrum.</p>
         <button
           onClick={() => navigate('/merchant')}
           className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
@@ -311,7 +311,7 @@ export default function MerchantOnboard() {
               </div>
             ))}
             <div className="bg-primary-subtle border border-primary/20 rounded-sm p-3 mt-4">
-              <p className="text-xs text-primary">This will call <span className="font-mono">PayoutRouter.configureMerchant()</span> on Arbitrum Sepolia from your connected wallet. A 2.5% protocol fee applies to all payouts.</p>
+              <p className="text-xs text-primary">This will call <span className="font-mono">PayoutRouter.configureMerchant()</span> on Arbitrum from your connected wallet. A 2.5% protocol fee applies to all payouts.</p>
             </div>
             {submitError && (
               <div className="bg-red-900/20 border border-red-800/40 rounded-sm p-3">

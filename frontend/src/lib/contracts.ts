@@ -1,11 +1,11 @@
 import { createPublicClient, http, parseAbi } from 'viem'
-import { arbitrumSepolia } from 'viem/chains'
+import { arbitrum } from 'viem/chains'
 import { BrowserProvider, Contract } from 'ethers'
 import { getMagic } from './magic'
 
 export const publicClient = createPublicClient({
-  chain: arbitrumSepolia,
-  transport: http(import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL || undefined),
+  chain: arbitrum,
+  transport: http(import.meta.env.VITE_ARBITRUM_RPC_URL || undefined),
 })
 
 export const ADDRESSES = {
@@ -102,7 +102,7 @@ export const DCA_PLAN_GET_PLAN_ABI = [
 ] as const
 
 // Plain EOA writes (create/cancel) — no Universal Account involved, just the
-// buyer's Magic wallet sending a normal Arbitrum Sepolia transaction.
+// buyer's Magic wallet sending a normal Arbitrum transaction.
 const DCA_PLAN_WRITE_ABI = [
   'function createPlan(uint256 targetChainId, address targetToken, uint256 amountPerCycleUSD, uint256 cycleSeconds, uint256 totalCycles) returns (uint256)',
   'function cancelPlan(uint256 planId)',

@@ -17,7 +17,7 @@ const supabase = createClient(
 );
 
 const provider = new ethers.JsonRpcProvider(
-  Deno.env.get("ARBITRUM_SEPOLIA_RPC_URL") || "https://sepolia-rollup.arbitrum.io/rpc"
+  Deno.env.get("ARBITRUM_RPC_URL") || "https://arb1.arbitrum.io/rpc"
 );
 
 const CHARGE_REGISTRY = Deno.env.get("CHARGE_REGISTRY_ADDR") || "0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC";

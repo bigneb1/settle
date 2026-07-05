@@ -16,9 +16,9 @@ const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN
 
 export default function Dca() {
   const { address, uaConfigured, refreshBalance } = useWallet()
-  // Particle's UA SDK only supports mainnet chains — on the Sepolia dev
-  // deployment the cross-chain buy can't settle, so gate the button honestly.
-  const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID !== 421614
+  // UA cross-chain buy is available when Particle credentials are set and the
+  // destination chain is the supported mainnet (Arbitrum One, 42161).
+  const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
   const targetTokens = getDcaTargetTokens()
 
   const [plans, setPlans] = useState<OnChainDcaPlan[]>([])
@@ -142,7 +142,7 @@ export default function Dca() {
         </p>
         {!uaConfigured && (
           <p className="text-xs text-yellow-500 mt-2">
-            Particle Network credentials not configured — executing buys is disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID. Creating and cancelling plans still works (plain Arbitrum Sepolia transactions).
+            Particle Network credentials not configured — executing buys is disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID. Creating and cancelling plans still works (plain Arbitrum transactions).
           </p>
         )}
       </div>
@@ -292,9 +292,9 @@ export default function Dca() {
                             ) : (
                               <span
                                 className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-border text-muted-foreground cursor-not-allowed"
-                                title="Cross-chain buy requires Arbitrum One mainnet — coming soon"
+                                title="Particle Network credentials not configured — set VITE_PARTICLE_* to enable cross-chain buys"
                               >
-                                <Zap size={11} /> Mainnet soon
+                                <Zap size={11} /> UA disabled
                               </span>
                             )
                           )}

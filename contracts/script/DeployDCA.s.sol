@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "../src/DCAPlan.sol";
 
 /// @notice Deploys DCAPlan and wires its recorder to the sweep-agent wallet.
-/// Run: forge script script/DeployDCA.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --broadcast
+/// Run: forge script script/DeployDCA.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast
 contract DeployDCA is Script {
     function run() external {
         address sweepAgent = vm.envAddress("SWEEP_AGENT_ADDRESS");

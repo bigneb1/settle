@@ -87,7 +87,7 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border">
           <p className="text-[10px] text-muted-foreground text-center">
-            Powered by <span className="text-primary">Magic Labs</span> · Arbitrum Sepolia · USDC 6-dec
+            Powered by <span className="text-primary">Magic Labs</span> · Arbitrum · USDC 6-dec
           </p>
         </div>
       </div>

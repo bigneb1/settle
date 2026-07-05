@@ -6,10 +6,10 @@ function createMagic() {
   return new Magic(import.meta.env.VITE_MAGIC_PUBLISHABLE_KEY || 'pk_live_placeholder', {
     // Without this, magic.rpcProvider defaults to Ethereum mainnet — harmless for
     // signRootHash/sign7702Authorization (chain-agnostic), but plain EOA writes
-    // (DCAPlan.createPlan/cancelPlan) need to land on Arbitrum Sepolia specifically.
+    // (DCAPlan.createPlan/cancelPlan) need to land on Arbitrum specifically.
     network: {
-      rpcUrl: import.meta.env.VITE_ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
-      chainId: 421614,
+      rpcUrl: import.meta.env.VITE_ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+      chainId: 42161,
     },
   })
 }

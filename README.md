@@ -98,20 +98,18 @@ settle/
 
 ## Deployed Contracts
 
-All six contracts are deployed on Arbitrum Sepolia (chain 421614) and verified on [Sourcify](https://sourcify.dev) (`exact_match`) and [Blockscout](https://arbitrum-sepolia.blockscout.com). Arbiscan's own "Verified" badge needs a separate Arbiscan API key — not yet done.
+Target deployment: **Arbitrum One (mainnet, chain 42161).** Deploy with `forge script script/Deploy.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify` (and `DeployDCA.s.sol` for DCAPlan), then verify on [Sourcify](https://sourcify.dev) and [Blockscout](https://arbitrum.blockscout.com). Arbiscan's own "Verified" badge needs a separate Arbiscan API key.
 
 | Contract | Address | Sourcify | Blockscout |
 |---|---|---|---|
-| ChargeRegistry | `0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC` | [view](https://repo.sourcify.dev/421614/0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC) | [view](https://arbitrum-sepolia.blockscout.com/address/0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC) |
-| ScheduleEngine | `0xA9e658f4E3C4F3510677c0cF9b5c592e9CB9f04C` | [view](https://repo.sourcify.dev/421614/0xA9e658f4E3C4F3510677c0cF9b5c592e9CB9f04C) | [view](https://arbitrum-sepolia.blockscout.com/address/0xA9e658f4E3C4F3510677c0cF9b5c592e9CB9f04C) |
-| PayoutRouter | `0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C` | [view](https://repo.sourcify.dev/421614/0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C) | [view](https://arbitrum-sepolia.blockscout.com/address/0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C) |
-| LiquidityPool | `0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25` | [view](https://repo.sourcify.dev/421614/0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25) | [view](https://arbitrum-sepolia.blockscout.com/address/0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25) |
-| DefaultHandler | `0x8E502651a456757001e98a32b97036FD73D871Ce` | [view](https://repo.sourcify.dev/421614/0x8E502651a456757001e98a32b97036FD73D871Ce) | [view](https://arbitrum-sepolia.blockscout.com/address/0x8E502651a456757001e98a32b97036FD73D871Ce) |
-| DCAPlan | `0xF52887d6dF569eb977bDAfB05398d6aB98ad28CA` | [view](https://repo.sourcify.dev/421614/0xF52887d6dF569eb977bDAfB05398d6aB98ad28CA) | [view](https://arbitrum-sepolia.blockscout.com/address/0xF52887d6dF569eb977bDAfB05398d6aB98ad28CA) |
+| ChargeRegistry | _filled after mainnet deploy_ | — | — |
+| ScheduleEngine | _filled after mainnet deploy_ | — | — |
+| PayoutRouter | _filled after mainnet deploy_ | — | — |
+| LiquidityPool | _filled after mainnet deploy_ | — | — |
+| DefaultHandler | _filled after mainnet deploy_ | — | — |
+| DCAPlan | _filled after mainnet deploy_ | — | — |
 
-Wiring (`scheduleEngine`, `sweepAgent`/`recorder`, all `settlementCaller`s, `protocolTreasury`) confirmed correct on-chain post-deploy.
-
-> **Mainnet migration note:** Particle's Universal Accounts SDK only supports mainnet chains (its `CHAIN_ID` enum has zero testnet entries), so the cross-chain "Pay Now" / DCA-buy flows require Arbitrum One (42161) as the destination. The Sepolia deployment above is the development environment; a mainnet deployment is scoped but not yet executed — see [Known Open Items](#known-open-items).
+After deploy, fill the addresses into `.env` / `frontend/.env` / `backend/.env` and verify wiring on-chain (`scheduleEngine`, `sweepAgent`/`recorder`, all `settlementCaller`s, `protocolTreasury`). See [SETUP.md](./SETUP.md) for the full step-by-step.
 
 ## API Reference
 
@@ -138,7 +136,7 @@ Migrations live in `supabase/migrations/` (001 baseline schema → 006 cron sche
 | Variable | Where | Purpose |
 |---|---|---|
 | `ARBITRUM_RPC_URL` | root, backend | Arbitrum One (mainnet) RPC endpoint |
-| `ARBITRUM_SEPOLIA_RPC_URL` | root, backend, frontend (`VITE_`) | Arbitrum Sepolia RPC endpoint (development) |
+| `ARBITRUM_RPC_URL` / `VITE_ARBITRUM_RPC_URL` | root, backend, frontend | Arbitrum One (mainnet) RPC endpoint |
 | `CHARGE_REGISTRY_ADDR` / `VITE_CHARGE_REGISTRY_ADDR` | root, backend, frontend | Deployed `ChargeRegistry` address |
 | `SCHEDULE_ENGINE_ADDR` / `VITE_SCHEDULE_ENGINE_ADDR` | root, backend, frontend | Deployed `ScheduleEngine` address |
 | `PAYOUT_ROUTER_ADDR` / `VITE_PAYOUT_ROUTER_ADDR` | root, backend, frontend | Deployed `PayoutRouter` address |
@@ -181,8 +179,8 @@ Migrations live in `supabase/migrations/` (001 baseline schema → 006 cron sche
 5. **Contracts** (if deploying your own):
    ```bash
    cd contracts && forge build
-   forge script script/Deploy.s.sol --broadcast --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --private-key $PRIVATE_KEY
-   forge script script/DeployDCA.s.sol --broadcast --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --private-key $PRIVATE_KEY
+   forge script script/Deploy.s.sol --broadcast --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY
+   forge script script/DeployDCA.s.sol --broadcast --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY
    ```
    Then fill the deployed addresses into all env files.
 6. **Frontend:**
@@ -226,7 +224,7 @@ The `settle` Supabase project is already provisioned with schema, RLS, and the s
 
 ## Known Open Items
 
-- **Mainnet migration pending.** Particle's Universal Accounts SDK only supports mainnet chains (confirmed by direct inspection of the installed `CHAIN_ID` enum — 21 entries, all mainnet, zero testnets). The cross-chain "Pay Now" / DCA-buy flows therefore require Arbitrum One (42161) as the destination chain, which means a mainnet contract deployment is needed for those flows to work end-to-end. Sepolia remains the development environment. Fresh mainnet deployer + sweep-agent wallets have been generated and funded; a mainnet `PROTOCOL_TREASURY` address is still to be confirmed.
+- **Mainnet deployment pending.** The app targets Arbitrum One (chain 42161) — Particle's Universal Accounts SDK only supports mainnet chains (confirmed by direct inspection of the installed `CHAIN_ID` enum: 21 entries, all mainnet, zero testnets), so the cross-chain "Pay Now" / DCA-buy flows require mainnet as the destination. Fresh deployer + sweep-agent wallets have been generated and funded; a `PROTOCOL_TREASURY` address is still to be confirmed before the deploy commands run.
 - **EIP-7702 authorization signing via Magic has not been tested live end-to-end.** The integration (`frontend/src/lib/universalAccount.ts`) is built against Magic's documented `magic.wallet.sign7702Authorization()` and Particle's official `universal-accounts-7702` reference, but a real run against both a Particle project and a Magic project (with the dev domain added to Magic's allowlist) hasn't completed yet — an earlier live test hit a Magic dashboard CORS/domain-allowlist issue.
 - **Unattended recurring auto-debit is not implemented.** All cross-chain operations (BNPL "Pay Now," DCA "Buy Now") are buyer-triggered by design — true background auto-debit (no buyer present) would need a session-key/delegation mechanism on top of this, out of scope for the current build.
 - **The cron sweep path simulates its UA sweep** rather than executing a real transaction, since it has no buyer signer available server-side. The real UA execution path is the buyer-initiated one (`Dashboard.tsx` → `payChargeCycleCrossChain` → `api/payments/confirm.js`, and `Dca.tsx` → `executeDcaBuy` → `api/dca/confirm.js`).

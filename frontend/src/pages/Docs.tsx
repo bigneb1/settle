@@ -25,8 +25,7 @@ const CONTRACTS: { key: keyof typeof ADDRESSES; name: string }[] = [
 ]
 
 const ENV_VARS: { name: string; where: string; purpose: string }[] = [
-  { name: 'ARBITRUM_RPC_URL', where: 'root, backend', purpose: 'Arbitrum One (mainnet) RPC endpoint' },
-  { name: 'ARBITRUM_SEPOLIA_RPC_URL', where: 'root, backend, frontend (VITE_)', purpose: 'Arbitrum Sepolia RPC endpoint — used everywhere today' },
+  { name: 'ARBITRUM_RPC_URL / VITE_ARBITRUM_RPC_URL', where: 'root, backend, frontend', purpose: 'Arbitrum One (mainnet) RPC endpoint' },
   { name: 'CHARGE_REGISTRY_ADDR / VITE_CHARGE_REGISTRY_ADDR', where: 'root, backend, frontend', purpose: 'Deployed ChargeRegistry address' },
   { name: 'SCHEDULE_ENGINE_ADDR / VITE_SCHEDULE_ENGINE_ADDR', where: 'root, backend, frontend', purpose: 'Deployed ScheduleEngine address' },
   { name: 'PAYOUT_ROUTER_ADDR / VITE_PAYOUT_ROUTER_ADDR', where: 'root, backend, frontend', purpose: 'Deployed PayoutRouter address' },
@@ -194,7 +193,7 @@ export default function Docs() {
           </Section>
 
           <Section id="contracts" title="Deployed Contracts">
-            <p>Arbitrum Sepolia, chain 421614. Verified on Sourcify (<code>exact_match</code>) and Blockscout.</p>
+            <p>Arbitrum One (mainnet), chain 42161. Verified on Sourcify (<code>exact_match</code>) and Blockscout.</p>
             <div className="bg-card border border-border rounded-sm overflow-hidden">
               <table>
                 <thead><tr><th>Contract</th><th>Address</th><th>Explorers</th></tr></thead>
@@ -208,8 +207,8 @@ export default function Docs() {
                         <td className="text-xs">
                           {addr ? (
                             <div className="flex gap-3">
-                              <a className="text-primary hover:underline" href={`https://repo.sourcify.dev/421614/${addr}`} target="_blank" rel="noreferrer">Sourcify</a>
-                              <a className="text-primary hover:underline" href={`https://arbitrum-sepolia.blockscout.com/address/${addr}`} target="_blank" rel="noreferrer">Blockscout</a>
+                              <a className="text-primary hover:underline" href={`https://repo.sourcify.dev/42161/${addr}`} target="_blank" rel="noreferrer">Sourcify</a>
+                              <a className="text-primary hover:underline" href={`https://arbitrum.blockscout.com/address/${addr}`} target="_blank" rel="noreferrer">Blockscout</a>
                             </div>
                           ) : '—'}
                         </td>
@@ -258,7 +257,7 @@ export default function Docs() {
               <li>Copy <code className="text-foreground">.env.example</code> to <code className="text-foreground">.env</code> at the root, in <code className="text-foreground">frontend/</code>, and in <code className="text-foreground">backend/</code>; fill in RPC URLs, deployer key, USDC address.</li>
               <li>Create a project at the <a className="text-primary hover:underline" href="https://dashboard.particle.network" target="_blank" rel="noreferrer">Particle dashboard</a> and fill the <code className="text-foreground">PARTICLE_*</code> vars in all three env files.</li>
               <li>Create a project at the <a className="text-primary hover:underline" href="https://dashboard.magic.link" target="_blank" rel="noreferrer">Magic dashboard</a> and fill <code className="text-foreground">MAGIC_PUBLISHABLE_KEY</code>.</li>
-              <li><code className="text-foreground">cd contracts && forge build && forge script script/Deploy.s.sol --broadcast --rpc-url $ARBITRUM_SEPOLIA_RPC_URL</code>, then the same for <code className="text-foreground">DeployDCA.s.sol</code> — fill the deployed addresses into all env files.</li>
+              <li><code className="text-foreground">cd contracts && forge build && forge script script/Deploy.s.sol --broadcast --rpc-url $ARBITRUM_RPC_URL</code>, then the same for <code className="text-foreground">DeployDCA.s.sol</code> — fill the deployed addresses into all env files.</li>
               <li><code className="text-foreground">cd frontend && npm install && npm run dev</code></li>
               <li><code className="text-foreground">cd backend && npm install</code> — run <code className="text-foreground">npm run sweep-agent</code> / <code className="text-foreground">npm run underwriting</code> standalone, or deploy to Vercel for the cron + API routes.</li>
             </ol>
@@ -284,7 +283,7 @@ export default function Docs() {
           <Section id="limitations" title="Known Limitations">
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li><strong className="text-foreground">EIP-7702 authorization signing via Magic has not been tested live</strong> — built against Magic's documented API and Particle's reference implementation, but needs a real run against both a live Particle project and a live Magic project.</li>
-              <li><strong className="text-foreground">Universal Account routing on Arbitrum Sepolia is unconfirmed</strong> — Particle's SDK <code className="text-foreground">CHAIN_ID</code> enum only lists mainnet chains, so the destination chain defaults to Arbitrum One (42161).</li>
+              <li><strong className="text-foreground">Universal Account routing</strong> — Particle's SDK <code className="text-foreground">CHAIN_ID</code> enum lists only mainnet chains; the destination chain is Arbitrum One (42161).</li>
               <li><strong className="text-foreground">Unattended recurring auto-debit is not implemented</strong> — all cross-chain operations (BNPL "Pay Now," DCA "Buy Now") are buyer-triggered by design; true background execution with no buyer present would need a session-key/delegation layer.</li>
               <li><strong className="text-foreground">The cron sweep path still simulates its UA sweep</strong> rather than executing a real transaction, since it has no buyer signer available server-side. The real UA execution path is the buyer-initiated one.</li>
             </ul>
