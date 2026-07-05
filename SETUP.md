@@ -1,6 +1,46 @@
 # Settle — Setup Guide
 
-End-to-end setup for the Settle app: deploy contracts, configure env vars, and deploy the frontend + backend. The app runs on **Arbitrum One (mainnet, chain 42161)**.
+End-to-end setup for the Settle app: deployed contracts, env vars, and deploy steps for the frontend + backend. The app runs on **Arbitrum One (mainnet, chain 42161)**.
+
+---
+
+## Deployed Contracts (Arbitrum One, chain 42161)
+
+All six contracts are **deployed and verified** — `perfect` match on [Sourcify](https://sourcify.dev) and listed on [Blockscout](https://arbitrum.blockscout.com). These are the live mainnet addresses the app points at.
+
+| Contract | Address | Sourcify | Blockscout |
+|---|---|---|---|
+| ChargeRegistry | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` | [view](https://repo.sourcify.dev/42161/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) | [view](https://arbitrum.blockscout.com/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) |
+| ScheduleEngine | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` | [view](https://repo.sourcify.dev/42161/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) | [view](https://arbitrum.blockscout.com/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) |
+| PayoutRouter | `0x37b46A98a65d671879797bE6e3F451B3929AA284` | [view](https://repo.sourcify.dev/42161/0x37b46A98a65d671879797bE6e3F451B3929AA284) | [view](https://arbitrum.blockscout.com/address/0x37b46A98a65d671879797bE6e3F451B3929AA284) |
+| LiquidityPool | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` | [view](https://repo.sourcify.dev/42161/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) | [view](https://arbitrum.blockscout.com/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) |
+| DefaultHandler | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` | [view](https://repo.sourcify.dev/42161/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) | [view](https://arbitrum.blockscout.com/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) |
+| DCAPlan | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` | [view](https://repo.sourcify.dev/42161/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) | [view](https://arbitrum.blockscout.com/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) |
+
+**USDC (Arbitrum One, 6 decimals):** `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`
+
+**Wiring** (verified on-chain post-deploy): `ChargeRegistry.scheduleEngine` → ScheduleEngine; `ScheduleEngine.sweepAgent` → sweep-agent wallet; `PayoutRouter`/`LiquidityPool` `settlementCaller` → sweep-agent wallet; `DefaultHandler.scheduleEngine` → ScheduleEngine; `DCAPlan.recorder` → sweep-agent wallet; `PayoutRouter.usdc` → USDC; `PayoutRouter.protocolTreasury` → deployer (placeholder — update via `setProtocolTreasury()` once you choose a real treasury wallet).
+
+**Deployer / owner:** `0x24C48f32814113344f438932EF8DC7Bb08EBff00` (the only EOA `ChargeRegistry.createCharge()` accepts). **Sweep agent:** `0xE8551a5676432624A4593A1bae6351E0DB0B6E23`.
+
+> You do **not** need to redeploy — the addresses above are already live. The `forge script` commands in section 1 are only for replicating on a fresh network.
+
+### Arbiscan verification (optional)
+
+Sourcify + Blockscout verification is already done (no API key needed). To also get Arbiscan's own green "Verified" badge:
+
+1. Create a free API key at https://arbiscan.io/myapikey (browser signup).
+2. Set `ARBISCAN_API_KEY=<your-key>` in `.env`.
+3. For each of the 6 contracts:
+   ```bash
+   cd contracts
+   forge verify-contract 0xD24f0a4611AD52602Da28f6020098B4a66F7311e "src/ChargeRegistry.sol:ChargeRegistry"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63 "src/ScheduleEngine.sol:ScheduleEngine"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x37b46A98a65d671879797bE6e3F451B3929AA284 "src/PayoutRouter.sol:PayoutRouter"       --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY --constructor-args 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 0x24C48f32814113344f438932EF8DC7Bb08EBff00
+   forge verify-contract 0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727 "src/LiquidityPool.sol:LiquidityPool"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY --constructor-args 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
+   forge verify-contract 0x8a5943B16c3089C556DE21EddaaA0ca99379c054 "src/DefaultHandler.sol:DefaultHandler"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x14be22B51e2A5E2157997CA62A895AC2B6a1e968 "src/DCAPlan.sol:DCAPlan"                 --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   ```
 
 ---
 
@@ -41,7 +81,9 @@ end; $$ language plpgsql;
 
 ---
 
-## 1. Contracts (Arbitrum One)
+## 1. Contracts (re-deploy only if replicating)
+
+The contracts are already deployed (see [Deployed Contracts](#deployed-contracts-arbitrum-one-chain-42161) above). To re-deploy on a fresh network:
 
 ```bash
 cd contracts && forge build
@@ -49,27 +91,7 @@ forge script script/Deploy.s.sol   --rpc-url $ARBITRUM_RPC_URL --private-key $PR
 forge script script/DeployDCA.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify
 ```
 
-Fill the deployed addresses into `.env`, `frontend/.env`, and `backend/.env` (the `*_ADDR` and `VITE_*_ADDR` vars below).
-
-The contracts above are **already deployed and verified** on Sourcify (`perfect` match) + Blockscout. The current mainnet addresses are in the [README](./README.md#deployed-contracts) and in the repo's `.env` files (gitignored, local only).
-
-### Arbiscan verification (optional)
-
-Sourcify + Blockscout verification is already done and needs no API key. To also get Arbiscan's own green "Verified" badge:
-
-1. Create a free API key at https://arbiscan.io/myapikey (browser signup).
-2. Set `ARBISCAN_API_KEY=<your-key>` in `.env`.
-3. For each of the 6 contracts:
-   ```bash
-   cd contracts
-   forge verify-contract 0xD24f0a4611AD52602Da28f6020098B4a66F7311e "src/ChargeRegistry.sol:ChargeRegistry"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63 "src/ScheduleEngine.sol:ScheduleEngine"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x37b46A98a65d671879797bE6e3F451B3929AA284 "src/PayoutRouter.sol:PayoutRouter"       --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727 "src/LiquidityPool.sol:LiquidityPool"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x8a5943B16c3089C556DE21EddaaA0ca99379c054 "src/DefaultHandler.sol:DefaultHandler"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x14be22B51e2A5E2157997CA62A895AC2B6a1e968 "src/DCAPlan.sol:DCAPlan"                 --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   ```
-   `PayoutRouter` and `LiquidityPool` take constructor args — Foundry will prompt or you pass `--constructor-args` (`<usdc> <treasury>` for PayoutRouter, `<usdc>` for LiquidityPool).
+Then fill the new deployed addresses into `.env`, `frontend/.env`, and `backend/.env`.
 
 ---
 
@@ -85,12 +107,12 @@ Three env files: root `.env` (contracts + shared), `backend/.env`, `frontend/.en
 | `VITE_SUPABASE_ANON_KEY` | _(the anon key above)_ |
 | `VITE_MAGIC_PUBLISHABLE_KEY` | `pk_live_DC4A447263F135A0` _(or your Magic dashboard publishable key)_ |
 | `VITE_ARBITRUM_RPC_URL` | `https://arb1.arbitrum.io/rpc` |
-| `VITE_CHARGE_REGISTRY_ADDR` | _(from deploy)_ |
-| `VITE_SCHEDULE_ENGINE_ADDR` | _(from deploy)_ |
-| `VITE_PAYOUT_ROUTER_ADDR` | _(from deploy)_ |
-| `VITE_LIQUIDITY_POOL_ADDR` | _(from deploy)_ |
-| `VITE_DEFAULT_HANDLER_ADDR` | _(from deploy)_ |
-| `VITE_DCA_PLAN_ADDR` | _(from deploy)_ |
+| `VITE_CHARGE_REGISTRY_ADDR` | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` |
+| `VITE_SCHEDULE_ENGINE_ADDR` | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` |
+| `VITE_PAYOUT_ROUTER_ADDR` | `0x37b46A98a65d671879797bE6e3F451B3929AA284` |
+| `VITE_LIQUIDITY_POOL_ADDR` | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` |
+| `VITE_DEFAULT_HANDLER_ADDR` | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` |
+| `VITE_DCA_PLAN_ADDR` | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` |
 | `VITE_USDC_ADDRESS` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
 | `VITE_UA_DESTINATION_CHAIN_ID` | `42161` |
 | `VITE_API_URL` | _(your deployed backend URL, e.g. `https://settle-backend.vercel.app` — empty = same-origin)_ |
@@ -103,12 +125,12 @@ Three env files: root `.env` (contracts + shared), `backend/.env`, `frontend/.en
 | Variable | Value |
 |---|---|
 | `ARBITRUM_RPC_URL` | `https://arb1.arbitrum.io/rpc` |
-| `CHARGE_REGISTRY_ADDR` | _(from deploy)_ |
-| `SCHEDULE_ENGINE_ADDR` | _(from deploy)_ |
-| `PAYOUT_ROUTER_ADDR` | _(from deploy)_ |
-| `LIQUIDITY_POOL_ADDR` | _(from deploy)_ |
-| `DEFAULT_HANDLER_ADDR` | _(from deploy)_ |
-| `DCA_PLAN_ADDR` | _(from deploy)_ |
+| `CHARGE_REGISTRY_ADDR` | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` |
+| `SCHEDULE_ENGINE_ADDR` | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` |
+| `PAYOUT_ROUTER_ADDR` | `0x37b46A98a65d671879797bE6e3F451B3929AA284` |
+| `LIQUIDITY_POOL_ADDR` | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` |
+| `DEFAULT_HANDLER_ADDR` | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` |
+| `DCA_PLAN_ADDR` | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` |
 | `USDC_ADDRESS` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
 | `PRIVATE_KEY` | _(deployer/owner key — the only address `ChargeRegistry.createCharge()` accepts)_ |
 | `SWEEP_AGENT_ADDRESS` | _(separate hot wallet for cron sweeps)_ |
