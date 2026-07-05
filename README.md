@@ -158,7 +158,9 @@ Migrations live in `supabase/migrations/` (001 baseline schema → 006 cron sche
 | `SUPABASE_URL` / `VITE_SUPABASE_URL` | root, backend, frontend | Supabase project URL |
 | `SUPABASE_ANON_KEY` / `VITE_SUPABASE_ANON_KEY` | root, frontend | Supabase anon/publishable key (public read via RLS) |
 | `SUPABASE_SERVICE_ROLE_KEY` | root, backend | Supabase service-role key (server-side writes, bypasses RLS — never expose in frontend) |
-| `ANTHROPIC_API_KEY` | root, backend | Claude Haiku — plain-language explanations for borderline (score 540–639) BNPL underwriting decisions |
+| `GLM_API_KEY` | root, backend | Zhipu GLM API key — plain-language explanations for borderline (score 540–639) BNPL underwriting decisions (OpenAI-compatible endpoint) |
+| `GLM_BASE_URL` | root, backend | GLM API base URL (default `https://open.bigmodel.cn/api/paas/v4`) |
+| `GLM_MODEL` | root, backend | GLM model id (default `glm-4.6`; set to `glm-5.2` or whichever your dashboard exposes) |
 | `CRON_SECRET` | root, backend | Bearer secret the Vercel Cron job must present to `GET /api/cron/sweep` |
 | `SUBSCRIPTION_RISK_THRESHOLD_USD` | root, backend | Monthly USD amount below which subscriptions skip full credit scoring (default 50) |
 | `VITE_API_URL` | frontend | Base URL of the deployed backend — empty means same-origin |
@@ -228,7 +230,7 @@ The `settle` Supabase project is already provisioned with schema, RLS, and the s
 - **EIP-7702 authorization signing via Magic has not been tested live end-to-end.** The integration (`frontend/src/lib/universalAccount.ts`) is built against Magic's documented `magic.wallet.sign7702Authorization()` and Particle's official `universal-accounts-7702` reference, but a real run against both a Particle project and a Magic project (with the dev domain added to Magic's allowlist) hasn't completed yet — an earlier live test hit a Magic dashboard CORS/domain-allowlist issue.
 - **Unattended recurring auto-debit is not implemented.** All cross-chain operations (BNPL "Pay Now," DCA "Buy Now") are buyer-triggered by design — true background auto-debit (no buyer present) would need a session-key/delegation mechanism on top of this, out of scope for the current build.
 - **The cron sweep path simulates its UA sweep** rather than executing a real transaction, since it has no buyer signer available server-side. The real UA execution path is the buyer-initiated one (`Dashboard.tsx` → `payChargeCycleCrossChain` → `api/payments/confirm.js`, and `Dca.tsx` → `executeDcaBuy` → `api/dca/confirm.js`).
-- **`ANTHROPIC_API_KEY` required for borderline BNPL explanations.** `evaluateBNPL` calls Claude Haiku for any score in 540–639; without a real key, borderline buyers will get a 502 from the checkout endpoint rather than a plain-language explanation.
+- **`GLM_API_KEY` required for borderline BNPL explanations.** `evaluateBNPL` calls the GLM API (Zhipu BigModel, OpenAI-compatible) for any score in 540–639; without a real key, the explanation silently falls back to empty (the approval decision is score-based, so checkout still works — the user just doesn't get a plain-language reason). Set `GLM_MODEL` to your exact model id (e.g. `glm-5.2`).
 - **No security audit.** See [Security](#security).
 
 ---

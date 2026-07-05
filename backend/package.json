@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "ethers": "^6.13.4",
-    "@anthropic-ai/sdk": "^0.30.0",
+    "openai": "^4.77.0",
     "@particle-network/universal-account-sdk": "^1.0.24",
     "@supabase/supabase-js": "^2.45.0",
     "dotenv": "^16.4.5"

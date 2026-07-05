@@ -44,7 +44,7 @@ const ENV_VARS: { name: string; where: string; purpose: string }[] = [
   { name: 'MAGIC_PUBLISHABLE_KEY / VITE_MAGIC_PUBLISHABLE_KEY', where: 'root, frontend', purpose: 'Magic Labs publishable key for embedded wallet login' },
   { name: 'MAGIC_SECRET_KEY', where: 'root', purpose: 'Magic Labs secret key (server-side use only, not currently consumed)' },
   { name: 'SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY', where: 'root', purpose: 'Supabase project for the on-chain event indexer' },
-  { name: 'ANTHROPIC_API_KEY', where: 'root, backend', purpose: 'Claude Haiku — plain-language explanations for borderline BNPL underwriting decisions' },
+  { name: 'GLM_API_KEY / GLM_BASE_URL / GLM_MODEL', where: 'root, backend', purpose: 'Zhipu GLM (OpenAI-compatible) — plain-language explanations for borderline BNPL underwriting decisions' },
   { name: 'CRON_SECRET', where: 'root, backend', purpose: 'Bearer secret the Vercel Cron job must present to GET /api/cron/sweep' },
   { name: 'SUBSCRIPTION_RISK_THRESHOLD_USD', where: 'root, backend', purpose: 'Monthly USD amount below which subscriptions skip full credit scoring (default 50)' },
   { name: 'VITE_API_URL', where: 'frontend', purpose: "Base URL of the deployed backend — empty means same-origin" },

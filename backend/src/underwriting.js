@@ -3,12 +3,19 @@
  * For BNPL: full scoring required. For Settle Pay < threshold: lightweight gate only.
  */
 import { ethers } from "ethers";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { provider, SUBSCRIPTION_RISK_THRESHOLD_USD } from "./config.js";
 import { ADDRESSES, CHARGE_REGISTRY_ABI, DEFAULT_HANDLER_ABI } from "./abis.js";
 import { getCrossChainSignal } from "./particleBalances.js";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Plain-language BNPL explanations via Zhipu GLM (OpenAI-compatible endpoint).
+// baseURL + model are env-driven so the exact region/dashboard values are set
+// by the operator, not hardcoded. Approval is score-based — the explanation is
+// only plain-language frosting, so a GLM failure must never block checkout.
+const glm = new OpenAI({
+  apiKey: process.env.GLM_API_KEY,
+  baseURL: process.env.GLM_BASE_URL || "https://open.bigmodel.cn/api/paas/v4",
+});
 
 // Score weights (sum = 100)
 const WEIGHTS = {
@@ -104,18 +111,24 @@ export async function evaluateBNPL(buyerAddress, requestedAmount) {
   const approved = score >= 580;
   const limit = approved ? Math.round((score - 300) / 550 * 2000) * 1_000_000 : 0; // max $2000 in USDC 6-dec
 
-  // Use Claude for plain-language explanation of borderline decisions
+  // Use GLM for plain-language explanation of borderline decisions.
+  // Approval is score-based; the explanation is frosting — a GLM failure falls
+  // back to empty string rather than blocking checkout.
   let explanation = "";
   if (score >= 540 && score < 640) {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
-      messages: [{
-        role: "user",
-        content: `A buyer has a credit score of ${score}/850. Transactions: ${txCount}. Explain in 2 sentences why they were ${approved ? "approved" : "denied"} for BNPL, in plain language a non-crypto user would understand. No jargon.`,
-      }],
-    });
-    explanation = msg.content[0].text;
+    try {
+      const msg = await glm.chat.completions.create({
+        model: process.env.GLM_MODEL || "glm-4.6",
+        max_tokens: 150,
+        messages: [{
+          role: "user",
+          content: `A buyer has a credit score of ${score}/850. Transactions: ${txCount}. Explain in 2 sentences why they were ${approved ? "approved" : "denied"} for BNPL, in plain language a non-crypto user would understand. No jargon.`,
+        }],
+      });
+      explanation = msg.choices[0]?.message?.content ?? "";
+    } catch (err) {
+      console.error("[underwriting] GLM explanation failed:", err.message);
+    }
   }
 
   return { approved, limit, score, signals, explanation };
