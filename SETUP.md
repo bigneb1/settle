@@ -6,16 +6,16 @@ End-to-end setup for the Settle app: deployed contracts, env vars, and deploy st
 
 ## Deployed Contracts (Arbitrum One, chain 42161)
 
-All six contracts are **deployed and verified** — `perfect` match on [Sourcify](https://sourcify.dev) and listed on [Blockscout](https://arbitrum.blockscout.com). These are the live mainnet addresses the app points at.
+All six contracts are **deployed and verified** on Sourcify (`perfect` match), Blockscout, and Arbiscan. These are the live mainnet addresses the app points at.
 
-| Contract | Address | Sourcify | Blockscout |
-|---|---|---|---|
-| ChargeRegistry | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` | [view](https://repo.sourcify.dev/42161/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) | [view](https://arbitrum.blockscout.com/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) |
-| ScheduleEngine | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` | [view](https://repo.sourcify.dev/42161/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) | [view](https://arbitrum.blockscout.com/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) |
-| PayoutRouter | `0x37b46A98a65d671879797bE6e3F451B3929AA284` | [view](https://repo.sourcify.dev/42161/0x37b46A98a65d671879797bE6e3F451B3929AA284) | [view](https://arbitrum.blockscout.com/address/0x37b46A98a65d671879797bE6e3F451B3929AA284) |
-| LiquidityPool | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` | [view](https://repo.sourcify.dev/42161/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) | [view](https://arbitrum.blockscout.com/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) |
-| DefaultHandler | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` | [view](https://repo.sourcify.dev/42161/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) | [view](https://arbitrum.blockscout.com/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) |
-| DCAPlan | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` | [view](https://repo.sourcify.dev/42161/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) | [view](https://arbitrum.blockscout.com/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) |
+| Contract | Address | Arbiscan | Sourcify | Blockscout |
+|---|---|---|---|---|
+| ChargeRegistry | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` | [view](https://arbiscan.io/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e#code) | [view](https://repo.sourcify.dev/42161/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) | [view](https://arbitrum.blockscout.com/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) |
+| ScheduleEngine | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` | [view](https://arbiscan.io/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63#code) | [view](https://repo.sourcify.dev/42161/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) | [view](https://arbitrum.blockscout.com/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) |
+| PayoutRouter | `0x37b46A98a65d671879797bE6e3F451B3929AA284` | [view](https://arbiscan.io/address/0x37b46A98a65d671879797bE6e3F451B3929AA284#code) | [view](https://repo.sourcify.dev/42161/0x37b46A98a65d671879797bE6e3F451B3929AA284) | [view](https://arbitrum.blockscout.com/address/0x37b46A98a65d671879797bE6e3F451B3929AA284) |
+| LiquidityPool | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` | [view](https://arbiscan.io/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727#code) | [view](https://repo.sourcify.dev/42161/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) | [view](https://arbitrum.blockscout.com/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) |
+| DefaultHandler | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` | [view](https://arbiscan.io/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054#code) | [view](https://repo.sourcify.dev/42161/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) | [view](https://arbitrum.blockscout.com/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) |
+| DCAPlan | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` | [view](https://arbiscan.io/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968#code) | [view](https://repo.sourcify.dev/42161/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) | [view](https://arbitrum.blockscout.com/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) |
 
 **USDC (Arbitrum One, 6 decimals):** `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`
 
@@ -25,9 +25,9 @@ All six contracts are **deployed and verified** — `perfect` match on [Sourcify
 
 > You do **not** need to redeploy — the addresses above are already live. The `forge script` commands in section 1 are only for replicating on a fresh network.
 
-### Arbiscan verification (optional)
+### Arbiscan verification
 
-Sourcify + Blockscout verification is already done (no API key needed). To also get Arbiscan's own green "Verified" badge:
+All 6 contracts are verified on Arbiscan (green "Verified" badge). Sourcify + Blockscout verification is also done (no API key needed for those). If you ever re-deploy and need to re-verify on Arbiscan:
 
 1. Create a free API key at https://arbiscan.io/myapikey (browser signup).
 2. Set `ARBISCAN_API_KEY=<your-key>` in `.env`.

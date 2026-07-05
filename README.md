@@ -98,16 +98,16 @@ settle/
 
 ## Deployed Contracts
 
-Deployed on **Arbitrum One (mainnet, chain 42161)** and verified on [Sourcify](https://sourcify.dev) (`perfect` match) and [Blockscout](https://arbitrum.blockscout.com). Arbiscan's own "Verified" badge needs a separate Arbiscan API key — see [SETUP.md](./SETUP.md#arbiscan-verification-optional) for the one-step `forge verify-contract` command once you have a key.
+Deployed on **Arbitrum One (mainnet, chain 42161)** and verified on [Arbiscan](https://arbiscan.io), [Sourcify](https://sourcify.dev) (`perfect` match), and [Blockscout](https://arbitrum.blockscout.com).
 
-| Contract | Address | Sourcify | Blockscout |
-|---|---|---|---|
-| ChargeRegistry | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` | [view](https://repo.sourcify.dev/42161/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) | [view](https://arbitrum.blockscout.com/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) |
-| ScheduleEngine | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` | [view](https://repo.sourcify.dev/42161/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) | [view](https://arbitrum.blockscout.com/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) |
-| PayoutRouter | `0x37b46A98a65d671879797bE6e3F451B3929AA284` | [view](https://repo.sourcify.dev/42161/0x37b46A98a65d671879797bE6e3F451B3929AA284) | [view](https://arbitrum.blockscout.com/address/0x37b46A98a65d671879797bE6e3F451B3929AA284) |
-| LiquidityPool | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` | [view](https://repo.sourcify.dev/42161/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) | [view](https://arbitrum.blockscout.com/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) |
-| DefaultHandler | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` | [view](https://repo.sourcify.dev/42161/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) | [view](https://arbitrum.blockscout.com/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) |
-| DCAPlan | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` | [view](https://repo.sourcify.dev/42161/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) | [view](https://arbitrum.blockscout.com/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) |
+| Contract | Address | Arbiscan | Sourcify | Blockscout |
+|---|---|---|---|---|
+| ChargeRegistry | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` | [view](https://arbiscan.io/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e#code) | [view](https://repo.sourcify.dev/42161/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) | [view](https://arbitrum.blockscout.com/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) |
+| ScheduleEngine | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` | [view](https://arbiscan.io/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63#code) | [view](https://repo.sourcify.dev/42161/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) | [view](https://arbitrum.blockscout.com/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) |
+| PayoutRouter | `0x37b46A98a65d671879797bE6e3F451B3929AA284` | [view](https://arbiscan.io/address/0x37b46A98a65d671879797bE6e3F451B3929AA284#code) | [view](https://repo.sourcify.dev/42161/0x37b46A98a65d671879797bE6e3F451B3929AA284) | [view](https://arbitrum.blockscout.com/address/0x37b46A98a65d671879797bE6e3F451B3929AA284) |
+| LiquidityPool | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` | [view](https://arbiscan.io/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727#code) | [view](https://repo.sourcify.dev/42161/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) | [view](https://arbitrum.blockscout.com/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) |
+| DefaultHandler | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` | [view](https://arbiscan.io/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054#code) | [view](https://repo.sourcify.dev/42161/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) | [view](https://arbitrum.blockscout.com/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) |
+| DCAPlan | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` | [view](https://arbiscan.io/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968#code) | [view](https://repo.sourcify.dev/42161/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) | [view](https://arbitrum.blockscout.com/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) |
 
 After deploy, fill the addresses into `.env` / `frontend/.env` / `backend/.env` and verify wiring on-chain (`scheduleEngine`, `sweepAgent`/`recorder`, all `settlementCaller`s, `protocolTreasury`). See [SETUP.md](./SETUP.md) for the full step-by-step.
 
