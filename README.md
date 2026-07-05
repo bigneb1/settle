@@ -98,7 +98,7 @@ settle/
 
 ## Deployed Contracts
 
-Target deployment: **Arbitrum One (mainnet, chain 42161).** Deploy with `forge script script/Deploy.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY --broadcast --verify` (and `DeployDCA.s.sol` for DCAPlan), then verify on [Sourcify](https://sourcify.dev) and [Blockscout](https://arbitrum.blockscout.com). Arbiscan's own "Verified" badge needs a separate Arbiscan API key.
+Deployed on **Arbitrum One (mainnet, chain 42161)** and verified on [Sourcify](https://sourcify.dev) (`perfect` match) and [Blockscout](https://arbitrum.blockscout.com). Arbiscan's own "Verified" badge needs a separate Arbiscan API key — see [SETUP.md](./SETUP.md#arbiscan-verification-optional) for the one-step `forge verify-contract` command once you have a key.
 
 | Contract | Address | Sourcify | Blockscout |
 |---|---|---|---|

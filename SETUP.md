@@ -51,6 +51,26 @@ forge script script/DeployDCA.s.sol --rpc-url $ARBITRUM_RPC_URL --private-key $P
 
 Fill the deployed addresses into `.env`, `frontend/.env`, and `backend/.env` (the `*_ADDR` and `VITE_*_ADDR` vars below).
 
+The contracts above are **already deployed and verified** on Sourcify (`perfect` match) + Blockscout. The current mainnet addresses are in the [README](./README.md#deployed-contracts) and in the repo's `.env` files (gitignored, local only).
+
+### Arbiscan verification (optional)
+
+Sourcify + Blockscout verification is already done and needs no API key. To also get Arbiscan's own green "Verified" badge:
+
+1. Create a free API key at https://arbiscan.io/myapikey (browser signup).
+2. Set `ARBISCAN_API_KEY=<your-key>` in `.env`.
+3. For each of the 6 contracts:
+   ```bash
+   cd contracts
+   forge verify-contract 0xD24f0a4611AD52602Da28f6020098B4a66F7311e "src/ChargeRegistry.sol:ChargeRegistry"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63 "src/ScheduleEngine.sol:ScheduleEngine"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x37b46A98a65d671879797bE6e3F451B3929AA284 "src/PayoutRouter.sol:PayoutRouter"       --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727 "src/LiquidityPool.sol:LiquidityPool"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x8a5943B16c3089C556DE21EddaaA0ca99379c054 "src/DefaultHandler.sol:DefaultHandler"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x14be22B51e2A5E2157997CA62A895AC2B6a1e968 "src/DCAPlan.sol:DCAPlan"                 --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   ```
+   `PayoutRouter` and `LiquidityPool` take constructor args — Foundry will prompt or you pass `--constructor-args` (`<usdc> <treasury>` for PayoutRouter, `<usdc>` for LiquidityPool).
+
 ---
 
 ## 2. Environment Variables
