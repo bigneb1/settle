@@ -37,7 +37,16 @@ for (const { routePath, filePath } of walk(API_DIR)) {
 }
 
 const server = http.createServer(async (nodeReq, nodeRes) => {
-  const url = new URL(nodeReq.url, `http://localhost:${PORT}`)
+  // Vite's proxy (see frontend/vite.config.ts) sets these two headers so a
+  // route can recover the real public origin (the tunnel URL) instead of
+  // this process's own localhost address - needed by the GitHub/GitLab
+  // OAuth callbacks, which recompute their own redirect_uri from the
+  // request URL and must match what the frontend told the OAuth provider
+  // during the initial authorize redirect (window.location.origin there).
+  const forwardedHost = nodeReq.headers['x-forwarded-host']
+  const forwardedProto = nodeReq.headers['x-forwarded-proto'] || 'http'
+  const base = forwardedHost ? `${forwardedProto}://${forwardedHost}` : `http://localhost:${PORT}`
+  const url = new URL(nodeReq.url, base)
 
   // Local-only convenience CORS (this server never runs in production).
   nodeRes.setHeader('Access-Control-Allow-Origin', '*')

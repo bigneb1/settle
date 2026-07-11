@@ -15,7 +15,21 @@ export default defineConfig({
     // `npm run dev-server`) so same-origin fetch('/api/...') calls work over
     // this same tunnel URL without deploying anything or setting VITE_API_URL.
     proxy: {
-      '/api': 'http://localhost:8787',
+      '/api': {
+        target: 'http://localhost:8787',
+        // Forward the real public host/proto (the tunnel URL) to the dev
+        // backend - without this, backend/dev-server.js only ever sees
+        // 'localhost:8787' as its own request origin, which breaks the
+        // GitHub/GitLab OAuth callbacks' redirect_uri computation (it must
+        // match the public origin the frontend used for the initial
+        // authorize redirect).
+        configure: proxy => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            if (req.headers.host) proxyReq.setHeader('x-forwarded-host', req.headers.host)
+            proxyReq.setHeader('x-forwarded-proto', req.headers['x-forwarded-proto'] || 'http')
+          })
+        },
+      },
     },
   },
   // `vite preview` (serves the built dist/) reads its own config, separate
@@ -28,7 +42,21 @@ export default defineConfig({
   preview: {
     allowedHosts: true,
     proxy: {
-      '/api': 'http://localhost:8787',
+      '/api': {
+        target: 'http://localhost:8787',
+        // Forward the real public host/proto (the tunnel URL) to the dev
+        // backend - without this, backend/dev-server.js only ever sees
+        // 'localhost:8787' as its own request origin, which breaks the
+        // GitHub/GitLab OAuth callbacks' redirect_uri computation (it must
+        // match the public origin the frontend used for the initial
+        // authorize redirect).
+        configure: proxy => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            if (req.headers.host) proxyReq.setHeader('x-forwarded-host', req.headers.host)
+            proxyReq.setHeader('x-forwarded-proto', req.headers['x-forwarded-proto'] || 'http')
+          })
+        },
+      },
     },
   },
 })
