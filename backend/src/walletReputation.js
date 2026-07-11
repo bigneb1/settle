@@ -1,12 +1,12 @@
 /**
- * Wallet reputation signals — real on-chain data, no external credentials
+ * Wallet reputation signals - real on-chain data, no external credentials
  * beyond what this project already has (ARBISCAN_API_KEY, which works
  * against Etherscan's V2 unified API across all its supported chains, not
- * just Arbiscan specifically — confirmed against the same endpoint this
+ * just Arbiscan specifically - confirmed against the same endpoint this
  * project already uses for contract verification).
  *
  * Honest scope: "DeFi activity" / "NFT activity" here are real, computed
- * proxies (distinct contract interactions, real NFT transfer counts) — not
+ * proxies (distinct contract interactions, real NFT transfer counts) - not
  * a protocol-classified breakdown (e.g. "used Aave 4x, Uniswap 12x"), which
  * would need a paid indexing API (Alchemy/Moralis/Covalent) this project
  * doesn't have. Labeled as such in the returned signal object so callers
@@ -18,7 +18,7 @@ import { getCrossChainSignal } from "./particleBalances.js";
 const ETHERSCAN_V2_BASE = "https://api.etherscan.io/v2/api";
 const ARBITRUM_CHAIN_ID = 42161;
 
-// A public, keyless mainnet RPC — ENS reverse resolution is an L1 primitive
+// A public, keyless mainnet RPC - ENS reverse resolution is an L1 primitive
 // with no Arbitrum equivalent, so this is the one place this module needs a
 // mainnet endpoint even though the rest of the app is Arbitrum-only.
 const ETH_MAINNET_RPC = process.env.ETH_MAINNET_RPC_URL || "https://ethereum-rpc.publicnode.com";
@@ -58,7 +58,7 @@ async function etherscanV2(chainId, params) {
 }
 
 /**
- * Real ENS reverse-resolution — returns null if the address has no ENS name
+ * Real ENS reverse-resolution - returns null if the address has no ENS name
  * set, not an error (that's the common case, not a failure).
  */
 async function resolveEnsName(address) {
@@ -71,7 +71,7 @@ async function resolveEnsName(address) {
 
 /**
  * Distinct contract addresses this wallet has sent a transaction to on
- * Arbitrum, in the last ~500 transactions — a real, if rough, proxy for
+ * Arbitrum, in the last ~500 transactions - a real, if rough, proxy for
  * on-chain engagement breadth (more distinct contracts ≈ more protocol
  * exposure). Not classified by protocol type.
  */
@@ -91,7 +91,7 @@ async function getDistinctContractInteractions(address) {
   return { count: contracts.size, sampled: txList.length };
 }
 
-/** Real NFT transfer count (in + out) on Arbitrum — a genuine activity signal, not a valuation. */
+/** Real NFT transfer count (in + out) on Arbitrum - a genuine activity signal, not a valuation. */
 async function getNftActivityCount(address) {
   const nftTx = await etherscanV2(ARBITRUM_CHAIN_ID, {
     module: "account",
@@ -123,7 +123,7 @@ function computeStablecoinHoldingsUsd(crossChain) {
 /**
  * Compute a full wallet reputation snapshot for one buyer address. All
  * fields are real data or explicitly null if the underlying source isn't
- * configured/reachable — never a fabricated placeholder.
+ * configured/reachable - never a fabricated placeholder.
  */
 export async function computeWalletReputation(buyerAddress) {
   const [ensName, contractInteractions, nftActivityCount, crossChain] = await Promise.all([
@@ -141,7 +141,7 @@ export async function computeWalletReputation(buyerAddress) {
   return {
     ensName,
     // Explicitly labeled as a distinct-contract-interaction proxy, not a
-    // protocol-classified DeFi score — see module docstring.
+    // protocol-classified DeFi score - see module docstring.
     defiActivityScore: contractInteractions.count,
     nftActivityScore: nftActivityCount,
     protocolDiversity,

@@ -63,7 +63,7 @@ contract ChargeRegistry is Ownable2Step {
         emit DefaultHandlerUpdated(_handler);
     }
 
-    /// @notice Only the owner (deployer key) can create charges — the
+    /// @notice Only the owner (deployer key) can create charges - the
     /// scheduleEngine branch that existed here previously was never actually
     /// called by ScheduleEngine (confirmed: it only calls markCycleComplete
     /// and setStatus) and is removed to match the documented trust model in
@@ -132,7 +132,7 @@ contract ChargeRegistry is Ownable2Step {
     }
 
     /// @notice Any transition is allowed except out of a terminal state
-    /// (Completed/Cancelled) — those are permanent. Defaulted is left
+    /// (Completed/Cancelled) - those are permanent. Defaulted is left
     /// owner-transitionable (e.g. manual off-chain resolution) since nothing
     /// in the current design needs to lock that down further.
     function setStatus(uint256 chargeId, Status status) external {

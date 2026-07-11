@@ -1,13 +1,13 @@
 /**
- * Vercel endpoint: "Pay Any Address" — creates a BNPL/subscription charge to
+ * Vercel endpoint: "Pay Any Address" - creates a BNPL/subscription charge to
  * an arbitrary recipient wallet address, not tied to a Settle catalog item
  * or an onboarded merchant. Confirmed against the actual contracts before
  * building this: neither ChargeRegistry.createCharge() nor
  * PayoutRouter.executePayout() require the merchant address to be
- * "onboarded" in any way — createCharge only requires a non-zero address,
+ * "onboarded" in any way - createCharge only requires a non-zero address,
  * and executePayout pays out via a plain ERC20 transfer to whatever address
  * is stored on the charge. Same underwriting, same on-chain flow, same
- * PayoutRouter/ScheduleEngine settlement as the catalog checkout path —
+ * PayoutRouter/ScheduleEngine settlement as the catalog checkout path -
  * the only thing skipped is the catalog_items lookup.
  *
  * POST /api/checkout/create-direct
@@ -25,7 +25,7 @@ import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreat
 
 const SIGNATURE_MAX_AGE_SECONDS = 300;
 // Kept to the same two presets Dashboard/Dca/format.ts already recognize
-// (formatCycleSeconds) — an arbitrary cycle length would still work
+// (formatCycleSeconds) - an arbitrary cycle length would still work
 // on-chain, but these are the only ones the rest of the UI has copy for,
 // and both comfortably exceed ScheduleEngine's fixed 3-day grace period.
 const ALLOWED_CYCLE_SECONDS = new Set([604800, 2592000]); // weekly, monthly
@@ -70,7 +70,7 @@ export async function POST(req) {
   }
   // BNPL always has a concrete installment count; subscriptions are
   // indefinite (0), matching the exact convention checkout/create.js already
-  // uses for catalog items — enforced here rather than trusted from the
+  // uses for catalog items - enforced here rather than trusted from the
   // client, since a client-supplied totalCycles=0 BNPL charge would create
   // an on-chain charge that never completes.
   if (chargeType === 0 && (totalCycles < 1n || totalCycles > 60n)) {
@@ -91,10 +91,10 @@ export async function POST(req) {
     .eq("buyer_address", buyerAddress.toLowerCase())
     .gte("ts", Math.floor(Date.now() / 1000) - SIGNATURE_MAX_AGE_SECONDS);
   if ((recentAttempts ?? 0) >= 5) {
-    return json({ error: "Too many checkout attempts — please wait a few minutes and try again" }, 429);
+    return json({ error: "Too many checkout attempts - please wait a few minutes and try again" }, 429);
   }
 
-  // The signed message covers every charge-defining field, not just an id —
+  // The signed message covers every charge-defining field, not just an id -
   // there's no catalog_items row to authoritatively pin these values server-side,
   // so the signature itself must be over the exact amount/type/cycles/period
   // the buyer agreed to, or a tampered request would pass signature
@@ -122,7 +122,7 @@ export async function POST(req) {
     if (chargeType === 0) {
       const totalPriceUSD = Number(amountPerCycle * totalCycles) / 1e6;
       const result = await evaluateBNPL(buyerAddress, totalPriceUSD);
-      // See checkout/create.js for the same pattern — only ever raises the
+      // See checkout/create.js for the same pattern - only ever raises the
       // limit above the base 5-signal calculation, never lowers it.
       const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
       approved = result.approved && totalPriceUSD * 1_000_000 <= effectiveLimit;

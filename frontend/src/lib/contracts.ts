@@ -25,7 +25,7 @@ export const CHARGE_REGISTRY_ABI = parseAbi([
 ] as const)
 
 // getCharge's tuple return type is expressed as a JSON ABI fragment rather than
-// via parseAbi's human-readable tuple(...) syntax — under this project's
+// via parseAbi's human-readable tuple(...) syntax - under this project's
 // TypeScript version, abitype's template-literal parser for nested tuple
 // components resolves to `unknown` instead of the real struct type (reproduced
 // in isolation; JSON ABI form infers correctly).
@@ -77,7 +77,7 @@ export const DCA_PLAN_ABI = parseAbi([
   'function getOwnerPlans(address planOwner) view returns (uint256[])',
 ] as const)
 
-// Same JSON-ABI workaround as CHARGE_REGISTRY_GET_CHARGE_ABI above — getPlan's
+// Same JSON-ABI workaround as CHARGE_REGISTRY_GET_CHARGE_ABI above - getPlan's
 // tuple return breaks abitype's human-readable parser under this project's TS version.
 export const DCA_PLAN_GET_PLAN_ABI = [
   {
@@ -106,7 +106,7 @@ export const DCA_PLAN_GET_PLAN_ABI = [
   },
 ] as const
 
-// Plain EOA writes (create/cancel) — no Universal Account involved, just the
+// Plain EOA writes (create/cancel) - no Universal Account involved, just the
 // buyer's Magic wallet sending a normal Arbitrum transaction.
 const DCA_PLAN_WRITE_ABI = [
   'function createPlan(uint256 targetChainId, address targetToken, uint256 amountPerCycleUSD, uint256 cycleSeconds, uint256 totalCycles) returns (uint256)',
@@ -134,7 +134,7 @@ export interface OnChainCharge {
 }
 
 /** Fetches ScheduleEngine grace-period state for Active charges only and
- * merges it in — mutates nothing, returns new objects. Skips non-Active
+ * merges it in - mutates nothing, returns new objects. Skips non-Active
  * charges (grace only applies while a charge is still Active) to avoid
  * pointless RPC calls. */
 async function attachGraceState(charges: Omit<OnChainCharge, 'inGrace' | 'graceEndsAt'>[]): Promise<OnChainCharge[]> {
@@ -163,7 +163,7 @@ export interface ProtocolStats {
   avgScore: number | null
 }
 
-/** Live on-chain aggregates for the landing page — no fabricated numbers. */
+/** Live on-chain aggregates for the landing page - no fabricated numbers. */
 export async function getProtocolStats(): Promise<ProtocolStats | null> {
   if (!ADDRESSES.chargeRegistry) return null
   const count = await publicClient.readContract({
@@ -175,7 +175,7 @@ export async function getProtocolStats(): Promise<ProtocolStats | null> {
   const total = Math.min(totalCount, PROTOCOL_STATS_SCAN_CAP)
   if (total === 0) return { totalVolumeUSDC: 0n, activeCharges: 0, merchantCount: 0, avgScore: null }
 
-  // Scan the most recent `total` charges, not the oldest — otherwise once the
+  // Scan the most recent `total` charges, not the oldest - otherwise once the
   // protocol exceeds PROTOCOL_STATS_SCAN_CAP charges, these stats would
   // permanently freeze at charges #0..cap-1 and never reflect new activity.
   const startId = Math.max(0, totalCount - total)

@@ -1,17 +1,17 @@
 /**
- * Modular credit scoring engine — aggregates the existing on-chain
+ * Modular credit scoring engine - aggregates the existing on-chain
  * underwriting signal with newer, opt-in reputation sources (wallet
  * reputation, connected exchanges, developer identity) into one
  * configurable score. Persists to the `credit_profiles` table so the
  * Profile page and checkout underwriting can both read it.
  *
  * Deliberately does NOT replace evaluateBNPL/evaluateSubscription in
- * underwriting.js — those remain the actual checkout-time approval gate and
+ * underwriting.js - those remain the actual checkout-time approval gate and
  * still work purely from on-chain history with zero setup, so buying
  * something never requires linking an exchange account first. This engine
  * is an additive, richer score: checkout/create.js can optionally read a
  * cached credit_profiles row to raise (never lower) a buyer's limit above
- * the base 5-signal calculation once they've connected more sources — see
+ * the base 5-signal calculation once they've connected more sources - see
  * getEffectiveCreditLimit() below.
  *
  * CATEGORY_WEIGHTS sums to 100 and is the one place to retune category
@@ -171,7 +171,7 @@ async function computeDeveloperReputationSubscore(buyerAddress) {
 
 /**
  * Compute and persist a full credit profile for one buyer. Safe to call
- * repeatedly (e.g. after every sync) — overwrites the single row per buyer.
+ * repeatedly (e.g. after every sync) - overwrites the single row per buyer.
  */
 export async function computeCreditProfile(buyerAddress) {
   const buyer = buyerAddress.toLowerCase();
@@ -260,7 +260,7 @@ export async function computeCreditProfile(buyerAddress) {
 /**
  * Used by checkout/create.js: if the buyer has a cached, richer credit
  * profile, use its credit line where it's HIGHER than the base 5-signal
- * limit (never lower — connecting more accounts should never hurt a buyer
+ * limit (never lower - connecting more accounts should never hurt a buyer
  * relative to the zero-setup baseline). Returns null if no profile exists,
  * in which case the caller should fall back to its own base calculation
  * unchanged.

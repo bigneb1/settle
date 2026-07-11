@@ -1,5 +1,5 @@
 /**
- * Bitget adapter — bitget-api (community-maintained by tiagosiebler, but
+ * Bitget adapter - bitget-api (community-maintained by tiagosiebler, but
  * listed as an official SDK link in Bitget's own docs). Requires a
  * passphrase set at key-creation time, like OKX.
  */
@@ -21,14 +21,14 @@ export async function fetchSignals({ apiKey, apiSecret, apiPass }) {
     const [assetsRes, ordersRes, accountInfoRes] = await Promise.all([
       client.getSpotAccountAssets(),
       // Bitget's history-orders endpoint doesn't require a symbol, unlike
-      // Binance/Gate.io — a genuinely account-wide trade count, not a
+      // Binance/Gate.io - a genuinely account-wide trade count, not a
       // single-pair proxy.
       client.getSpotHistoricOrders({
         startTime: String(Date.now() - NINETY_DAYS_MS),
         endTime: String(Date.now()),
         limit: "100",
       }),
-      // Bitget doesn't expose a KYC field on this or any account endpoint —
+      // Bitget doesn't expose a KYC field on this or any account endpoint -
       // confirmed against the real response schema, only uid is real here.
       client.getSpotAccount().catch(() => null),
     ]);

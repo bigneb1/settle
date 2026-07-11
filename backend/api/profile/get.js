@@ -1,5 +1,5 @@
 /**
- * Vercel endpoint: read a buyer's full Identity & Credit Profile — every
+ * Vercel endpoint: read a buyer's full Identity & Credit Profile - every
  * connection's status, latest snapshot, and the aggregated credit_profiles
  * row. Signature-authenticated (not a public Supabase anon-key read) since
  * this reveals which exchange/GitHub/GitLab accounts a wallet is linked to.
@@ -9,7 +9,7 @@
  * signature = personal_sign("Settle profile: action=get_profile buyer=<addr> ts=<ts>")
  *
  * POST (not GET) because the signature needs to bind to a fresh timestamp
- * the buyer just signed — a plain GET with query params would work too, but
+ * the buyer just signed - a plain GET with query params would work too, but
  * POST keeps the signed payload out of server logs/browser history.
  */
 import { verifyBuyerSignature } from "../../src/buyerAuth.js";
@@ -40,7 +40,7 @@ export async function POST(req) {
       supabaseAdmin.from("exchange_connections").select("*").eq("buyer", buyer),
       supabaseAdmin.from("dev_identity_connections").select("*").eq("buyer", buyer),
       supabaseAdmin.from("credit_profiles").select("*").eq("buyer", buyer).maybeSingle(),
-      computeWalletReputation(buyer), // no stored "connection" for this — always live
+      computeWalletReputation(buyer), // no stored "connection" for this - always live
     ]);
 
     // Latest snapshot per exchange/dev connection, for the UI's "last synced" display.
@@ -53,7 +53,7 @@ export async function POST(req) {
           .order("synced_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        // Never return vault_secret_id to the client — it's an internal
+        // Never return vault_secret_id to the client - it's an internal
         // reference, not sensitive itself, but no reason to expose it.
         const { vault_secret_id, ...safeConn } = conn;
         return { ...safeConn, latestSnapshot: snapshot ?? null };
@@ -75,7 +75,7 @@ export async function POST(req) {
     );
 
     // If there's no cached score yet (first visit), compute one now rather
-    // than showing an empty state — cheap since most sub-signals are already
+    // than showing an empty state - cheap since most sub-signals are already
     // fetched above or are fast on-chain reads.
     let creditProfile = creditProfileRow.data;
     if (!creditProfile) {

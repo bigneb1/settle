@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 /// @notice Tracks defaulted addresses, restricts future BNPL credit, and records on-chain reason codes.
 contract DefaultHandler is Ownable2Step {
     enum DefaultReason {
-        InsufficientBalance,   // sweep failed — no cross-chain balance found
+        InsufficientBalance,   // sweep failed - no cross-chain balance found
         GracePeriodExpired,    // grace period elapsed without successful sweep
         ManualFlagged          // manual override by protocol admin
     }

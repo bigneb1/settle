@@ -30,7 +30,7 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
         setLoading(false)
       })
       f.onInvalidCode(() => {
-        setError('Incorrect code — try again.')
+        setError('Incorrect code - try again.')
         setCode('')
         setLoading(false)
       })
@@ -72,7 +72,7 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="bg-card border border-border rounded-sm w-full max-w-md shadow-2xl">
+      <div className="bg-card border border-border rounded-sm w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-border">
           <div className="flex items-center gap-3">

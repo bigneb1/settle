@@ -1,5 +1,5 @@
 /**
- * Bybit adapter — bybit-api (community-maintained, tiagosiebler; no official
+ * Bybit adapter - bybit-api (community-maintained, tiagosiebler; no official
  * Bybit Node SDK exists). Bybit is the only one of the 5 exchanges with a
  * real account-registration-time endpoint, so accountAgeDays here is exact,
  * not a proxy.
@@ -18,7 +18,7 @@ export async function testConnection({ apiKey, apiSecret }) {
 
 async function getRegisterTime(client) {
   try {
-    // Undocumented-outside-compliance-namespace but real endpoint — see
+    // Undocumented-outside-compliance-namespace but real endpoint - see
     // research notes; falls back to null (unknown) if unreachable with a
     // read-only key rather than failing the whole sync.
     const res = await client.get("/fht/compliance/tax/v3/private/registertime");
@@ -38,7 +38,7 @@ export async function fetchSignals({ apiKey, apiSecret }) {
       client.getHistoricOrders({ category: "spot", startTime: Date.now() - NINETY_DAYS_MS, limit: 50 }),
       getRegisterTime(client),
       // Bybit is the only one of the 5 exchanges that exposes a KYC tier
-      // (kycLevel) and a coarse KYC region (kycRegion) via API — confirmed
+      // (kycLevel) and a coarse KYC region (kycRegion) via API - confirmed
       // against the real /v5/user/query-api response schema. kycRegion is
       // only populated if the buyer has actually completed KYC there.
       client.getQueryApiKey().catch(() => null),
@@ -62,7 +62,7 @@ export async function fetchSignals({ apiKey, apiSecret }) {
       balances: coins
         .filter(c => Number(c.walletBalance) > 0)
         .map(c => ({ asset: c.coin, free: Number(c.walletBalance), locked: 0 })),
-      // getHistoricOrders returns orders (not fills) — a real, if imperfect,
+      // getHistoricOrders returns orders (not fills) - a real, if imperfect,
       // recent-activity proxy, same category already used for tradeCount90d.
       recentTrades: orders
         .slice(0, 20)

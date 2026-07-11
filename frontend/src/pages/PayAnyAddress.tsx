@@ -113,7 +113,7 @@ export default function PayAnyAddress() {
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Direct Payment</p>
         <h1 className="text-2xl font-semibold text-foreground">Pay Any Address</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Send a BNPL or subscription payment to any Arbitrum wallet address — no merchant onboarding required.
+          Send a BNPL or subscription payment to any Arbitrum wallet address - no merchant onboarding required.
           Useful for any recipient that already accepts crypto payments to a wallet directly.
         </p>
       </div>
@@ -200,7 +200,7 @@ export default function PayAnyAddress() {
           <AlertCircle size={14} className="text-primary flex-shrink-0" />
           <p className="text-xs text-primary">
             {chargeType === 0
-              ? "BNPL doesn't require funds now — approval is based on your on-chain credit score."
+              ? "BNPL doesn't require funds now - approval is based on your on-chain credit score."
               : 'Approval is based on your on-chain wallet history.'}
           </p>
         </div>

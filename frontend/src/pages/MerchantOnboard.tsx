@@ -4,6 +4,7 @@ import { CheckCircle, Plus, Trash2 } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { configureMerchantPayout } from '../lib/contracts'
 import { submitMerchantOnboarding, type MerchantOnboardingProduct } from '../lib/api'
+import { shortAddr } from '../lib/format'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -271,7 +272,7 @@ export default function MerchantOnboard() {
               </button>
             </div>
             {form.products.length === 0 && (
-              <p className="text-xs text-muted-foreground">No products yet — you can add these later from your merchant dashboard.</p>
+              <p className="text-xs text-muted-foreground">No products yet - you can add these later from your merchant dashboard.</p>
             )}
             {form.products.map((p, i) => (
               <div key={i} className="border border-border rounded-sm p-4 space-y-3">
@@ -336,7 +337,7 @@ export default function MerchantOnboard() {
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Review &amp; Confirm</p>
             {[
               { label: 'Business Name', value: form.businessName || '(none)' },
-              { label: 'Wallet', value: address, mono: true },
+              { label: 'Wallet', value: address ? shortAddr(address) : '', mono: true },
               { label: 'Chain', value: form.chain },
               { label: 'Payout Mode', value: form.payoutMode === 0 ? 'One-Time' : 'Recurring' },
               { label: 'Payout Chain', value: form.payoutChain },

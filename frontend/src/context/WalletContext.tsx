@@ -20,7 +20,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [balanceLoading, setBalanceLoading] = useState(false)
   const [uaConfigured, setUaConfigured] = useState(false)
   // lib/universalAccount.ts statically imports the full Particle Universal
-  // Account SDK — dynamically importing it here (instead of a top-level
+  // Account SDK - dynamically importing it here (instead of a top-level
   // import) keeps that weight out of the one bundle every visitor loads,
   // including anonymous Landing-page visitors who never touch a wallet.
   // Cached after first load so repeated calls don't re-fetch the chunk.

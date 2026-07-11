@@ -6,7 +6,7 @@
  * signature = personal_sign("Settle profile: action=connect_exchange buyer=<addr> ts=<ts>")
  *
  * Credentials are verified against the real exchange (testConnection) before
- * ever being stored, then stored Vault-encrypted — never in plaintext, never
+ * ever being stored, then stored Vault-encrypted - never in plaintext, never
  * returned in any response after this call.
  */
 import { verifyBuyerSignature } from "../../../src/buyerAuth.js";
@@ -42,7 +42,7 @@ export async function POST(req) {
     return json({ ok: true, exchange }, 200);
   } catch (err) {
     // Provider auth-rejection messages (e.g. "Invalid OK-ACCESS-KEY") are
-    // safe and useful to return directly — they don't leak this app's
+    // safe and useful to return directly - they don't leak this app's
     // internals, just tell the user their key/secret/passphrase is wrong.
     const providerMessage = extractErrorMessage(err);
     if (providerMessage && providerMessage !== "unknown error") {

@@ -6,7 +6,7 @@
 -- next nonce → "nonce too low" / "replacement underpriced" reverts.
 --
 -- Fix: a single row per wallet address, incremented atomically. The
--- UPDATE ... RETURNING is the lock — Postgres serializes the increment, so
+-- UPDATE ... RETURNING is the lock - Postgres serializes the increment, so
 -- two concurrent invocations never receive the same nonce.
 
 create table if not exists nonce_alloc (
@@ -31,7 +31,7 @@ $$ language plpgsql;
 
 -- Re-sync the allocator forward to a chain-derived floor (used on retry after
 -- a "nonce too low" / replacement-underpriced revert). Never moves the row
--- backward — only forward to max(current, floor).
+-- backward - only forward to max(current, floor).
 create or replace function resync_nonce(w text, floor bigint) returns bigint as $$
 begin
   insert into nonce_alloc (wallet, next_nonce)

@@ -20,10 +20,10 @@ export default function Dca() {
   // UA cross-chain buy is available when Particle credentials are set and the
   // destination chain is the supported mainnet (Arbitrum One, 42161).
   const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
-  // Any coin the SDK supports, on any chain it supports — not just ETH/BTC on
+  // Any coin the SDK supports, on any chain it supports - not just ETH/BTC on
   // one chain. Same registry the Universal Account convert form uses, minus
   // Solana: DCAPlan.sol's targetToken field is a Solidity `address` (20-byte
-  // EVM only) — it can't store a Solana base58 account address. Convert
+  // EVM only) - it can't store a Solana base58 account address. Convert
   // doesn't have this constraint since Particle resolves the destination
   // server-side from a token-type enum, not a stored on-chain address.
   const targetTokens = getConvertTargets().filter(t => t.chainId !== CHAIN_ID.SOLANA_MAINNET)
@@ -165,7 +165,7 @@ export default function Dca() {
         </p>
         {!uaConfigured && (
           <p className="text-xs text-yellow-500 mt-2">
-            Particle Network credentials not configured — executing buys is disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID. Creating and cancelling plans still works (plain Arbitrum transactions).
+            Particle Network credentials not configured - executing buys is disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID. Creating and cancelling plans still works (plain Arbitrum transactions).
           </p>
         )}
       </div>
@@ -328,7 +328,7 @@ export default function Dca() {
                             ) : (
                               <span
                                 className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-border text-muted-foreground cursor-not-allowed"
-                                title="Particle Network credentials not configured — set VITE_PARTICLE_* to enable cross-chain buys"
+                                title="Particle Network credentials not configured - set VITE_PARTICLE_* to enable cross-chain buys"
                               >
                                 <Zap size={11} /> UA disabled
                               </span>
@@ -354,7 +354,7 @@ export default function Dca() {
           </div>
         </div>
         {buyResult && 'txId' in buyResult && (
-          <p className="text-xs text-primary mt-2">Plan #{buyResult.id} bought via Universal Account — tx {shortHash(buyResult.txId)}</p>
+          <p className="text-xs text-primary mt-2">Plan #{buyResult.id} bought via Universal Account - tx {shortHash(buyResult.txId)}</p>
         )}
         {buyResult && 'error' in buyResult && (
           <p className="text-xs text-red-400 mt-2">Plan #{buyResult.id} buy failed: {buyResult.error}</p>

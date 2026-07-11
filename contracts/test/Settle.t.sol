@@ -55,7 +55,7 @@ contract MockUSDC {
 
 /// @notice A malicious ERC20 whose transfer() calls back into a configured
 /// target mid-transfer, simulating a callback-token attack (e.g. an
-/// ERC777-style hook) — used to prove LiquidityPool/PayoutRouter's
+/// ERC777-style hook) - used to prove LiquidityPool/PayoutRouter's
 /// nonReentrant guards actually block reentry, not just happen to be safe
 /// because of checks-effects-interactions ordering. Real Arbitrum USDC has
 /// no such hook, but a defense-in-depth test should verify the guard fires
@@ -199,7 +199,7 @@ contract SettleTest is Test {
 
     function test_RevertCreateCharge_Unauthorized() public {
         // createCharge is now plain onlyOwner (the dead scheduleEngine branch
-        // was removed — ScheduleEngine never actually called it), so this
+        // was removed - ScheduleEngine never actually called it), so this
         // reverts with OZ's Ownable custom error, not a string.
         vm.prank(buyer);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, buyer));
@@ -329,7 +329,7 @@ contract SettleTest is Test {
 
     /// @notice Regression test for the gap this session's ScheduleEngine
     /// redeploy fixes: the grace-expiry branch used to only flip
-    /// ChargeRegistry's charge-level status to Defaulted — it never told
+    /// ChargeRegistry's charge-level status to Defaulted - it never told
     /// DefaultHandler, so buyer-level tracking (isDefaulted/defaultCount,
     /// which gates canAccessBNPL for new charges and feeds credit scoring)
     /// could never actually update no matter how many charges defaulted.
@@ -357,14 +357,14 @@ contract SettleTest is Test {
         assertEq(reason, "active default on record");
     }
 
-    /// @notice The DefaultHandler call is guarded (try/catch) — a charge must
+    /// @notice The DefaultHandler call is guarded (try/catch) - a charge must
     /// still correctly flip to Defaulted even if ScheduleEngine's
     /// defaultHandler pointer is unset (e.g. mid-migration, or intentionally
     /// left unconfigured), matching the fail-safe (not fail-blocking) design.
     function test_SweepFail_DefaultAfterGrace_WorksWithoutDefaultHandlerConfigured() public {
         ScheduleEngine bareEngine = new ScheduleEngine(address(registry));
         bareEngine.setSweepAgent(sweepAgent);
-        // Deliberately not calling setDefaultHandler() — defaultHandler stays address(0).
+        // Deliberately not calling setDefaultHandler() - defaultHandler stays address(0).
         registry.setScheduleEngine(address(bareEngine));
 
         uint256 id = registry.createCharge(buyer2, merchant, ChargeRegistry.ChargeType.BNPL, 100 * ONE_USDC, 4, MONTH, 700);
@@ -730,7 +730,7 @@ contract SettleTest is Test {
 
         pool.pause();
 
-        // withdraw() is deliberately NOT gated by whenNotPaused — an LP must
+        // withdraw() is deliberately NOT gated by whenNotPaused - an LP must
         // always be able to exit, even mid-incident.
         vm.prank(lpProvider);
         pool.withdraw(500 * ONE_USDC);
@@ -751,7 +751,7 @@ contract SettleTest is Test {
         address newOwner = makeAddr("newOwner");
         registry.transferOwnership(newOwner);
 
-        // Ownership has NOT transferred yet — still the deployer until accepted.
+        // Ownership has NOT transferred yet - still the deployer until accepted.
         assertEq(registry.owner(), deployer);
 
         vm.prank(newOwner);
@@ -804,7 +804,7 @@ contract SettleTest is Test {
 
         // Test contract acts as both owner and scheduleEngine on this fresh
         // registry, purely to get a charge into a payable state with minimal
-        // setup — mirrors the existing test_RevertCreateCharge_BNPL_DefaultHandlerNotConfigured
+        // setup - mirrors the existing test_RevertCreateCharge_BNPL_DefaultHandlerNotConfigured
         // pattern of deploying a throwaway freshRegistry inline.
         malRegistry.setScheduleEngine(address(this));
         malRouter.setSettlementCaller(address(this));

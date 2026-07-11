@@ -28,7 +28,7 @@ contract PayoutRouter is Ownable2Step, ReentrancyGuard, Pausable {
     /// @notice Highest ChargeRegistry.cyclesCompleted value already paid out
     /// for a given chargeId. Cycle-aware (not a flat one-shot bool) because
     /// Settle Pay subscriptions call executePayout repeatedly with the same
-    /// chargeId — one call per billing cycle.
+    /// chargeId - one call per billing cycle.
     mapping(uint256 => uint256) public lastPaidCycle;
 
     address public protocolTreasury;

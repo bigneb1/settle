@@ -12,7 +12,7 @@ function formatAmount(n: number): string {
 }
 
 function formatDateTime(ms: number): string {
-  if (!ms) return '—'
+  if (!ms) return '-'
   return new Date(ms).toLocaleString('en-US', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
@@ -70,7 +70,7 @@ export default function ExchangeDetails() {
         </div>
         <h1 className="text-lg font-semibold text-foreground">{meta.label} Account Details</h1>
       </div>
-      <p className="text-xs text-muted-foreground mb-6">Fetched live from {meta.label} via your connected read-only API key — not cached.</p>
+      <p className="text-xs text-muted-foreground mb-6">Fetched live from {meta.label} via your connected read-only API key - not cached.</p>
 
       {loading && (
         <div className="flex items-center justify-center py-16 text-muted-foreground">

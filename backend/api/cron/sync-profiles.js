@@ -1,14 +1,14 @@
 /**
  * Vercel Cron entrypoint: background sync of all connected exchange/dev-
  * identity accounts and credit profile recomputation. Configured in
- * backend/vercel.json — same CRON_SECRET-gated pattern as api/cron/sweep.js.
+ * backend/vercel.json - same CRON_SECRET-gated pattern as api/cron/sweep.js.
  */
 import { timingSafeEqual } from "node:crypto";
 import { syncAllConnectedAccounts } from "../../src/creditProfileSync.js";
 
 export async function GET(req) {
   if (!process.env.CRON_SECRET) {
-    console.error("[sync-profiles] CRON_SECRET is not configured — rejecting all requests");
+    console.error("[sync-profiles] CRON_SECRET is not configured - rejecting all requests");
     return new Response("Unauthorized", { status: 401 });
   }
   const authHeader = req.headers.get("authorization") || "";

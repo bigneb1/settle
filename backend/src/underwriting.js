@@ -1,5 +1,5 @@
 /**
- * Underwriting service — five-signal credit scoring over Universal Account transaction history.
+ * Underwriting service - five-signal credit scoring over Universal Account transaction history.
  * For BNPL: full scoring required. For Settle Pay < threshold: lightweight gate only.
  */
 import { ethers } from "ethers";
@@ -10,11 +10,11 @@ import { getCrossChainSignal } from "./particleBalances.js";
 
 // Plain-language BNPL explanations via Zhipu GLM (OpenAI-compatible endpoint).
 // baseURL + model are env-driven so the exact region/dashboard values are set
-// by the operator, not hardcoded. Approval is score-based — the explanation is
+// by the operator, not hardcoded. Approval is score-based - the explanation is
 // only plain-language frosting, so a GLM failure must never block checkout.
 //
 // The client is constructed lazily (not at module load) because `new OpenAI()`
-// throws synchronously when apiKey is falsy and OPENAI_API_KEY is also unset —
+// throws synchronously when apiKey is falsy and OPENAI_API_KEY is also unset -
 // that would crash every import of this module (i.e. all of checkout) whenever
 // GLM_API_KEY isn't configured, instead of the documented graceful fallback.
 let glm = null;
@@ -45,10 +45,10 @@ async function computeCreditScore(buyerAddress) {
   const txCount = await provider.getTransactionCount(buyerAddress);
   const balance = await provider.getBalance(buyerAddress);
 
-  // Signal 1: Wallet age (proxy: tx count as age signal — UA gives cross-chain history)
+  // Signal 1: Wallet age (proxy: tx count as age signal - UA gives cross-chain history)
   const walletAgeScore = Math.min(txCount / 500, 1) * WEIGHTS.walletAge;
 
-  // Signal 2: Repayment history — read from ChargeRegistry
+  // Signal 2: Repayment history - read from ChargeRegistry
   const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_ABI, provider);
   let repaymentScore = WEIGHTS.repaymentHistory * 0.5; // baseline: unknown = 50%
   try {
@@ -75,7 +75,7 @@ async function computeCreditScore(buyerAddress) {
   // Signal 4 & 5: cross-chain diversity and balance, via Particle Network's
   // getTokens RPC across 8 chains. Falls back to the single-chain tx-count
   // proxy if Particle credentials aren't configured, so scoring still works
-  // without them — but the cross-chain claim only holds once they are.
+  // without them - but the cross-chain claim only holds once they are.
   const crossChain = await getCrossChainSignal(buyerAddress);
 
   let protocolDiversityScore;
@@ -124,7 +124,7 @@ export async function evaluateBNPL(buyerAddress, requestedAmount) {
   const limit = approved ? Math.round((score - 300) / 550 * 2000) * 1_000_000 : 0; // max $2000 in USDC 6-dec
 
   // Use GLM for plain-language explanation of borderline decisions.
-  // Approval is score-based; the explanation is frosting — a GLM failure falls
+  // Approval is score-based; the explanation is frosting - a GLM failure falls
   // back to empty string rather than blocking checkout.
   let explanation = "";
   if (score >= 540 && score < 640) {
@@ -147,7 +147,7 @@ export async function evaluateBNPL(buyerAddress, requestedAmount) {
 }
 
 /**
- * Lightweight subscription risk gate. Returns { approved } — no full scoring for amounts under threshold.
+ * Lightweight subscription risk gate. Returns { approved } - no full scoring for amounts under threshold.
  */
 export async function evaluateSubscription(buyerAddress, monthlyAmountUSD) {
   if (monthlyAmountUSD <= SUBSCRIPTION_RISK_THRESHOLD_USD) {

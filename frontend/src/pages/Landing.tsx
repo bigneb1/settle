@@ -585,7 +585,7 @@ export default function Landing() {
                 className="text-base md:text-lg text-muted-foreground max-w-lg mb-9 leading-relaxed"
               >
                 Split purchases into installments or subscribe with recurring billing on
-                Arbitrum. Repay automatically from wherever your balance sits — no
+                Arbitrum. Repay automatically from wherever your balance sits - no
                 bridging, no manual approvals. Merchants get paid instantly.
               </motion.p>
 
@@ -645,7 +645,7 @@ export default function Landing() {
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-7 max-w-md">
               Real-time credit decisions from your unified cross-chain history. Approved
-              buyers get instant checkout — the LiquidityPool fronts the merchant's full
+              buyers get instant checkout - the LiquidityPool fronts the merchant's full
               payment upfront, and you repay over fixed installments.
             </p>
             <ul className="space-y-3 mb-8">
@@ -679,7 +679,7 @@ export default function Landing() {
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-7 max-w-md">
                 Automated on-chain subscriptions for SaaS, media and memberships. Each
-                cycle is swept from whatever chain your balance happens to sit on —
+                cycle is swept from whatever chain your balance happens to sit on -
                 cancel any time with a single transaction.
               </p>
               <ul className="space-y-3 mb-8">
@@ -712,7 +712,7 @@ export default function Landing() {
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-7 max-w-md">
                 Powered by Particle Network's Universal Accounts in EIP-7702 mode. Your
-                existing wallet becomes a chain-abstracted account in place — same
+                existing wallet becomes a chain-abstracted account in place - same
                 address, one login, one balance across chains.
               </p>
               <ul className="space-y-3 mb-8">

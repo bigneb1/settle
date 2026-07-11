@@ -33,7 +33,7 @@ export const STATUS_COLOR: Record<number, string> = {
   3: 'text-destructive bg-destructive/10',
 }
 
-// DCAPlan's status enum is only 2 states (0=Active, 1=Cancelled) — do not reuse
+// DCAPlan's status enum is only 2 states (0=Active, 1=Cancelled) - do not reuse
 // STATUS_LABEL/STATUS_COLOR above, which are keyed for ChargeRegistry's 4-state
 // enum where index 1 is "Completed", not "Cancelled".
 export const DCA_STATUS_LABEL: Record<number, string> = {
@@ -47,7 +47,7 @@ export const DCA_STATUS_COLOR: Record<number, string> = {
 
 /** Human-readable countdown to a grace-period deadline, e.g. "2d 4h left" or
  * "expiring soon" once under an hour remains. Assumes endsAt is in the future
- * — callers only show this while `inGrace` is true. */
+ * - callers only show this while `inGrace` is true. */
 export function formatGraceCountdown(endsAt: bigint | number): string {
   const remainingMs = Number(endsAt) * 1000 - Date.now()
   if (remainingMs <= 0) return 'expiring soon'

@@ -1,7 +1,7 @@
 /**
  * Universal Accounts integration (Particle Network, EIP-7702 mode).
  *
- * The buyer's Magic-embedded EOA becomes the Universal Account owner in place —
+ * The buyer's Magic-embedded EOA becomes the Universal Account owner in place -
  * no new address, no smart-account deployment. Magic's wallet signs both the
  * transaction rootHash (magic.rpcProvider -> personal_sign) and the EIP-7702
  * delegation authorization (magic.wallet.sign7702Authorization, available since
@@ -82,7 +82,7 @@ async function signRootHash(rootHash: string): Promise<string> {
 
 /**
  * Sign the EIP-7702 authorization(s) a Universal Transaction's userOps require
- * (only needed for the first transaction per chain for a given owner — see
+ * (only needed for the first transaction per chain for a given owner - see
  * transaction.userOps[].eip7702Auth).
  */
 async function signEIP7702Authorizations(
@@ -134,7 +134,7 @@ export interface CrossChainPaymentResult {
    * Best-effort destination-chain (Arbitrum) transaction hash, read from the
    * userOp entry matching destinationChainId. In EIP-7702 mode the delegated EOA
    * submits the execution directly (no ERC-4337 bundler indirection), so
-   * userOpHash for that chain should equal the real on-chain tx hash — but this
+   * userOpHash for that chain should equal the real on-chain tx hash - but this
    * needs live verification against a real UA transaction before relying on it
    * for the backend confirmation step (see api/payments/confirm.js).
    */
@@ -146,9 +146,9 @@ export interface CrossChainPaymentResult {
  * Universal Accounts Track: settle a BNPL installment or subscription cycle by
  * sourcing USDC from wherever the buyer's Universal Account balance sits, and
  * delivering it to Settle's Arbitrum settlement address. No bridge UI, no chain
- * picker, no manual approval step — the SDK sources liquidity automatically.
+ * picker, no manual approval step - the SDK sources liquidity automatically.
  *
- * This is buyer-triggered (button click), not an unattended background sweep —
+ * This is buyer-triggered (button click), not an unattended background sweep -
  * unattended auto-debit would need a session-key/delegation mechanism on top of
  * this, which is out of scope for the hackathon demo.
  */
@@ -195,10 +195,10 @@ export interface DcaBuyResult {
 /**
  * Executes one DCA cycle: buys amountPerCycleUSD worth of targetToken, sourced
  * from wherever the buyer's Universal Account balance sits, landing directly in
- * their own account on targetChainId (no separate settlement address needed —
+ * their own account on targetChainId (no separate settlement address needed -
  * unlike payChargeCycleCrossChain, there's no merchant to pay here). Confirmed
  * server-side via Particle's transaction status, not an on-chain receipt check
- * (see api/dca/confirm.js) — so only transactionId is needed, no destination hash.
+ * (see api/dca/confirm.js) - so only transactionId is needed, no destination hash.
  */
 export async function executeDcaBuy(params: {
   ownerAddress: string
@@ -260,7 +260,7 @@ export interface ConvertTarget {
 }
 
 /**
- * Every destination (token type, chain) pair the SDK supports — the full
+ * Every destination (token type, chain) pair the SDK supports - the full
  * registry, including Solana (chain 101) for usdc/usdt/sol. Used for both
  * the Convert form and the DCA target picker (any coin, any chain, not
  * restricted to ETH/BTC on one chain).
@@ -282,7 +282,7 @@ export interface ConvertResult {
 
 /**
  * Converts (swaps) part of the buyer's unified balance into `destinationTokenType`
- * on `destinationChainId` — the SDK sources funds from wherever the balance
+ * on `destinationChainId` - the SDK sources funds from wherever the balance
  * currently sits, same automatic sourcing as payChargeCycleCrossChain/executeDcaBuy.
  * `amount` is how much of the destination token to receive (human-readable units).
  */

@@ -84,7 +84,7 @@ contract DCAPlanTest is Test {
         vm.prank(recorder);
         dca.recordBuyExecuted(planId, ONE_USD, "tx-1");
 
-        // Second call before the next cycle is due should revert — this is the
+        // Second call before the next cycle is due should revert - this is the
         // on-chain replay guard (no off-chain dedup table needed), same pattern
         // as ScheduleEngine.recordSweepOutcome.
         vm.prank(recorder);

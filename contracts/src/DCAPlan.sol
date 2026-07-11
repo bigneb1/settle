@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @notice Recurring cross-chain investment plans (DCA), settled via Universal Accounts.
-/// Unlike BNPL/subscriptions, a DCA buy has no counterparty to pay — the buyer's own
+/// Unlike BNPL/subscriptions, a DCA buy has no counterparty to pay - the buyer's own
 /// Universal Account sources funds cross-chain and receives the purchased asset
 /// directly. So this contract only tracks the schedule and a record of executed
 /// buys; the actual buy executes client-side via createBuyTransaction() and is
@@ -53,7 +53,7 @@ contract DCAPlan is Ownable2Step {
         emit RecorderUpdated(_recorder);
     }
 
-    /// @notice First buy is due immediately (block.timestamp) — the plan owner
+    /// @notice First buy is due immediately (block.timestamp) - the plan owner
     /// executes it right after creating the plan, then every cycleSeconds after.
     function createPlan(
         uint256 targetChainId,
@@ -84,7 +84,7 @@ contract DCAPlan is Ownable2Step {
 
     /// @notice Called by the backend recorder after independently verifying the
     /// buyer's Universal Account buy transaction actually executed (see
-    /// api/dca/confirm.js — checks Particle's transaction status, not client input).
+    /// api/dca/confirm.js - checks Particle's transaction status, not client input).
     function recordBuyExecuted(uint256 planId, uint256 amountUSD, string calldata transactionId) external {
         require(msg.sender == recorder, "only recorder");
         Plan storage p = plans[planId];

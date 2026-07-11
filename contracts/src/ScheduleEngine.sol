@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "./ChargeRegistry.sol";
 
 /// @notice Minimal interface into DefaultHandler, kept local so ScheduleEngine
-/// doesn't need to import DefaultHandler's full implementation — same pattern
+/// doesn't need to import DefaultHandler's full implementation - same pattern
 /// ChargeRegistry.sol already uses for its own DefaultHandler dependency.
 interface IDefaultHandlerFlag {
     enum DefaultReason { InsufficientBalance, GracePeriodExpired, ManualFlagged }
@@ -21,7 +21,7 @@ contract ScheduleEngine is Ownable2Step {
     address public sweepAgent;
 
     /// @notice Buyer-level default tracking (isDefaulted/defaultCount, gates
-    /// canAccessBNPL for new charges). Optional by design — see the guarded
+    /// canAccessBNPL for new charges). Optional by design - see the guarded
     /// call in recordSweepOutcome below.
     address public defaultHandler;
 
@@ -88,7 +88,7 @@ contract ScheduleEngine is Ownable2Step {
                 emit ChargeFlaggedDefault(chargeId);
 
                 // Buyer-level default tracking (canAccessBNPL gate + credit-scoring
-                // signal) is a secondary effect — guarded with try/catch so a
+                // signal) is a secondary effect - guarded with try/catch so a
                 // misconfigured or reverting DefaultHandler can never block the
                 // charge-status transition above, which is the primary effect.
                 if (defaultHandler != address(0)) {

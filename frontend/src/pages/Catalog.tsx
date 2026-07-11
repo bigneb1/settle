@@ -105,7 +105,7 @@ export default function Catalog() {
             try {
               price = BigInt(item.price)
             } catch {
-              // Malformed price from a bad merchant-onboarding submission —
+              // Malformed price from a bad merchant-onboarding submission -
               // skip this one item rather than crashing the whole page.
               return null
             }

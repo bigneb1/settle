@@ -13,13 +13,13 @@ import "../src/DCAPlan.sol";
 /// @notice Deploys a TimelockController and transfers ownership of all 6
 /// Settle contracts to it. minDelay=1h, deployer as sole initial
 /// proposer/executor/admin (extensible to true multi-party via grantRole
-/// once additional signer addresses are available — no redeploy needed).
+/// once additional signer addresses are available - no redeploy needed).
 ///
 /// This is a two-step process across two runs because Ownable2Step's
 /// acceptOwnership() must be called BY the new owner (the timelock itself),
 /// which means it has to go through the timelock's own schedule->wait->execute
 /// flow, not a single script broadcast:
-///   1. TimelockDeployAndPropose — deploys the timelock, calls
+///   1. TimelockDeployAndPropose - deploys the timelock, calls
 ///      transferOwnership(timelock) on all 6 contracts from the deployer
 ///      (the current-owner-initiated half, no delay needed), then
 ///      scheduleBatch(...) the 6 acceptOwnership() calls.
@@ -58,7 +58,7 @@ contract DeployTimelock is Script {
         DCAPlan dcaPlan = DCAPlan(vm.envAddress("DCA_PLAN_ADDR"));
 
         // Step 1 of Ownable2Step: current owner (deployer) initiates transfer.
-        // No timelock delay needed for this half — the deployer still holds
+        // No timelock delay needed for this half - the deployer still holds
         // full authority until the new owner (timelock) explicitly accepts.
         chargeRegistry.transferOwnership(address(timelock));
         scheduleEngine.transferOwnership(address(timelock));

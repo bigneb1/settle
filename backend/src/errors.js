@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 /**
  * Log the full error server-side (with a correlation id) and return a
- * generic, client-safe message — internal detail like provider/Supabase
+ * generic, client-safe message - internal detail like provider/Supabase
  * error text, table/column names, or RPC internals shouldn't leak into
  * API responses.
  */

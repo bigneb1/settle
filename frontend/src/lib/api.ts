@@ -4,7 +4,7 @@ import { getMagic } from './magic'
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 /**
- * Reads a fetch Response body as JSON without assuming it's well-formed —
+ * Reads a fetch Response body as JSON without assuming it's well-formed -
  * an empty body (e.g. a route that doesn't exist, a proxy/network hiccup)
  * makes `res.json()` itself throw a cryptic "Unexpected end of JSON input"
  * instead of surfacing a readable error. Read as text first and parse
@@ -22,7 +22,7 @@ async function parseJsonResponse(res: Response): Promise<any> {
 
 /**
  * Signs `Settle profile: action=<action> buyer=<address> ts=<ts>` with the
- * buyer's Magic wallet — the same EIP-191 pattern checkout/create.js
+ * buyer's Magic wallet - the same EIP-191 pattern checkout/create.js
  * already uses, reused here for every profile endpoint so the backend can
  * verify a request actually comes from the wallet it claims to.
  */
@@ -150,7 +150,7 @@ export interface ExchangeConnectionRow {
   last_error: string | null
   // Reported directly by the exchange via the connected API key. kyc_level's
   // scale differs per exchange (Bybit: LEVEL_DEFAULT/LEVEL_1/LEVEL_2, OKX: a
-  // numeric string) — shown as-is, not normalized into one scale. kyc_region
+  // numeric string) - shown as-is, not normalized into one scale. kyc_region
   // is Bybit-only; both are null for exchanges that don't expose them
   // (Binance, Gate.io, Bitget) or before a KYC-completed sync.
   exchange_uid: string | null
@@ -309,19 +309,19 @@ export async function disconnectDevIdentity(address: string, provider: DevIdenti
 
 /**
  * Builds the GitHub/GitLab OAuth authorize URL with a signed `state` param
- * binding this flow to the connected buyer — see backend/src/devIdentity.js.
+ * binding this flow to the connected buyer - see backend/src/devIdentity.js.
  * client_id is public (not a secret), safe to read from VITE_* env vars.
  */
 export async function getDevIdentityAuthorizeUrl(address: string, provider: DevIdentityProvider): Promise<string> {
   const { ts, signature } = await signProfileAction(address, provider === 'github' ? 'connect_github' : 'connect_gitlab')
-  // Note: state encodes { buyer, provider, ts, signature } — provider here
+  // Note: state encodes { buyer, provider, ts, signature } - provider here
   // must match what verifyAndDecodeState expects, which is the OAuth
   // provider name itself ('github'/'gitlab'), not the signed action string.
   const state = btoa(JSON.stringify({ buyer: address, provider, ts, signature }))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
   // Unlike every other call in this file, this URL is sent to an EXTERNAL
-  // OAuth provider (github.com/gitlab.com), not fetched same-origin — a
+  // OAuth provider (github.com/gitlab.com), not fetched same-origin - a
   // relative path (what API_URL='' produces everywhere else, by design) is
   // not a valid redirect_uri for them. Fall back to the real page origin.
   const apiBase = API_URL || window.location.origin

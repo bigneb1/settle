@@ -75,11 +75,11 @@ export default function Account() {
         <h1 className="text-2xl font-semibold text-foreground">Universal Account</h1>
         <p className="text-sm text-muted-foreground mt-1 font-mono">{shortAddr(address)}</p>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Your wallet is upgraded (EIP-7702) into one account that sees every chain's balance as a single pool of funds — no bridging, no manual swaps, no picking a network first.
+          Your wallet is upgraded (EIP-7702) into one account that sees every chain's balance as a single pool of funds - no bridging, no manual swaps, no picking a network first.
         </p>
         {!uaConfigured && (
           <p className="text-xs text-warning mt-2">
-            Particle Network credentials not configured — unified balance and conversion are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
+            Particle Network credentials not configured - unified balance and conversion are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
           </p>
         )}
       </div>
@@ -98,9 +98,9 @@ export default function Account() {
           </button>
         </div>
         <p className="text-3xl font-mono font-bold text-foreground">
-          {balanceLoading ? <Loader2 size={22} className="animate-spin" /> : balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '—'}
+          {balanceLoading ? <Loader2 size={22} className="animate-spin" /> : balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-'}
         </p>
-        <p className="text-xs text-muted-foreground mt-1">Across every chain your balance sits on — sourced automatically for payments, DCA, and conversions below.</p>
+        <p className="text-xs text-muted-foreground mt-1">Across every chain your balance sits on - sourced automatically for payments, DCA, and conversions below.</p>
       </div>
 
       {/* Per-asset, per-chain breakdown */}
@@ -144,7 +144,7 @@ export default function Account() {
         </p>
         <div className="bg-card border border-border rounded-sm p-5 max-w-xl">
           <p className="text-xs text-muted-foreground mb-4">
-            Convert part of your unified balance into any supported asset on any supported chain — funds are sourced automatically from wherever they currently sit.
+            Convert part of your unified balance into any supported asset on any supported chain - funds are sourced automatically from wherever they currently sit.
           </p>
           <form onSubmit={handleConvert} className="space-y-4">
             <div>
@@ -194,7 +194,7 @@ export default function Account() {
             </div>
 
             {convertResult && 'error' in convertResult && <p className="text-xs text-destructive">{convertResult.error}</p>}
-            {convertResult && 'txId' in convertResult && <p className="text-xs text-primary">Converted — tx {shortHash(convertResult.txId)}</p>}
+            {convertResult && 'txId' in convertResult && <p className="text-xs text-primary">Converted - tx {shortHash(convertResult.txId)}</p>}
 
             <button
               type="submit"

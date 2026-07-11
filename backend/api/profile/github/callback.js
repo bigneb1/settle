@@ -4,7 +4,7 @@
  * GET /api/profile/github/callback?code=...&state=...
  *
  * `state` is a base64url-encoded { buyer, provider, ts, signature } produced
- * by the frontend (see frontend/src/lib/api.ts) — the buyer signed a fresh
+ * by the frontend (see frontend/src/lib/api.ts) - the buyer signed a fresh
  * EIP-191 message proving control of their wallet before starting the OAuth
  * redirect. Re-verified here before trusting which buyer this connection
  * belongs to (see src/devIdentity.js::verifyAndDecodeState).

@@ -9,11 +9,11 @@ import "@openzeppelin/contracts/governance/TimelockController.sol";
 /// every other owner-gated function in this system), and is called
 /// synchronously at checkout time by the deployer key. Once ownership
 /// transferred to the TimelockController, that synchronous call started
-/// reverting with OwnableUnauthorizedAccount — checkout was broken.
+/// reverting with OwnableUnauthorizedAccount - checkout was broken.
 ///
 /// Fix: transfer ChargeRegistry's ownership back to the deployer EOA
-/// specifically. PayoutRouter and LiquidityPool — the contracts that
-/// actually hold and move funds, the real point of the timelock — keep
+/// specifically. PayoutRouter and LiquidityPool - the contracts that
+/// actually hold and move funds, the real point of the timelock - keep
 /// timelock governance unchanged. ChargeRegistry's admin surface
 /// (setScheduleEngine, setDefaultHandler) is lower-stakes than fund-moving
 /// admin functions, so a single fast EOA is an acceptable tradeoff here in

@@ -2,7 +2,7 @@ interface Props { className?: string; collapsed?: boolean }
 
 /**
  * Mark: three chain nodes of varying weight converge into a single point,
- * which resolves into a checkmark — cross-chain sources settling into one
+ * which resolves into a checkmark - cross-chain sources settling into one
  * completed payment. That's literally what the product does.
  */
 export default function SettleLogo({ className = '', collapsed = false }: Props) {

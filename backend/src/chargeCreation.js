@@ -1,5 +1,5 @@
 /**
- * Shared nonce-safe ChargeRegistry.createCharge() sender — extracted out of
+ * Shared nonce-safe ChargeRegistry.createCharge() sender - extracted out of
  * checkout/create.js so the catalog-item checkout flow and the direct
  * "Pay Any Address" flow (checkout/create-direct.js) share one nonce-retry
  * implementation instead of two copies drifting apart.

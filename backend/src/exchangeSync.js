@@ -1,6 +1,6 @@
 /**
  * Exchange connection + sync orchestrator. Dispatches to the right adapter
- * in src/exchanges/ by name — adding a new exchange means writing one more
+ * in src/exchanges/ by name - adding a new exchange means writing one more
  * adapter module (same { testConnection, fetchSignals } shape) and adding
  * one line to ADAPTERS below, nothing else changes.
  */
@@ -93,11 +93,11 @@ export async function syncExchangeConnection(connection) {
       last_synced_at: new Date().toISOString(),
       last_error: syncFailed ? signals.rawSignals.error : null,
       updated_at: new Date().toISOString(),
-      // Connection-identity facts, not activity signals — kept on the
+      // Connection-identity facts, not activity signals - kept on the
       // connection row itself rather than versioned per-snapshot. Only
       // overwritten on a successful-enough sync (a failed sync's emptySignals
       // already returns these as null, which would otherwise wipe out a
-      // previously-known uid/kyc on a transient error) — skip the overwrite
+      // previously-known uid/kyc on a transient error) - skip the overwrite
       // entirely when this sync failed.
       ...(syncFailed ? {} : {
         exchange_uid: signals.exchangeUid,
@@ -113,8 +113,8 @@ export async function syncExchangeConnection(connection) {
 /**
  * Live, on-demand fetch of one connection's full account detail (uid, kyc,
  * full balance list, recent trades) for the "View Account Details" page.
- * Deliberately writes nothing — no new snapshot row, no connection-row
- * update — this is a read-only view, not a sync; the periodic/manual sync
+ * Deliberately writes nothing - no new snapshot row, no connection-row
+ * update - this is a read-only view, not a sync; the periodic/manual sync
  * path (syncExchangeConnection above) remains the sole writer of aggregate
  * signals and connection-identity fields.
  */

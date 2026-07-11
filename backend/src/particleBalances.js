@@ -2,7 +2,7 @@
  * Cross-chain balance aggregation via Particle Network's public RPC
  * (particle_getTokens), used to make underwriting's "unified cross-chain
  * history" claim real instead of reading a single Arbitrum RPC provider.
- * Doesn't require the full Universal Account SDK — just project credentials.
+ * Doesn't require the full Universal Account SDK - just project credentials.
  */
 const PARTICLE_RPC_URL = "https://rpc.particle.network/evm-chain";
 
@@ -43,14 +43,14 @@ async function fetchChainTokens(walletAddress, chainId, creds) {
 
 /**
  * Aggregate cross-chain signal for underwriting: how many chains hold a
- * nonzero balance, and total native-token value (a rough USD-free proxy —
+ * nonzero balance, and total native-token value (a rough USD-free proxy -
  * Particle's getTokens doesn't return prices, so this stays intentionally
  * simple rather than pulling in a second pricing dependency for a hackathon
  * scorer).
  */
 export async function getCrossChainSignal(buyerAddress) {
   const creds = getParticleCredentials();
-  if (!creds) return null; // Particle not configured — caller falls back to single-chain signal
+  if (!creds) return null; // Particle not configured - caller falls back to single-chain signal
 
   const results = await Promise.all(
     SUPPORTED_CHAIN_IDS.map(chainId => fetchChainTokens(buyerAddress, chainId, creds))
@@ -76,7 +76,7 @@ export async function getCrossChainSignal(buyerAddress) {
     chainsWithBalance,
     totalTokenPositions,
     totalNativeWei,
-    // Per-chain raw token lists — used by walletReputation.js to compute
+    // Per-chain raw token lists - used by walletReputation.js to compute
     // stablecoin holdings without a second round of RPC calls. Additive
     // field; existing callers (underwriting.js) only read the aggregates
     // above and are unaffected.

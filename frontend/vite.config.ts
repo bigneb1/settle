@@ -9,7 +9,7 @@ export default defineConfig({
   },
   server: {
     // Allows preview via the cloudflared tunnel (random *.trycloudflare.com host each run).
-    // Local/dev-only convenience — not meant to ship.
+    // Local/dev-only convenience - not meant to ship.
     allowedHosts: true,
     // Forwards /api/* to the local backend dev-server (backend/dev-server.js,
     // `npm run dev-server`) so same-origin fetch('/api/...') calls work over
@@ -19,7 +19,7 @@ export default defineConfig({
     },
   },
   // `vite preview` (serves the built dist/) reads its own config, separate
-  // from `server` above — mirrored here so tunnel-based testing against a
+  // from `server` above - mirrored here so tunnel-based testing against a
   // production build works the same way. Vite's dev server serves every
   // module as its own uncompiled HTTP request, which is a lot of chatty
   // small requests for a free Cloudflare quick tunnel to carry reliably;

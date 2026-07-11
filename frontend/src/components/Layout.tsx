@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
-  Home, ShoppingBag, LayoutDashboard, Store, PlusCircle, Menu, X, Wallet, LogOut, TrendingUp, BookOpen, UserCircle, Layers, Send, CreditCard
+  Home, ShoppingBag, LayoutDashboard, Store, PlusCircle, Menu, X, Wallet, LogOut, TrendingUp, BookOpen, UserCircle, Layers, Send
 } from 'lucide-react'
 import SettleLogo from './SettleLogo'
 import ConnectWallet from './ConnectWallet'
@@ -16,7 +16,6 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: false },
   { to: '/account', label: 'Account', icon: Layers, end: false },
   { to: '/pay', label: 'Pay Any Address', icon: Send, end: false },
-  { to: '/card', label: 'Card', icon: CreditCard, end: false, soon: true },
   { to: '/profile', label: 'Profile', icon: UserCircle, end: false },
   { to: '/dca', label: 'DCA', icon: TrendingUp, end: false },
   { to: '/merchant', label: 'Merchant', icon: Store, end: false },
@@ -47,7 +46,7 @@ function Sidebar({ wallet, onConnect, onLogout, onClose }: {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ to, label, icon: Icon, end, soon }) => (
+        {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -63,11 +62,6 @@ function Sidebar({ wallet, onConnect, onLogout, onClose }: {
           >
             <Icon size={15} />
             <span className="flex-1">{label}</span>
-            {soon && (
-              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning uppercase tracking-widest">
-                Soon
-              </span>
-            )}
           </NavLink>
         ))}
       </nav>
@@ -134,7 +128,7 @@ export default function Layout() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-full lg:ml-[220px]">
+      <div className="flex-1 flex flex-col min-w-0 min-h-full lg:ml-[220px]">
         {/* Mobile header */}
         <header className="flex lg:hidden items-center justify-between px-4 py-3 border-b border-border bg-background sticky top-0 z-30">
           <div className="flex items-center gap-3">

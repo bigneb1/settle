@@ -1,5 +1,5 @@
 /**
- * OKX adapter — okx-api (community-maintained, tiagosiebler; no official OKX
+ * OKX adapter - okx-api (community-maintained, tiagosiebler; no official OKX
  * Node SDK for REST). Unlike the other 4, OKX requires a passphrase set at
  * key-creation time in addition to the key/secret pair.
  */
@@ -19,7 +19,7 @@ export async function fetchSignals({ apiKey, apiSecret, apiPass }) {
       client.getBalance(),
       client.getOrderHistory({ instType: "SPOT" }),
       // OKX exposes both uid and a KYC tier (kycLv, a numeric string) via
-      // account/config — confirmed against the real response schema. Note
+      // account/config - confirmed against the real response schema. Note
       // OKX's KYC scale is not the same as Bybit's kycLevel enum; stored raw.
       client.getAccountConfiguration().catch(() => null),
     ]);
@@ -33,7 +33,7 @@ export async function fetchSignals({ apiKey, apiSecret, apiPass }) {
       totalBalanceUsd,
       // OKX's order-history endpoint only covers the last 3 months by
       // default (orders-history-archive would extend to ~2 years but is a
-      // separately rate-limited call — kept to the 90-day window here to
+      // separately rate-limited call - kept to the 90-day window here to
       // match the other adapters' "trade activity in the last 90 days" shape).
       tradeCount90d: orderList.length,
       accountAgeDays: null, // no account-creation-date endpoint exists on OKX

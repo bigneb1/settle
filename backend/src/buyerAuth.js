@@ -1,6 +1,6 @@
 /**
  * Shared EIP-191 signature verification for buyer-authenticated profile
- * endpoints — same pattern api/checkout/create.js already uses inline,
+ * endpoints - same pattern api/checkout/create.js already uses inline,
  * factored out here since the Identity & Credit Profile endpoints need it
  * repeatedly (exchange connect/disconnect/sync, profile reads).
  */

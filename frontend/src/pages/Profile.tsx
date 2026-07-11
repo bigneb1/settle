@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   Loader2, RefreshCw, Unlink, Wallet as WalletIcon,
   TrendingUp, TrendingDown, Lightbulb, AlertCircle, CheckCircle2, ExternalLink,
+  CreditCard, Globe, ShieldCheck, Zap,
 } from 'lucide-react'
 import { SiGithub, SiGitlab } from '@icons-pack/react-simple-icons'
 import { useWallet } from '../context/WalletContext'
@@ -70,7 +71,7 @@ function ConnectExchangeModal({ exchange, onClose, onConnected }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="bg-card border border-border rounded-sm w-full max-w-md shadow-2xl p-6">
+      <div className="bg-card border border-border rounded-sm w-full max-w-md shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3 mb-4">
           {meta && (
             <div className="w-10 h-10 rounded-sm bg-white flex items-center justify-center flex-shrink-0">
@@ -83,7 +84,7 @@ function ConnectExchangeModal({ exchange, onClose, onConnected }: {
           </div>
         </div>
         <div className="bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-4">
-          <p className="text-xs text-primary">Create a <strong>read-only</strong> API key — never enable trade or withdrawal permissions. We never ask for your exchange password.</p>
+          <p className="text-xs text-primary">Create a <strong>read-only</strong> API key - never enable trade or withdrawal permissions. We never ask for your exchange password.</p>
           {meta && (
             <a
               href={meta.apiKeyUrl} target="_blank" rel="noreferrer"
@@ -193,7 +194,7 @@ function ExchangeCard({ exchangeKey, label, icon, accent, connection, onConnect,
           <div className="flex justify-between"><span className="text-muted-foreground">Stablecoin balance</span><span className="font-mono text-foreground">${snap.total_balance_usd?.toFixed(2) ?? '0.00'}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Trades (90d)</span><span className="font-mono text-foreground">{snap.trade_count_90d ?? 0}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Account age</span><span className="font-mono text-foreground">{snap.account_age_days != null ? `${snap.account_age_days}d` : 'Unknown'}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Last synced</span><span className="text-muted-foreground">{connection?.last_synced_at ? new Date(connection.last_synced_at).toLocaleString() : '—'}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Last synced</span><span className="text-muted-foreground">{connection?.last_synced_at ? new Date(connection.last_synced_at).toLocaleString() : '-'}</span></div>
         </div>
       ) : connected ? (
         <p className="text-xs text-muted-foreground mb-3">No sync data yet.</p>
@@ -258,7 +259,7 @@ function DevIdentityCard({ label, icon: Icon, accent, connection, onConnect, onD
         <div className="space-y-1.5 mb-3 text-xs">
           <div className="flex justify-between"><span className="text-muted-foreground">Username</span><span className="font-mono text-foreground">{connection.username}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Account age</span><span className="font-mono text-foreground">{connection.latestSnapshot?.account_age_days != null ? `${connection.latestSnapshot.account_age_days}d` : 'Unknown'}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Public repos</span><span className="font-mono text-foreground">{connection.latestSnapshot?.public_repos ?? '—'}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Public repos</span><span className="font-mono text-foreground">{connection.latestSnapshot?.public_repos ?? '-'}</span></div>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground mb-3">Adds developer reputation to your credit profile.</p>
@@ -276,6 +277,42 @@ function DevIdentityCard({ label, icon: Icon, accent, connection, onConnect, onD
   )
 }
 
+const CARD_FEATURES = [
+  { icon: Globe, title: 'Spend anywhere', desc: 'Works at any merchant that accepts Visa or Mastercard online or in-store - Amazon, Jumia, anywhere - not just merchants onboarded to Settle.' },
+  { icon: Zap, title: 'Backed by your credit line', desc: 'Spend against the same on-chain credit score that powers BNPL - no separate application.' },
+  { icon: ShieldCheck, title: 'No pre-funding required', desc: 'Approved purchases settle the same way BNPL charges do today - repay from wherever your balance sits.' },
+]
+
+function CardTab() {
+  return (
+    <div className="max-w-2xl mx-auto text-center py-10">
+      <div className="w-16 h-16 rounded-sm bg-primary-subtle flex items-center justify-center mx-auto mb-6">
+        <CreditCard size={28} className="text-primary" />
+      </div>
+      <span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-sm bg-warning/10 text-warning uppercase tracking-widest mb-3">
+        Coming Soon
+      </span>
+      <h2 className="text-2xl font-semibold text-foreground mb-3">Settle Card</h2>
+      <p className="text-sm text-muted-foreground mb-10">
+        A virtual card that lets you spend your Settle credit line anywhere Visa or Mastercard is accepted -
+        including stores that don't take crypto directly, like Amazon or Jumia. This closes the gap that{' '}
+        <Link to="/pay" className="text-primary hover:underline">Pay Any Address</Link> can't: paying merchants who
+        only accept traditional card rails.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+        {CARD_FEATURES.map(({ icon: Icon, title, desc }) => (
+          <div key={title} className="bg-card border border-border rounded-sm p-4">
+            <Icon size={16} className="text-primary mb-3" />
+            <p className="text-sm font-semibold text-foreground mb-1.5">{title}</p>
+            <p className="text-xs text-muted-foreground">{desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Profile() {
   const { address } = useWallet()
   const [profile, setProfile] = useState<FullProfile | null>(null)
@@ -283,6 +320,7 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null)
   const [connectModal, setConnectModal] = useState<SupportedExchange | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [tab, setTab] = useState<'credit' | 'card'>('credit')
   const [searchParams, setSearchParams] = useSearchParams()
   const latestAddressRequested = useRef<string | null>(null)
 
@@ -407,124 +445,151 @@ export default function Profile() {
         </button>
       </div>
 
-      {/* Credit score summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        <div className="bg-card border border-border rounded-sm p-5 flex flex-col items-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Credit Score</p>
-          <ScoreGauge score={creditProfile.overall_score} />
-          <span className="text-sm font-medium text-primary mt-1">{creditProfile.credit_tier}</span>
-        </div>
-        <div className="bg-card border border-border rounded-sm p-5">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Available Credit Line</p>
-          <p className="text-3xl font-mono font-bold text-foreground mb-2">{formatUSDC(BigInt(creditProfile.credit_line_usdc))}</p>
-          <p className="text-xs text-muted-foreground">Computed {new Date(creditProfile.computed_at).toLocaleString()}</p>
-        </div>
-        <div className="bg-card border border-border rounded-sm p-5">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Score Breakdown</p>
-          <div className="space-y-2">
-            {Object.entries(creditProfile.score_breakdown).map(([key, val]) => (
-              <div key={key}>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
-                  <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                  <span className="font-mono">{val.score}/100 · {val.weight}%</span>
-                </div>
-                <div className="h-1 bg-border rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${val.score}%` }} />
-                </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-8 border-b border-border">
+        {([
+          { key: 'credit', label: 'Credit Profile' },
+          { key: 'card', label: 'Card', soon: true },
+        ] as const).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 border-b-2 transition-colors ${
+              tab === t.key ? 'text-primary border-primary' : 'text-muted-foreground border-transparent hover:text-foreground'
+            }`}
+          >
+            {t.label}
+            {'soon' in t && t.soon && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning uppercase tracking-widest">Soon</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'card' ? (
+        <CardTab />
+      ) : (
+        <>
+          {/* Credit score summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+            <div className="bg-card border border-border rounded-sm p-5 flex flex-col items-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Credit Score</p>
+              <ScoreGauge score={creditProfile.overall_score} />
+              <span className="text-sm font-medium text-primary mt-1">{creditProfile.credit_tier}</span>
+            </div>
+            <div className="bg-card border border-border rounded-sm p-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Available Credit Line</p>
+              <p className="text-3xl font-mono font-bold text-foreground mb-2">{formatUSDC(BigInt(creditProfile.credit_line_usdc))}</p>
+              <p className="text-xs text-muted-foreground">Computed {new Date(creditProfile.computed_at).toLocaleString()}</p>
+            </div>
+            <div className="bg-card border border-border rounded-sm p-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Score Breakdown</p>
+              <div className="space-y-2">
+                {Object.entries(creditProfile.score_breakdown).map(([key, val]) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <span className="font-mono">{val.score}/100 · {val.weight}%</span>
+                    </div>
+                    <div className="h-1 bg-border rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${val.score}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Factors + recommendations */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-10">
-        <div className="bg-card border border-border rounded-sm p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><TrendingUp size={12} className="text-primary" /> Positive Factors</p>
-          <ul className="space-y-1.5">
-            {creditProfile.factors_positive.length === 0 && <li className="text-xs text-muted-foreground">None yet</li>}
-            {creditProfile.factors_positive.map((f, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs text-foreground"><CheckCircle2 size={12} className="text-primary flex-shrink-0 mt-0.5" />{f}</li>
-            ))}
-          </ul>
-        </div>
-        <div className="bg-card border border-border rounded-sm p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><TrendingDown size={12} className="text-destructive" /> Factors Reducing Score</p>
-          <ul className="space-y-1.5">
-            {creditProfile.factors_negative.length === 0 && <li className="text-xs text-muted-foreground">None</li>}
-            {creditProfile.factors_negative.map((f, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs text-foreground"><AlertCircle size={12} className="text-destructive flex-shrink-0 mt-0.5" />{f}</li>
-            ))}
-          </ul>
-        </div>
-        <div className="bg-card border border-border rounded-sm p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><Lightbulb size={12} className="text-warning" /> Recommended Actions</p>
-          <ul className="space-y-1.5">
-            {creditProfile.recommended_actions.length === 0 && <li className="text-xs text-muted-foreground">You're all set</li>}
-            {creditProfile.recommended_actions.map((f, i) => (
-              <li key={i} className="text-xs text-foreground">{f}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
+          {/* Factors + recommendations */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-10">
+            <div className="bg-card border border-border rounded-sm p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><TrendingUp size={12} className="text-primary" /> Positive Factors</p>
+              <ul className="space-y-1.5">
+                {creditProfile.factors_positive.length === 0 && <li className="text-xs text-muted-foreground">None yet</li>}
+                {creditProfile.factors_positive.map((f, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs text-foreground"><CheckCircle2 size={12} className="text-primary flex-shrink-0 mt-0.5" />{f}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-card border border-border rounded-sm p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><TrendingDown size={12} className="text-destructive" /> Factors Reducing Score</p>
+              <ul className="space-y-1.5">
+                {creditProfile.factors_negative.length === 0 && <li className="text-xs text-muted-foreground">None</li>}
+                {creditProfile.factors_negative.map((f, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs text-foreground"><AlertCircle size={12} className="text-destructive flex-shrink-0 mt-0.5" />{f}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-card border border-border rounded-sm p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5"><Lightbulb size={12} className="text-warning" /> Recommended Actions</p>
+              <ul className="space-y-1.5">
+                {creditProfile.recommended_actions.length === 0 && <li className="text-xs text-muted-foreground">You're all set</li>}
+                {creditProfile.recommended_actions.map((f, i) => (
+                  <li key={i} className="text-xs text-foreground">{f}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
 
-      {/* Connected Accounts & Verifications */}
-      <div className="mb-3">
-        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-3">
-          Connected Accounts & Verifications <span className="flex-1 h-px bg-border" />
-        </p>
-      </div>
+          {/* Connected Accounts & Verifications */}
+          <div className="mb-3">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-3">
+              Connected Accounts & Verifications <span className="flex-1 h-px bg-border" />
+            </p>
+          </div>
 
-      {/* Wallet reputation — always "connected", no linking needed */}
-      <div className="mb-6">
-        <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5"><WalletIcon size={12} /> Wallet Reputation</p>
-        <div className="bg-card border border-border rounded-sm p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div><p className="text-[10px] text-muted-foreground uppercase mb-1">ENS Name</p><p className="text-sm font-mono text-foreground">{walletReputation.ensName ?? '—'}</p></div>
-          <div><p className="text-[10px] text-muted-foreground uppercase mb-1">Contract Diversity</p><p className="text-sm font-mono text-foreground">{walletReputation.defiActivityScore}</p></div>
-          <div><p className="text-[10px] text-muted-foreground uppercase mb-1">NFT Activity</p><p className="text-sm font-mono text-foreground">{walletReputation.nftActivityScore}</p></div>
-          <div><p className="text-[10px] text-muted-foreground uppercase mb-1">Stablecoin Holdings</p><p className="text-sm font-mono text-foreground">${walletReputation.stablecoinHoldingsUsd.toFixed(2)}</p></div>
-        </div>
-      </div>
+          {/* Wallet reputation - always "connected", no linking needed */}
+          <div className="mb-6">
+            <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5"><WalletIcon size={12} /> Wallet Reputation</p>
+            <div className="bg-card border border-border rounded-sm p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div><p className="text-[10px] text-muted-foreground uppercase mb-1">ENS Name</p><p className="text-sm font-mono text-foreground">{walletReputation.ensName ?? '-'}</p></div>
+              <div><p className="text-[10px] text-muted-foreground uppercase mb-1">Contract Diversity</p><p className="text-sm font-mono text-foreground">{walletReputation.defiActivityScore}</p></div>
+              <div><p className="text-[10px] text-muted-foreground uppercase mb-1">NFT Activity</p><p className="text-sm font-mono text-foreground">{walletReputation.nftActivityScore}</p></div>
+              <div><p className="text-[10px] text-muted-foreground uppercase mb-1">Stablecoin Holdings</p><p className="text-sm font-mono text-foreground">${walletReputation.stablecoinHoldingsUsd.toFixed(2)}</p></div>
+            </div>
+          </div>
 
-      {/* Exchanges */}
-      <div className="mb-6">
-        <p className="text-xs text-muted-foreground mb-3">Centralized Exchanges</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {EXCHANGES.map(({ key, label, icon, accent }) => (
-            <ExchangeCard
-              key={key}
-              exchangeKey={key}
-              label={label}
-              icon={icon}
-              accent={accent}
-              connection={profile.exchangeConnections.find(c => c.exchange === key)}
-              onConnect={() => setConnectModal(key)}
-              onDisconnect={() => handleExchangeDisconnect(key)}
-              onSync={() => handleExchangeSync(key)}
-              busy={busyKey === key}
-            />
-          ))}
-        </div>
-      </div>
+          {/* Exchanges */}
+          <div className="mb-6">
+            <p className="text-xs text-muted-foreground mb-3">Centralized Exchanges</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {EXCHANGES.map(({ key, label, icon, accent }) => (
+                <ExchangeCard
+                  key={key}
+                  exchangeKey={key}
+                  label={label}
+                  icon={icon}
+                  accent={accent}
+                  connection={profile.exchangeConnections.find(c => c.exchange === key)}
+                  onConnect={() => setConnectModal(key)}
+                  onDisconnect={() => handleExchangeDisconnect(key)}
+                  onSync={() => handleExchangeSync(key)}
+                  busy={busyKey === key}
+                />
+              ))}
+            </div>
+          </div>
 
-      {/* Developer identity */}
-      <div className="mb-6">
-        <p className="text-xs text-muted-foreground mb-3">Developer Reputation</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-          {DEV_PROVIDERS.map(({ key, label, icon, accent }) => (
-            <DevIdentityCard
-              key={key}
-              label={label}
-              icon={icon}
-              accent={accent}
-              connection={profile.devIdentityConnections.find(c => c.provider === key)}
-              onConnect={() => handleDevConnect(key)}
-              onDisconnect={() => handleDevDisconnect(key)}
-              busy={busyKey === key}
-            />
-          ))}
-        </div>
-      </div>
+          {/* Developer identity */}
+          <div className="mb-6">
+            <p className="text-xs text-muted-foreground mb-3">Developer Reputation</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+              {DEV_PROVIDERS.map(({ key, label, icon, accent }) => (
+                <DevIdentityCard
+                  key={key}
+                  label={label}
+                  icon={icon}
+                  accent={accent}
+                  connection={profile.devIdentityConnections.find(c => c.provider === key)}
+                  onConnect={() => handleDevConnect(key)}
+                  onDisconnect={() => handleDevDisconnect(key)}
+                  busy={busyKey === key}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {connectModal && (
         <ConnectExchangeModal

@@ -11,11 +11,11 @@ import "../src/DefaultHandler.sol";
 /// DefaultHandler/DCAPlan are untouched) to add the missing DefaultHandler wiring:
 /// the old ScheduleEngine's grace-expiry branch flipped ChargeRegistry.Status to
 /// Defaulted but never called DefaultHandler.flagDefault(), so buyer-level default
-/// tracking (isDefaulted/defaultCount — gates canAccessBNPL, feeds credit scoring)
+/// tracking (isDefaulted/defaultCount - gates canAccessBNPL, feeds credit scoring)
 /// could never actually update no matter how many charges defaulted.
 ///
 /// Two-part process (mirrors RevertChargeRegistryOwnership.s.sol's pattern):
-///   1. RedeployScheduleEngine — deploys the new ScheduleEngine, wires it
+///   1. RedeployScheduleEngine - deploys the new ScheduleEngine, wires it
 ///      (setDefaultHandler/setSweepAgent), rewires ChargeRegistry.setScheduleEngine
 ///      immediately (ChargeRegistry is deployer-owned, no delay needed), transfers
 ///      the new ScheduleEngine's ownership to the timelock (deployer-initiated half,
@@ -25,7 +25,7 @@ import "../src/DefaultHandler.sol";
 ///      timelock-owned, so pointing it at the new ScheduleEngine needs the full
 ///      schedule -> wait -> execute flow). Batched together so there's only one
 ///      1h wait total, not two sequential ones.
-///   2. ExecuteScheduleEngineHandoff — after minDelay has elapsed, executeBatch()
+///   2. ExecuteScheduleEngineHandoff - after minDelay has elapsed, executeBatch()
 ///      the same two operations to complete both.
 contract RedeployScheduleEngine is Script {
     function run() external {
@@ -44,7 +44,7 @@ contract RedeployScheduleEngine is Script {
         newEngine.setDefaultHandler(defaultHandlerAddr);
         newEngine.setSweepAgent(sweepAgentAddr);
 
-        // ChargeRegistry is deployer-owned (not timelocked) — this rewiring is
+        // ChargeRegistry is deployer-owned (not timelocked) - this rewiring is
         // immediate, no schedule/execute needed.
         ChargeRegistry(chargeRegistryAddr).setScheduleEngine(address(newEngine));
         console2.log("ChargeRegistry.setScheduleEngine() done (immediate, deployer-owned)");

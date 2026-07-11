@@ -1,5 +1,5 @@
 /**
- * Gate.io adapter — official `gate-api` SDK (published by the gateio org).
+ * Gate.io adapter - official `gate-api` SDK (published by the gateio org).
  * Uses HMAC-SHA512 under the hood (handled by the SDK), the odd one out
  * among the 5 exchanges (others use SHA256).
  */
@@ -28,10 +28,10 @@ export async function fetchSignals({ apiKey, apiSecret }) {
     const [accountsRes, tradesRes, detailRes] = await Promise.all([
       spotApi.listSpotAccounts(),
       // listMyTrades requires a currency_pair on Gate.io's API (no
-      // all-pairs endpoint) — USDT pairs used as a real, if partial,
+      // all-pairs endpoint) - USDT pairs used as a real, if partial,
       // activity proxy, same approach as the Binance adapter.
       spotApi.listMyTrades({ currencyPair: "BTC_USDT", from: Math.floor((Date.now() - 90 * 86_400_000) / 1000) }).catch(() => ({ body: [] })),
-      // Gate.io doesn't expose a KYC field on this or any account endpoint —
+      // Gate.io doesn't expose a KYC field on this or any account endpoint -
       // confirmed against the real response schema, only userId is real here.
       accountApi.getAccountDetail().catch(() => null),
     ]);

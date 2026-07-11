@@ -1,7 +1,7 @@
 /**
  * Vercel endpoint: manually trigger a re-sync of one connected exchange
  * (the "Sync" button on the Profile page). Background sync also runs this
- * periodically — see api/cron/sync-profiles.js.
+ * periodically - see api/cron/sync-profiles.js.
  *
  * POST /api/profile/exchange/sync
  * Body: { buyer, exchange, ts, signature }
@@ -44,7 +44,7 @@ export async function POST(req) {
     return json({ error: "No connection found for this exchange" }, 404);
   }
 
-  // Cooldown against the buyer hammering this exchange's live API — since the
+  // Cooldown against the buyer hammering this exchange's live API - since the
   // buyer holds their own signing key, a fresh valid signature costs them
   // nothing, so there's no natural throttle here the way there is on
   // fund-moving endpoints. Reuses the connection's own last_synced_at rather

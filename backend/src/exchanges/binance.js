@@ -1,8 +1,8 @@
 /**
- * Binance adapter — official @binance/connector SDK.
+ * Binance adapter - official @binance/connector SDK.
  * Read-only usage only: account() for balances, myTrades() for trade history.
  * No account-creation-date endpoint exists on Binance (confirmed against
- * their docs) — accountAgeDays is derived from the earliest deposit record
+ * their docs) - accountAgeDays is derived from the earliest deposit record
  * as a proxy, walked back a bounded number of 90-day windows rather than
  * unbounded (Binance's deposit-history endpoint is windowed).
  */
@@ -27,7 +27,7 @@ async function estimateAccountAgeDays(client) {
       const deposits = res?.data ?? [];
       if (deposits.length > 0) {
         // Keep walking back further if this window is fully populated, in
-        // case an even earlier deposit exists — otherwise this window's
+        // case an even earlier deposit exists - otherwise this window's
         // earliest timestamp is our best estimate.
         const earliestThisWindow = Math.min(...deposits.map(d => d.insertTime));
         if (deposits.length < 1000) {
@@ -39,7 +39,7 @@ async function estimateAccountAgeDays(client) {
     }
     endTime = startTime;
   }
-  return null; // no deposit history found within the scanned window — genuinely unknown, not zero
+  return null; // no deposit history found within the scanned window - genuinely unknown, not zero
 }
 
 export async function fetchSignals({ apiKey, apiSecret }) {
@@ -49,7 +49,7 @@ export async function fetchSignals({ apiKey, apiSecret }) {
       client.account(),
       // myTrades requires a real trading-pair symbol on Binance's spot API
       // (no "all trades" endpoint, and a bare quote asset like "USDT" is
-      // rejected as an invalid symbol) — BTCUSDT used as a real, if partial,
+      // rejected as an invalid symbol) - BTCUSDT used as a real, if partial,
       // trade-activity proxy, same single-pair-proxy approach as the
       // Gate.io adapter's BTC_USDT.
       client.myTrades("BTCUSDT", { startTime: Date.now() - NINETY_DAYS_MS, limit: 1000 }).catch(() => ({ data: [] })),
@@ -67,7 +67,7 @@ export async function fetchSignals({ apiKey, apiSecret }) {
       accountAgeDays,
       riskIndicator: accountRes.data?.permissions?.includes("SPOT") ? "low" : "unknown",
       rawSignals: { assetCount: balances.filter(b => Number(b.free) + Number(b.locked) > 0).length },
-      // Already present on the account() response above — no extra API call.
+      // Already present on the account() response above - no extra API call.
       // Binance doesn't expose a KYC tier/region via any API-key endpoint.
       exchangeUid: accountRes.data?.uid != null ? String(accountRes.data.uid) : null,
       kycLevel: null,

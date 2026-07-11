@@ -21,11 +21,11 @@ export const sweepAgentWallet = new ethers.Wallet(
 );
 
 // The only EOA (besides the never-calling ScheduleEngine contract) that
-// ChargeRegistry.createCharge() accepts — used exclusively by
+// ChargeRegistry.createCharge() accepts - used exclusively by
 // api/checkout/create.js after underwriting approval.
 export const ownerWallet = new ethers.Wallet(requireEnv("PRIVATE_KEY"), provider);
 
-// Server-side only — bypasses RLS via the service_role key. Never import into frontend code.
+// Server-side only - bypasses RLS via the service_role key. Never import into frontend code.
 export const supabaseAdmin = createClient(
   requireEnv("SUPABASE_URL"),
   requireEnv("SUPABASE_SERVICE_ROLE_KEY")

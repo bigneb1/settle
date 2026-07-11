@@ -80,7 +80,7 @@ export default function Dashboard() {
     loadCharges()
   }, [loadCharges])
 
-  // Live credit score — matches Profile.tsx's own source exactly (same
+  // Live credit score - matches Profile.tsx's own source exactly (same
   // getProfile()/computeCreditProfile() backend call), instead of the stale
   // scoreAtIssuance frozen on whichever charge happened to be created last.
   // Independent of loadCharges so a buyer with zero charges still sees their
@@ -159,7 +159,7 @@ export default function Dashboard() {
     { label: 'Active Charges', value: activeCharges.length.toString(), icon: Activity },
     { label: 'Total Cycles Paid', value: charges.reduce((a, c) => a + Number(c.cyclesCompleted), 0).toString(), icon: DollarSign },
     { label: 'Credit Score', value: null, icon: null },
-    { label: 'Unified Balance', value: balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '—', icon: CreditCard },
+    { label: 'Unified Balance', value: balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-', icon: CreditCard },
   ]
 
   if (!address) {
@@ -178,7 +178,7 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground mt-1 font-mono">{shortAddr(address)}</p>
         {!uaConfigured && (
           <p className="text-xs text-warning mt-2">
-            Particle Network credentials not configured — unified balance and cross-chain payments are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
+            Particle Network credentials not configured - unified balance and cross-chain payments are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
           </p>
         )}
       </div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
               )}
               {isBalance && (
                 <p className="text-[10px] text-muted-foreground group-hover:text-primary mt-2 flex items-center gap-1 transition-colors">
-                  Across every chain — view by chain <ArrowRight size={10} />
+                  Across every chain - view by chain <ArrowRight size={10} />
                 </p>
               )}
             </>
@@ -258,7 +258,7 @@ export default function Dashboard() {
                         }
                       </td>
                       <td className="text-xs text-muted-foreground">
-                        {c.nextDueAt ? formatTs(Number(c.nextDueAt)) : '—'}
+                        {c.nextDueAt ? formatTs(Number(c.nextDueAt)) : '-'}
                       </td>
                       <td>
                         <span className={`text-[10px] font-medium px-2 py-0.5 rounded-sm ${STATUS_COLOR[c.status]}`}>
@@ -269,7 +269,7 @@ export default function Dashboard() {
                             className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-sm text-warning bg-warning/10"
                             title="Missed a scheduled sweep. Pay before the grace period ends to avoid being flagged as defaulted."
                           >
-                            <AlertTriangle size={10} /> Grace — {formatGraceCountdown(c.graceEndsAt)}
+                            <AlertTriangle size={10} /> Grace - {formatGraceCountdown(c.graceEndsAt)}
                           </span>
                         )}
                       </td>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                           ) : (
                             <span
                               className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-border text-muted-foreground cursor-not-allowed"
-                              title="Particle Network credentials not configured — set VITE_PARTICLE_* to enable cross-chain settlement"
+                              title="Particle Network credentials not configured - set VITE_PARTICLE_* to enable cross-chain settlement"
                             >
                               <Zap size={11} /> UA disabled
                             </span>
@@ -303,7 +303,7 @@ export default function Dashboard() {
           </div>
         </div>
         {payResult && 'txId' in payResult && (
-          <p className="text-xs text-primary mt-2">Charge #{payResult.id} settled via Universal Account — tx {shortHash(payResult.txId)}</p>
+          <p className="text-xs text-primary mt-2">Charge #{payResult.id} settled via Universal Account - tx {shortHash(payResult.txId)}</p>
         )}
         {payResult && 'error' in payResult && (
           <p className="text-xs text-destructive mt-2">Charge #{payResult.id} payment failed: {payResult.error}</p>

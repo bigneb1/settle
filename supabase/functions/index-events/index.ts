@@ -5,16 +5,16 @@
  * pg_cron (see supabase/migrations/006_schedule_index_events_cron.sql).
  *
  * Contract addresses and RPC URL are public, already-verified deployment info
- * (see README "Deployed Contracts"), not secrets — hardcoded as fallbacks so
+ * (see README "Deployed Contracts"), not secrets - hardcoded as fallbacks so
  * this function works without any dashboard-configured Edge Function secrets.
  * Still overridable via env vars if the deployment ever changes.
  *
  * DELIBERATELY not indexed: LiquidityPool and DCAPlan events. LiquidityPool
  * currently has no caller anywhere (frontCapital/recordRepayment are unused
- * by the app today — see README's BNPL settlement model, no upfront
+ * by the app today - see README's BNPL settlement model, no upfront
  * fronting), so there's nothing to index yet. DCAPlan's state (plans,
  * cyclesCompleted, etc.) is read live on-chain by frontend/src/lib/contracts.ts
- * instead of mirrored here — plan counts are expected to stay low enough
+ * instead of mirrored here - plan counts are expected to stay low enough
  * that a live read is simpler and always-fresh, with no off-chain cache to
  * keep in sync. Revisit if DCA volume grows enough to need history/analytics
  * views that a live on-chain read can't serve well.
@@ -98,12 +98,12 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
 
   // Cycle completions. A CycleCompleted event is only ever emitted from
   // ScheduleEngine.recordSweepOutcome's *success* branch (via
-  // ChargeRegistry.markCycleComplete) — which on-chain always resets
+  // ChargeRegistry.markCycleComplete) - which on-chain always resets
   // ScheduleEngine's inGrace[chargeId] to false. Mirror that reset here too,
   // otherwise a charge that recovers from grace by actually paying stays
   // permanently stuck showing in_grace=true in Supabase (the live
   // buyer/merchant-facing badges read grace state directly from chain via
-  // lib/contracts.ts, so this doesn't affect what users see today — but any
+  // lib/contracts.ts, so this doesn't affect what users see today - but any
   // future feature built against this column would get it wrong).
   for (const ev of cycleEvents) {
     const chargeId = ev.args[0];
@@ -117,7 +117,7 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
     });
   }
 
-  // Status changes (Completed/Cancelled/Defaulted) — in_grace is left alone
+  // Status changes (Completed/Cancelled/Defaulted) - in_grace is left alone
   // here; ChargeFlaggedDefault's own handler below already sets it false,
   // and other status transitions don't carry the same on-chain guarantee
   // CycleCompleted does.
@@ -162,7 +162,7 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
 
   // Merchant payouts. upsert + onConflict makes the row itself idempotent
   // against the intentional block-range overlap below, but update_merchant_totals
-  // is additive — it must only run once per real event, so it's gated on the
+  // is additive - it must only run once per real event, so it's gated on the
   // upsert actually inserting a new row (an ignored duplicate returns no row).
   for (const ev of payoutEvents) {
     const [merchant, grossAmount, fee, netAmount, recurring, chargeId] = ev.args;
@@ -201,7 +201,7 @@ Deno.serve(async () => {
     const { data: state } = await supabase.from("indexer_state").select("last_block").single();
     const currentBlock = await provider.getBlockNumber();
     // queryFilter's block range is inclusive on both ends, so the next scan
-    // must start one block past whatever was last recorded — otherwise the
+    // must start one block past whatever was last recorded - otherwise the
     // boundary block is re-processed on every single run. The upsert +
     // onConflict guards above are a second, defense-in-depth safety net for
     // this same boundary, not a substitute for correct range math.

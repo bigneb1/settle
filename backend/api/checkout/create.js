@@ -2,7 +2,7 @@
  * Vercel endpoint: real checkout-time charge creation.
  *
  * ChargeRegistry.createCharge() only accepts calls from owner() (this
- * project's deployer EOA) — never from the buyer or the sweep-agent wallet —
+ * project's deployer EOA) - never from the buyer or the sweep-agent wallet -
  * so this is the only place in the app that can turn a catalog item into a
  * real on-chain charge. Since createCharge() itself takes no signature from
  * the buyer, this endpoint requires one at the app level: proof the caller
@@ -49,7 +49,7 @@ export async function POST(req) {
     .eq("buyer_address", buyerAddress.toLowerCase())
     .gte("ts", Math.floor(Date.now() / 1000) - SIGNATURE_MAX_AGE_SECONDS);
   if ((recentAttempts ?? 0) >= 5) {
-    return json({ error: "Too many checkout attempts — please wait a few minutes and try again" }, 429);
+    return json({ error: "Too many checkout attempts - please wait a few minutes and try again" }, 429);
   }
 
   const expectedMessage = `Settle checkout: catalogItemId=${catalogItemId} buyer=${buyerAddress} ts=${ts}`;
@@ -94,12 +94,12 @@ export async function POST(req) {
       const totalPriceUSD = Number(amountPerCycle * (totalCycles > 0n ? totalCycles : 1n)) / 1e6;
       const result = await evaluateBNPL(buyerAddress, totalPriceUSD);
       // If the buyer has a cached, richer credit profile (exchange/dev-identity
-      // signals — see Profile page), it can only RAISE this limit above the
-      // base 5-signal calculation, never lower it — getEffectiveCreditLimit()
+      // signals - see Profile page), it can only RAISE this limit above the
+      // base 5-signal calculation, never lower it - getEffectiveCreditLimit()
       // guarantees that. Falls back to the base limit if no profile exists yet.
       const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
       // evaluateBNPL's own `approved` is score-only and does NOT compare
-      // requestedAmount against `limit` internally — enforce the cap here.
+      // requestedAmount against `limit` internally - enforce the cap here.
       approved = result.approved && totalPriceUSD * 1_000_000 <= effectiveLimit;
       score = result.score;
       explanation = result.explanation || "";
@@ -155,8 +155,8 @@ export async function POST(req) {
     catalog_item_id: catalogItemId,
   });
   if (chargeUpsertErr) {
-    // Non-fatal to the response — the charge is real on-chain and the
-    // index-events edge function will reconcile it independently — but this
+    // Non-fatal to the response - the charge is real on-chain and the
+    // index-events edge function will reconcile it independently - but this
     // must not be silently lost, since it's the difference between a fast
     // dashboard read and a 5-minute-stale one.
     console.error(`[checkout/create] Off-chain charges upsert failed for chargeId=${chargeId}:`, chargeUpsertErr.message);

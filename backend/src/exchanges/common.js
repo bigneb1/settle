@@ -5,7 +5,7 @@
  * only stablecoin-denominated balances (USDT/USDC/BUSD/DAI, treated 1:1 with
  * USD). Converting non-stablecoin balances (BTC, ETH, etc.) to USD would
  * need a live price-feed integration across 5 exchanges' differing ticker
- * APIs — out of scope for this pass. This under-counts total balance for
+ * APIs - out of scope for this pass. This under-counts total balance for
  * non-stablecoin-heavy accounts; documented here rather than faked with an
  * invented conversion.
  */
@@ -22,7 +22,7 @@ export function sumStablecoinBalances(balances) {
 /**
  * Each SDK surfaces errors differently (plain Error, axios-style { message },
  * or a raw API error body like OKX's { msg, code } / Bitget's { message,
- * body: { code } }) — this normalizes to one readable string instead of
+ * body: { code } }) - this normalizes to one readable string instead of
  * "[object Object]" leaking into user-facing error state.
  */
 export function extractErrorMessage(error) {

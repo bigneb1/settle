@@ -64,7 +64,7 @@ contract LiquidityPool is Ownable2Step, ReentrancyGuard, Pausable {
         emit Deposited(msg.sender, amount, shares);
     }
 
-    /// @notice Deliberately NOT gated by whenNotPaused — pausing new fund
+    /// @notice Deliberately NOT gated by whenNotPaused - pausing new fund
     /// movement must never trap an LP's ability to withdraw already-deposited
     /// capital, even mid-incident.
     function withdraw(uint256 shares) external nonReentrant {

@@ -1,5 +1,5 @@
 -- Anti-replay guard for the new "Pay Any Address" direct-checkout endpoint
--- (backend/api/checkout/create-direct.js) — same pattern as
+-- (backend/api/checkout/create-direct.js) - same pattern as
 -- consumed_checkout_signatures in 008_anti_replay_tables.sql, but keyed
 -- without a catalog_item_id since direct-pay charges aren't tied to one.
 -- (buyer_address, ts) is the lock: ts is fresh per submission, so this only
@@ -15,5 +15,5 @@ create table if not exists consumed_direct_checkout_signatures (
 create index if not exists idx_consumed_direct_checkout_sigs_buyer_ts on consumed_direct_checkout_signatures(buyer_address, ts);
 
 alter table consumed_direct_checkout_signatures enable row level security;
--- Deliberately no policies for anon/authenticated — default-deny, matching
+-- Deliberately no policies for anon/authenticated - default-deny, matching
 -- the other anti-replay tables. service_role (backend only) bypasses RLS.

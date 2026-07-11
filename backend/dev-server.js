@@ -1,7 +1,7 @@
 // Local-only dev server that runs the Vercel-style handlers in api/**/*.js
 // directly (each exports `GET`/`POST` using Web-standard Request/Response),
 // so the frontend preview has a real backend to talk to without needing a
-// Vercel account. Vercel itself handles routing/execution in production —
+// Vercel account. Vercel itself handles routing/execution in production -
 // this file is dev tooling only, never deployed.
 import 'dotenv/config'
 import http from 'node:http'

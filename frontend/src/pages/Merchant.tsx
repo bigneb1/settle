@@ -135,7 +135,7 @@ export default function Merchant() {
               </div>
             ))}
             {STATS.length === 0 && (
-              <div className="col-span-full text-sm text-muted-foreground">Not registered as a merchant yet — visit Merchant Onboarding to get started.</div>
+              <div className="col-span-full text-sm text-muted-foreground">Not registered as a merchant yet - visit Merchant Onboarding to get started.</div>
             )}
           </div>
 
@@ -241,7 +241,7 @@ export default function Merchant() {
                               className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-sm text-warning bg-warning/10"
                               title="This buyer missed a scheduled sweep and is in the grace period before being flagged as defaulted."
                             >
-                              <AlertTriangle size={10} /> Grace — {formatGraceCountdown(s.graceEndsAt)}
+                              <AlertTriangle size={10} /> Grace - {formatGraceCountdown(s.graceEndsAt)}
                             </span>
                           )}
                         </td>

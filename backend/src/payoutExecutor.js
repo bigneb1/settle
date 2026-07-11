@@ -1,5 +1,5 @@
 /**
- * Payout Executor — listens for successful sweeps and calls PayoutRouter.executePayout().
+ * Payout Executor - listens for successful sweeps and calls PayoutRouter.executePayout().
  * Handles both BNPL one-time payouts and Settle Pay recurring merchant settlements.
  */
 import { ethers } from "ethers";
@@ -21,7 +21,7 @@ export async function executePayout(merchant, grossAmount, chargeId) {
 }
 
 /**
- * Event listener mode — subscribes to SweepTriggered events and auto-executes payouts.
+ * Event listener mode - subscribes to SweepTriggered events and auto-executes payouts.
  * Run this as a persistent process in production.
  */
 export async function startPayoutListener() {

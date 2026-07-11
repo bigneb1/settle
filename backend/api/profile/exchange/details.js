@@ -1,8 +1,8 @@
 /**
- * Vercel endpoint: live "Account Details" fetch for one connected exchange —
+ * Vercel endpoint: live "Account Details" fetch for one connected exchange -
  * powers the "View Account Details" page (full balance breakdown, recent
  * trades, uid, KYC level/region). Fetched fresh on every call, direct from
- * the exchange — nothing here is cached or written back to any table (see
+ * the exchange - nothing here is cached or written back to any table (see
  * fetchExchangeAccountDetails in exchangeSync.js). The periodic/manual sync
  * path is unaffected and remains the sole writer of aggregate signals.
  *
@@ -18,11 +18,11 @@ import { checkIpRateLimit } from "../../../src/rateLimit.js";
 
 export async function POST(req) {
   // This endpoint deliberately does no DB writes (see docstring above), so
-  // unlike sync.js there's no last_synced_at to reuse as a cooldown — the
+  // unlike sync.js there's no last_synced_at to reuse as a cooldown - the
   // buyer holds their own signing key, so a fresh valid signature costs
   // nothing, and every call is a live round-trip to the real exchange API.
   if (!(await checkIpRateLimit(req, "profile/exchange/details"))) {
-    return json({ error: "Too many requests — please wait a few minutes" }, 429);
+    return json({ error: "Too many requests - please wait a few minutes" }, 429);
   }
 
   let body;

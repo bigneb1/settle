@@ -29,7 +29,7 @@ export default function Checkout() {
   const [error, setError] = useState<string | null>(null)
 
   // Navigation state (from Catalog's "Buy Now" click) is used only as an
-  // instant-render hint — the real source of truth is always the fresh
+  // instant-render hint - the real source of truth is always the fresh
   // Supabase fetch below, so a page refresh or direct URL visit never falls
   // back to fabricated data.
   const hint = state?.item as CheckoutItem | undefined
@@ -218,7 +218,7 @@ export default function Checkout() {
             <div className="bg-card border border-border rounded-sm p-5">
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Installment Schedule</p>
               {cycles === 0 ? (
-                <p className="text-xs text-muted-foreground">This merchant hasn't configured an installment count for this item — contact them before proceeding.</p>
+                <p className="text-xs text-muted-foreground">This merchant hasn't configured an installment count for this item - contact them before proceeding.</p>
               ) : (
               <div className="space-y-2">
                 {schedule.map(s => (
@@ -247,14 +247,14 @@ export default function Checkout() {
               <p className="font-mono text-sm text-foreground">{address.slice(0, 6)}...{address.slice(-4)}</p>
               <div className="flex items-center justify-between mt-2">
                 <p className="text-xs text-muted-foreground">USDC Balance</p>
-                <p className="font-mono text-sm text-primary">{balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '—'}</p>
+                <p className="font-mono text-sm text-primary">{balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-'}</p>
               </div>
             </div>
 
             {item.type === 0 && (
               <div className="flex items-center gap-2 bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-4">
                 <AlertCircle size={14} className="text-primary flex-shrink-0" />
-                <p className="text-xs text-primary">BNPL doesn't require funds now — approval is based on your on-chain credit score.</p>
+                <p className="text-xs text-primary">BNPL doesn't require funds now - approval is based on your on-chain credit score.</p>
               </div>
             )}
 

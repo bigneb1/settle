@@ -2,7 +2,7 @@
  * Vercel endpoint: GitLab OAuth callback.
  *
  * GET /api/profile/gitlab/callback?code=...&state=...
- * Same state-verification pattern as the GitHub callback — see that file's
+ * Same state-verification pattern as the GitHub callback - see that file's
  * docstring and src/devIdentity.js::verifyAndDecodeState.
  */
 import { completeDevIdentityConnect, verifyAndDecodeState } from "../../../src/devIdentity.js";

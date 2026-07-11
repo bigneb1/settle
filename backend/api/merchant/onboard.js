@@ -2,10 +2,10 @@
  * Vercel endpoint: merchant onboarding record.
  *
  * The frontend calls PayoutRouter.configureMerchant() directly from the
- * merchant's own Magic wallet (a plain EOA write — configureMerchant()
+ * merchant's own Magic wallet (a plain EOA write - configureMerchant()
  * accepts calls from the merchant itself, no backend involvement needed for
  * that transaction). This endpoint independently verifies that transaction
- * on-chain before writing to Supabase — it never trusts the client-reported
+ * on-chain before writing to Supabase - it never trusts the client-reported
  * payoutMode, only the MerchantConfigured event the tx actually emitted.
  *
  * POST /api/merchant/onboard
@@ -51,7 +51,7 @@ export async function POST(req) {
     return json({ error: "MerchantConfigured event for this address not found in that transaction" }, 402);
   }
 
-  const payoutMode = Number(parsed.args.mode); // authoritative, from the chain — not the request body
+  const payoutMode = Number(parsed.args.mode); // authoritative, from the chain - not the request body
 
   const { error: merchantErr } = await supabaseAdmin.from("merchants").upsert({
     address: merchantAddress.toLowerCase(),
@@ -86,7 +86,7 @@ export async function POST(req) {
         };
       });
     } catch (err) {
-      // Merchant profile above is already committed and valid on its own —
+      // Merchant profile above is already committed and valid on its own -
       // only the catalog items failed, so this is a clean 400, not a 500,
       // and doesn't need to roll back the merchant row.
       return json({ error: `Merchant configured on-chain and profile saved, but products were rejected: ${err.message}` }, 400);

@@ -2,15 +2,15 @@
  * Vercel endpoint: buyer-initiated DCA buy confirmation.
  *
  * The frontend calls this after executing a real Universal Account buy
- * transaction (ua.createBuyTransaction — see frontend/src/lib/universalAccount.ts).
+ * transaction (ua.createBuyTransaction - see frontend/src/lib/universalAccount.ts).
  * Unlike the BNPL/subscription repayment flow, a DCA buy has no on-Arbitrum
- * settlement address to check against — the purchased asset lands directly in
+ * settlement address to check against - the purchased asset lands directly in
  * the buyer's own account. So instead of checking an ERC20 Transfer log, this
  * independently confirms the buy by querying Particle's own transaction status
  * for that transactionId and requiring UA_TRANSACTION_STATUS.FINISHED before
  * recording it on-chain. The recorded amount is the plan's own configured
  * amountPerCycleUSD (this endpoint only confirms the buy happened and advances
- * the schedule — it was never responsible for moving funds).
+ * the schedule - it was never responsible for moving funds).
  *
  * POST /api/dca/confirm  { planId: number, ownerAddress: string, transactionId: string }
  */
@@ -32,11 +32,11 @@ export async function POST(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  // Independent of any attacker-controlled field — must run first, since
+  // Independent of any attacker-controlled field - must run first, since
   // the per-transactionId consumption lock further down is trivially
   // bypassed by supplying a fresh, already-mined transactionId each request.
   if (!(await checkIpRateLimit(req, "dca/confirm"))) {
-    return json({ error: "Too many requests — please wait a few minutes" }, 429);
+    return json({ error: "Too many requests - please wait a few minutes" }, 429);
   }
 
   const planId = Number(body.planId);
@@ -91,7 +91,7 @@ export async function POST(req) {
   // Defensive content check: if the SDK response includes chain-destination
   // info, it must include this plan's target chain. The SDK types
   // getTransaction() as Promise<any> with no guaranteed runtime shape, so we
-  // only reject on an explicit mismatch — an absent/differently-shaped field
+  // only reject on an explicit mismatch - an absent/differently-shaped field
   // is logged, not silently trusted, but doesn't hard-fail an otherwise
   // FINISHED transaction we can't fully introspect.
   const toChains = tx?.tokenChanges?.toChains;
@@ -104,7 +104,7 @@ export async function POST(req) {
     console.warn(`[dca/confirm] transactionId=${transactionId} response had no tokenChanges.toChains to cross-check against planId=${planId}`);
   }
 
-  // Consume the transactionId exactly once — the unique constraint is the lock.
+  // Consume the transactionId exactly once - the unique constraint is the lock.
   const { error: consumeErr } = await supabaseAdmin
     .from("consumed_dca_txs")
     .insert({ transaction_id: transactionId, plan_id: planId });

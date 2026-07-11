@@ -3,11 +3,11 @@
  * storage shared by both providers' callback endpoints.
  *
  * State-binding uses the same shared EIP-191 signature helper every other
- * profile endpoint uses (src/buyerAuth.js — action=`connect_<provider>`):
+ * profile endpoint uses (src/buyerAuth.js - action=`connect_<provider>`):
  * the frontend has the buyer sign it and passes `{ buyer, provider, ts,
  * signature }` (base64url JSON) as the OAuth `state` param. The callback
  * re-verifies that signature before ever trusting the `state`-derived buyer
- * address — otherwise an attacker could complete their own OAuth flow and
+ * address - otherwise an attacker could complete their own OAuth flow and
  * pass someone else's wallet address in `state` to link a GitHub account
  * onto a buyer who never proved control of it.
  */
@@ -19,7 +19,7 @@ export function encodeConnectState({ buyer, provider, ts, signature }) {
 }
 
 // Note: the effective freshness window here is verifyBuyerSignature's 300s
-// (see src/buyerAuth.js), which also covers the OAuth-redirect round trip —
+// (see src/buyerAuth.js), which also covers the OAuth-redirect round trip -
 // a user reviewing GitHub/GitLab's consent screen within 5 minutes is the
 // normal case; a stale state simply asks them to retry the connect flow.
 export function verifyAndDecodeState(stateParam, expectedProvider) {
@@ -84,7 +84,7 @@ async function fetchGitlabProfile(accessToken) {
   return res.json(); // { id, username, created_at, ... }
 }
 
-/** GitLab's /user doesn't include project counts — a separate call, best-effort. */
+/** GitLab's /user doesn't include project counts - a separate call, best-effort. */
 async function fetchGitlabProjectCount(accessToken) {
   try {
     const res = await fetch("https://gitlab.com/api/v4/projects?membership=true&per_page=1", {

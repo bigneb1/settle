@@ -1,5 +1,5 @@
 /**
- * Background sync — re-fetches every connected exchange and dev-identity
+ * Background sync - re-fetches every connected exchange and dev-identity
  * account across all buyers, then recomputes each affected buyer's credit
  * profile. Runs on a schedule via api/cron/sync-profiles.js (see
  * backend/vercel.json), mirroring src/sweepAgent.js's cron pattern.
@@ -58,7 +58,7 @@ export async function syncAllConnectedAccounts() {
   const { data: exchangeConnections } = await supabaseAdmin
     .from("exchange_connections")
     .select("*")
-    .in("status", ["connected", "sync_error"]); // retry sync_error connections too — a transient failure shouldn't be permanent
+    .in("status", ["connected", "sync_error"]); // retry sync_error connections too - a transient failure shouldn't be permanent
 
   const affectedBuyers = new Set();
 

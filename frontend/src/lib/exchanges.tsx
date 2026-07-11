@@ -27,10 +27,10 @@ export const EXCHANGES: {
 export const NEEDS_PASSPHRASE: SupportedExchange[] = ['okx', 'bitget']
 
 /**
- * Bybit's "branded" mark is white-fill (designed for a dark background) —
+ * Bybit's "branded" mark is white-fill (designed for a dark background) -
  * invisible on our light logo chip. Every other exchange's branded mark is
  * colored/dark and reads fine there. Use Bybit's "mono" variant in solid
- * black instead — still the real official wordmark, just the variant that
+ * black instead - still the real official wordmark, just the variant that
  * actually has contrast against a light chip.
  */
 export function ExchangeLogo({ exchangeKey, icon: Icon, size }: { exchangeKey: SupportedExchange; icon: typeof EXCHANGES[number]['icon']; size: number }) {

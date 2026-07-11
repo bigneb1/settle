@@ -5,7 +5,7 @@
 -- than needing application-level locking.
 --
 -- All three are written exclusively by the backend via the service_role key
--- (never the anon key) — same trust model as the rest of the schema.
+-- (never the anon key) - same trust model as the rest of the schema.
 
 create table if not exists consumed_checkout_signatures (
   buyer_address    text not null,
@@ -35,6 +35,6 @@ create index if not exists idx_consumed_checkout_sigs_buyer_ts on consumed_check
 alter table consumed_checkout_signatures enable row level security;
 alter table consumed_payment_txs         enable row level security;
 alter table consumed_dca_txs             enable row level security;
--- Deliberately no policies for anon/authenticated on any of the three —
+-- Deliberately no policies for anon/authenticated on any of the three -
 -- default-deny, matching indexer_state. service_role (used exclusively by
 -- the backend endpoints above) bypasses RLS.

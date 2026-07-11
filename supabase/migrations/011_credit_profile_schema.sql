@@ -4,7 +4,7 @@
 -- RLS posture is deliberately DIFFERENT from the existing public tables
 -- (charges/sweeps/merchant_payouts/catalog_items/merchants), which are
 -- public-read because they're "no more sensitive than a block explorer."
--- The tables here are not — they reveal which exchange/GitHub/GitLab account
+-- The tables here are not - they reveal which exchange/GitHub/GitLab account
 -- a given wallet address is linked to, which is private linkage info, not
 -- already-public on-chain data. So every table below is default-deny (no
 -- anon/authenticated policies at all, same posture as indexer_state/
@@ -67,7 +67,7 @@ create table if not exists dev_identity_snapshots (
 );
 
 -- Wallet reputation needs no external credentials (public on-chain data), so
--- there's no "connection" row with a secret — just periodic snapshots.
+-- there's no "connection" row with a secret - just periodic snapshots.
 create table if not exists wallet_reputation_snapshots (
   id                      bigserial primary key,
   buyer                   text not null,
@@ -80,7 +80,7 @@ create table if not exists wallet_reputation_snapshots (
   synced_at               timestamptz default now()
 );
 
--- Aggregated output of the scoring engine — what the Profile page and
+-- Aggregated output of the scoring engine - what the Profile page and
 -- checkout underwriting both read.
 create table if not exists credit_profiles (
   buyer               text primary key,
@@ -106,13 +106,13 @@ alter table dev_identity_connections    enable row level security;
 alter table dev_identity_snapshots      enable row level security;
 alter table wallet_reputation_snapshots enable row level security;
 alter table credit_profiles             enable row level security;
--- Deliberately no policies for anon/authenticated on any table above —
+-- Deliberately no policies for anon/authenticated on any table above -
 -- default-deny. service_role (used exclusively by backend endpoints) bypasses RLS.
 
 -- Vault-backed encrypted credential storage. Wrapped in SECURITY DEFINER
 -- functions (matching this project's existing alloc_nonce/resync_nonce
 -- pattern) so callers never touch vault.create_secret/vault.decrypted_secrets
--- directly. Not granted to anon/authenticated — only reachable via the
+-- directly. Not granted to anon/authenticated - only reachable via the
 -- service-role key, i.e. only from backend code.
 create or replace function store_encrypted_credential(p_secret jsonb, p_label text)
 returns uuid as $$

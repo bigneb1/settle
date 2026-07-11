@@ -1,4 +1,4 @@
--- Settle v2 — Supabase schema
+-- Settle v2 - Supabase schema
 -- Run: supabase db push OR apply via Supabase dashboard SQL editor
 
 create table if not exists charges (

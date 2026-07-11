@@ -20,7 +20,6 @@ const Profile = lazy(() => import('./pages/Profile'))
 const ExchangeDetails = lazy(() => import('./pages/ExchangeDetails'))
 const Account = lazy(() => import('./pages/Account'))
 const PayAnyAddress = lazy(() => import('./pages/PayAnyAddress'))
-const CardComingSoon = lazy(() => import('./pages/CardComingSoon'))
 
 function PageLoader() {
   return (
@@ -47,7 +46,6 @@ export default function App() {
                 <Route path="/checkout/:id" element={<Checkout />} />
                 <Route path="/dca" element={<Dca />} />
                 <Route path="/pay" element={<PayAnyAddress />} />
-                <Route path="/card" element={<CardComingSoon />} />
                 <Route path="/merchant" element={<Merchant />} />
                 <Route path="/merchant/onboard" element={<MerchantOnboard />} />
                 <Route path="/docs" element={<Docs />} />

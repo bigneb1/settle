@@ -1,5 +1,5 @@
 /**
- * Vercel endpoint: disconnect an exchange connection — deletes the
+ * Vercel endpoint: disconnect an exchange connection - deletes the
  * Vault-stored credential permanently, not just a status flip.
  *
  * POST /api/profile/exchange/disconnect
