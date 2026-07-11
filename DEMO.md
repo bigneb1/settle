@@ -9,6 +9,7 @@ This is the working demo script and manual QA checklist for Settle. It reflects 
 | Landing, Catalog, Docs (public pages) | **Live** | No wallet/credentials needed. |
 | Magic email login (one-time code) | **Live, code path verified** | SDK call, UI, and error states all verified. A full human-driven live login (real inbox, real code entry) has not been completed end-to-end this session — see [Known gaps](#known-gaps-before-a-fully-confirmed-live-demo). |
 | BNPL checkout, Subscriptions, Pay Any Address | **Live on-chain** | Real `ChargeRegistry`/`PayoutRouter` calls on Arbitrum One. `chargeCount() == 0` currently — no charge has ever been created against the live contracts, so this would be a real first-run during a demo. |
+| Catalog seed content | **Live, labeled** | 3 real merchants (Nova Electronics, Pulse Fitness, Cloudline Software) with 6 real catalog items across both charge types, registered through the exact same on-chain `configureMerchant()` + backend-verified onboarding path any real merchant uses — not hardcoded fake data. Each is flagged `is_demo` in Supabase and shown with a "Demo" badge in the catalog so it's never presented as unlabeled real activity. |
 | Universal Account payments (Pay Now, DCA buy, Account convert) | **Gated — `PARTICLE_APP_ID` not set** | `frontend/.env`'s `VITE_PARTICLE_APP_ID` and root `.env`'s `PARTICLE_APP_ID` are both blank. The UI degrades gracefully (a clear "Particle Network credentials not configured" message, buttons disabled) rather than crashing, but the actual cross-chain settlement — the app's headline feature — cannot execute until this is set. **This is the single biggest thing to fix before a live demo of the core value prop.** |
 | Merchant onboarding + dashboard | **Live on-chain** | `configureMerchant()` writes verified independently by the backend before any Supabase row is written. |
 | Exchange connections (Binance/Bybit/OKX/Gate.io/Bitget) | **Live** | No env var needed — buyer supplies their own read-only API key at connect time. |
@@ -37,13 +38,13 @@ A suggested narrative order, roughly 10-12 minutes:
 
 1. **Landing (`/`)** — the pitch: cross-chain BNPL/subscriptions/DCA, no bridging, no seed phrase.
 2. **Login** — click Connect, enter email, enter the one-time code from the inbox. Lands on the app with a live wallet address.
-3. **Catalog → Checkout (`/catalog`)** — pick an item, walk through the five-signal underwriting decision (approved/declined, score, credit limit), and if approved, show the real `ChargeRegistry.createCharge` transaction hash.
+3. **Catalog → Checkout (`/catalog`)** — pick one of the 6 seeded "Demo"-badged items (e.g. Nova Electronics' Wireless Earbuds Pro for BNPL, or Pulse Fitness' Premium Membership for a subscription), walk through the five-signal underwriting decision (approved/declined, score, credit limit), and if approved, show the real `ChargeRegistry.createCharge` transaction hash.
 4. **Dashboard (`/dashboard`)** — show the new charge, due date, installment schedule. Click **Pay Now** on a due cycle — this is the actual cross-chain Universal Account operation (requires `PARTICLE_APP_ID` from the setup checklist). Show it sourcing USDC from a different chain than Arbitrum and settling into `PayoutRouter`.
 5. **Account (`/account`)** — the unified multi-chain balance view; show the same balance broken out per chain, then do a small live **convert** between two token/chain pairs.
 6. **DCA (`/dca`)** — create a recurring plan into any coin (not just ETH/BTC), pick a chain, execute one buy cycle live.
 7. **Pay Any Address (`/pay`)** — split a payment to an arbitrary wallet (not an onboarded merchant) into installments — the "pay Amazon/Jumia in installments" use case.
 8. **Profile (`/profile`)** — credit score gauge, factors, connect a real exchange account live and show the score/limit respond; point out the Card tab as an explicit "Soon" teaser, not a real feature.
-9. **Merchant (`/merchant`, `/merchant/onboard`)** — register as a merchant (real on-chain `configureMerchant()` call), show the payout dashboard and revenue chart.
+9. **Merchant (`/merchant`)** — a wallet with no merchant row yet sees the registration wizard inline (real on-chain `configureMerchant()` call); once registered, the same URL shows the payout dashboard and revenue chart.
 10. **Docs (`/docs`)** — close by pointing at the in-app documentation as evidence of how thoroughly the system is specified (contracts, API, env vars, known limitations, all kept honest rather than aspirational).
 
 ## Manual QA / regression checklist

@@ -87,7 +87,7 @@ settle/
 │   └── test/          Settle.t.sol, DCAPlan.t.sol
 ├── frontend/         Vite + React 19 + TypeScript, Tailwind v4
 │   ├── src/pages/      Landing, Dashboard, Account, Profile, ExchangeDetails, Catalog, Checkout,
-│   │                   Dca, PayAnyAddress, Merchant, MerchantOnboard, Docs
+│   │                   Dca, PayAnyAddress, Merchant, Docs
 │   ├── src/lib/        contracts.ts (viem reads + ethers writes), universalAccount.ts (Particle UA),
 │   │                   magic.ts, api.ts, supabase.ts, format.ts, exchanges.tsx (logos + metadata)
 │   ├── src/components/ Layout, Sidebar, ConnectWallet, ThemeSwitcher, SettleLogo, ErrorBoundary

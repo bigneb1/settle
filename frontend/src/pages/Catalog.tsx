@@ -20,7 +20,7 @@ export default function Catalog() {
     setLoading(true)
     supabase
       .from('catalog_items')
-      .select('*, merchants(business_name)')
+      .select('*, merchants(business_name, is_demo)')
       .eq('active', true)
       .order('created_at', { ascending: false })
       .then(({ data, error: err }) => {
@@ -124,7 +124,12 @@ export default function Catalog() {
                 </div>
 
                 <div className="flex-1">
-                  <p className="text-xs text-muted-foreground mb-1">{merchantName}</p>
+                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
+                    {merchantName}
+                    {item.merchants?.is_demo && (
+                      <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning uppercase tracking-widest">Demo</span>
+                    )}
+                  </p>
                   <h3 className="text-foreground font-semibold text-sm mb-3 leading-snug">{item.name}</h3>
                   <div className="flex items-baseline gap-1 mb-1">
                     <span className="text-xl font-mono font-bold text-foreground">{formatUSDC(price)}</span>

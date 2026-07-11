@@ -13,7 +13,6 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Catalog = lazy(() => import('./pages/Catalog'))
 const Checkout = lazy(() => import('./pages/Checkout'))
 const Merchant = lazy(() => import('./pages/Merchant'))
-const MerchantOnboard = lazy(() => import('./pages/MerchantOnboard'))
 const Dca = lazy(() => import('./pages/Dca'))
 const Docs = lazy(() => import('./pages/Docs'))
 const Profile = lazy(() => import('./pages/Profile'))
@@ -47,7 +46,6 @@ export default function App() {
                 <Route path="/dca" element={<Dca />} />
                 <Route path="/pay" element={<PayAnyAddress />} />
                 <Route path="/merchant" element={<Merchant />} />
-                <Route path="/merchant/onboard" element={<MerchantOnboard />} />
                 <Route path="/docs" element={<Docs />} />
               </Route>
             </Routes>

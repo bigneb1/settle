@@ -21,7 +21,7 @@ export interface CatalogItemRow {
   total_cycles: number
   cycle_seconds: number
   active: boolean
-  merchants: { business_name: string | null } | null // embedded FK select
+  merchants: { business_name: string | null; is_demo: boolean } | null // embedded FK select
 }
 
 export interface MerchantPayoutRow {

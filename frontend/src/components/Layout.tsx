@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
-  Home, ShoppingBag, LayoutDashboard, Store, PlusCircle, Menu, X, Wallet, LogOut, TrendingUp, BookOpen, UserCircle, Layers, Send
+  Home, ShoppingBag, LayoutDashboard, Store, Menu, X, Wallet, LogOut, TrendingUp, BookOpen, UserCircle, Layers, Send
 } from 'lucide-react'
 import SettleLogo from './SettleLogo'
 import ConnectWallet from './ConnectWallet'
@@ -19,7 +19,6 @@ const NAV = [
   { to: '/profile', label: 'Profile', icon: UserCircle, end: false },
   { to: '/dca', label: 'DCA', icon: TrendingUp, end: false },
   { to: '/merchant', label: 'Merchant', icon: Store, end: false },
-  { to: '/merchant/onboard', label: 'Onboard', icon: PlusCircle, end: false },
   { to: '/docs', label: 'Docs', icon: BookOpen, end: false },
 ]
 
