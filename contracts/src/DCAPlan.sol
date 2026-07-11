@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @notice Recurring cross-chain investment plans (DCA), settled via Universal Accounts.
 /// Unlike BNPL/subscriptions, a DCA buy has no counterparty to pay — the buyer's own
@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// buys; the actual buy executes client-side via createBuyTransaction() and is
 /// recorded here by an authorized backend recorder after independent verification,
 /// mirroring ScheduleEngine's pattern for the BNPL/subscription flow.
-contract DCAPlan is Ownable {
+contract DCAPlan is Ownable2Step {
     enum Status { Active, Cancelled }
 
     struct Plan {

@@ -36,6 +36,10 @@ export default function MerchantOnboard() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  // Cached from a successful on-chain configureMerchant() call so a retry
+  // after a backend failure doesn't re-send (and re-pay gas for) the same
+  // on-chain transaction.
+  const [configureTxHash, setConfigureTxHash] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const [form, setForm] = useState<FormData>({
@@ -63,7 +67,28 @@ export default function MerchantOnboard() {
     setForm(f => ({ ...f, products: f.products.filter((_, idx) => idx !== i) }))
   }
 
-  function next() { setStep(s => (s < 4 ? (s + 1) as Step : s)) }
+  // A product is valid if it's fully blank (dropped silently, same as before)
+  // or fully filled in with a positive price and, for BNPL, a real installment count.
+  function productError(p: MerchantOnboardingProduct): string | null {
+    const touched = p.name.trim() || p.price.trim()
+    if (!touched) return null
+    if (!p.name.trim()) return 'Product name is required'
+    const priceNum = Number(p.price)
+    if (!Number.isFinite(priceNum) || priceNum <= 0) return 'Price must be a positive number'
+    if (p.chargeType === 0 && (!p.totalCycles || p.totalCycles < 1)) return 'BNPL products need at least 1 installment'
+    return null
+  }
+
+  const step1Valid = form.businessName.trim().length > 0
+  const step3Valid = form.products.every(p => productError(p) === null)
+
+  function canAdvance(fromStep: Step): boolean {
+    if (fromStep === 1) return step1Valid
+    if (fromStep === 3) return step3Valid
+    return true
+  }
+
+  function next() { setStep(s => (s < 4 && canAdvance(s) ? (s + 1) as Step : s)) }
   function prev() { setStep(s => (s > 1 ? (s - 1) as Step : s)) }
 
   async function submit() {
@@ -71,7 +96,14 @@ export default function MerchantOnboard() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const { txHash } = await configureMerchantPayout(address as `0x${string}`, form.payoutMode)
+      // Reuse a configureMerchant() tx from a prior failed attempt instead of
+      // re-sending (and re-paying gas for) the same on-chain call on retry.
+      let txHash = configureTxHash
+      if (!txHash) {
+        const result = await configureMerchantPayout(address as `0x${string}`, form.payoutMode)
+        txHash = result.txHash
+        setConfigureTxHash(txHash)
+      }
       await submitMerchantOnboarding({
         merchantAddress: address,
         businessName: form.businessName,
@@ -160,6 +192,7 @@ export default function MerchantOnboard() {
                 placeholder="Acme Corp"
                 className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
               />
+              {!step1Valid && <p className="text-[10px] text-destructive mt-1">Business name is required</p>}
             </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Wallet Address</label>
@@ -265,6 +298,8 @@ export default function MerchantOnboard() {
                   />
                   <input
                     type="number"
+                    min="0"
+                    step="0.01"
                     value={p.price}
                     onChange={e => updateProduct(i, { price: e.target.value })}
                     placeholder="Price (USD)"
@@ -281,6 +316,8 @@ export default function MerchantOnboard() {
                   {p.chargeType === 0 && (
                     <input
                       type="number"
+                      min="1"
+                      step="1"
                       value={p.totalCycles || ''}
                       onChange={e => updateProduct(i, { totalCycles: Number(e.target.value) })}
                       placeholder="Installments"
@@ -288,6 +325,7 @@ export default function MerchantOnboard() {
                     />
                   )}
                 </div>
+                {productError(p) && <p className="text-[10px] text-destructive">{productError(p)}</p>}
               </div>
             ))}
           </div>
@@ -335,7 +373,8 @@ export default function MerchantOnboard() {
         {step < 4 ? (
           <button
             onClick={next}
-            className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+            disabled={!canAdvance(step)}
+            className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
           >
             Continue
           </button>

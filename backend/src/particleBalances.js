@@ -59,14 +59,16 @@ export async function getCrossChainSignal(buyerAddress) {
   let chainsWithBalance = 0;
   let totalNativeWei = 0n;
   let totalTokenPositions = 0;
+  const perChainTokens = {};
 
-  results.forEach(result => {
+  results.forEach((result, i) => {
     if (!result) return;
     const native = BigInt(result.native || "0");
-    const tokenCount = (result.tokens || []).filter(t => BigInt(t.amount || "0") > 0n).length;
-    if (native > 0n || tokenCount > 0) chainsWithBalance++;
+    const nonZeroTokens = (result.tokens || []).filter(t => BigInt(t.amount || "0") > 0n);
+    if (native > 0n || nonZeroTokens.length > 0) chainsWithBalance++;
     totalNativeWei += native;
-    totalTokenPositions += tokenCount;
+    totalTokenPositions += nonZeroTokens.length;
+    perChainTokens[SUPPORTED_CHAIN_IDS[i]] = nonZeroTokens;
   });
 
   return {
@@ -74,5 +76,10 @@ export async function getCrossChainSignal(buyerAddress) {
     chainsWithBalance,
     totalTokenPositions,
     totalNativeWei,
+    // Per-chain raw token lists — used by walletReputation.js to compute
+    // stablecoin holdings without a second round of RPC calls. Additive
+    // field; existing callers (underwriting.js) only read the aggregates
+    // above and are unaffected.
+    perChainTokens,
   };
 }

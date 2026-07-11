@@ -1,31 +1,103 @@
-import { useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { ArrowLeft, CheckCircle, AlertCircle, XCircle } from 'lucide-react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, CheckCircle, AlertCircle, XCircle, Loader2 } from 'lucide-react'
 import { BrowserProvider } from 'ethers'
 import { formatUSDC } from '../lib/format'
 import { useWallet } from '../context/WalletContext'
 import { getMagic } from '../lib/magic'
 import { createCheckoutCharge, type CheckoutResult } from '../lib/api'
+import { supabase, type CatalogItemRow } from '../lib/supabase'
+import { shortAddr } from '../lib/format'
+
+interface CheckoutItem {
+  id: number
+  name: string
+  merchantName: string
+  price: bigint
+  period: string
+  type: 0 | 1
+  totalCycles: number
+}
 
 export default function Checkout() {
   const { state } = useLocation()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { address, balance } = useWallet()
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const item = state?.item || {
-    id: 1, name: 'Demo Item', merchantName: 'Demo Merchant',
-    price: 15_000_000n, period: 'monthly', type: 0, totalCycles: 6,
+  // Navigation state (from Catalog's "Buy Now" click) is used only as an
+  // instant-render hint — the real source of truth is always the fresh
+  // Supabase fetch below, so a page refresh or direct URL visit never falls
+  // back to fabricated data.
+  const hint = state?.item as CheckoutItem | undefined
+  const [item, setItem] = useState<CheckoutItem | null>(hint ?? null)
+  const [loading, setLoading] = useState(!hint)
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const itemId = Number(id)
+    if (!Number.isInteger(itemId) || itemId <= 0) {
+      setNotFound(true)
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    supabase
+      .from('catalog_items')
+      .select('*, merchants(business_name)')
+      .eq('id', itemId)
+      .eq('active', true)
+      .maybeSingle()
+      .then(({ data, error: err }) => {
+        if (cancelled) return
+        const row = data as unknown as CatalogItemRow | null
+        if (err || !row) {
+          setNotFound(true)
+        } else {
+          setItem({
+            id: row.id,
+            name: row.name,
+            merchantName: row.merchants?.business_name ?? shortAddr(row.merchant),
+            price: BigInt(row.price),
+            period: row.period,
+            type: row.charge_type,
+            totalCycles: row.total_cycles,
+          })
+        }
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (notFound) navigate('/catalog', { replace: true })
+  }, [notFound, navigate])
+
+  if (notFound) {
+    return null
   }
 
-  const price = BigInt(item.price)
+  if (loading || !item) {
+    return (
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <Loader2 size={20} className="animate-spin" />
+      </div>
+    )
+  }
+
+  const checkoutItem: CheckoutItem = item
+  const price = checkoutItem.price
   const fee = price / 40n // 2.5%
   const total = price + fee
-  const cycles = item.type === 0 ? Number(item.totalCycles || 6) : 0
+  const cycles = checkoutItem.type === 0 ? Number(checkoutItem.totalCycles) || 0 : 0
 
-  const schedule = item.type === 0 ? Array.from({ length: cycles }, (_, i) => ({
+  const schedule = checkoutItem.type === 0 ? Array.from({ length: cycles }, (_, i) => ({
     cycle: i + 1,
     date: new Date(Date.now() + i * 30 * 86400_000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     amount: price,
@@ -37,11 +109,11 @@ export default function Checkout() {
     setError(null)
     try {
       const ts = Math.floor(Date.now() / 1000)
-      const message = `Settle checkout: catalogItemId=${item.id} buyer=${address} ts=${ts}`
+      const message = `Settle checkout: catalogItemId=${checkoutItem.id} buyer=${address} ts=${ts}`
       const magic = getMagic()
       const signer = await new BrowserProvider(magic.rpcProvider as never).getSigner()
       const signature = await signer.signMessage(message)
-      const outcome = await createCheckoutCharge(address, item.id, ts, signature)
+      const outcome = await createCheckoutCharge(address, checkoutItem.id, ts, signature)
       setResult(outcome)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed')
@@ -122,7 +194,7 @@ export default function Checkout() {
             <div className="mb-4">
               <p className="text-xs text-muted-foreground mb-0.5">Charge type</p>
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-sm ${item.type === 0 ? 'bg-purple-900/40 text-purple-400' : 'bg-blue-900/40 text-blue-400'}`}>
-                {item.type === 0 ? `BNPL · ${cycles} installments` : 'Subscription · Indefinite'}
+                {item.type === 0 ? (cycles > 0 ? `BNPL · ${cycles} installments` : 'BNPL · schedule unavailable') : 'Subscription · Indefinite'}
               </span>
             </div>
             <div className="border-t border-border pt-4 space-y-2">
@@ -145,6 +217,9 @@ export default function Checkout() {
           {item.type === 0 && (
             <div className="bg-card border border-border rounded-sm p-5">
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Installment Schedule</p>
+              {cycles === 0 ? (
+                <p className="text-xs text-muted-foreground">This merchant hasn't configured an installment count for this item — contact them before proceeding.</p>
+              ) : (
               <div className="space-y-2">
                 {schedule.map(s => (
                   <div key={s.cycle} className="flex justify-between items-center">
@@ -158,6 +233,7 @@ export default function Checkout() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
         </div>

@@ -101,6 +101,14 @@ export default function Catalog() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map(item => {
             const merchantName = item.merchants?.business_name ?? shortAddr(item.merchant)
+            let price: bigint
+            try {
+              price = BigInt(item.price)
+            } catch {
+              // Malformed price from a bad merchant-onboarding submission —
+              // skip this one item rather than crashing the whole page.
+              return null
+            }
             return (
               <div
                 key={item.id}
@@ -119,20 +127,19 @@ export default function Catalog() {
                   <p className="text-xs text-muted-foreground mb-1">{merchantName}</p>
                   <h3 className="text-foreground font-semibold text-sm mb-3 leading-snug">{item.name}</h3>
                   <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-xl font-mono font-bold text-foreground">{formatUSDC(BigInt(item.price))}</span>
+                    <span className="text-xl font-mono font-bold text-foreground">{formatUSDC(price)}</span>
                     <span className="text-xs text-muted-foreground">/{item.period}</span>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => navigate('/checkout', {
+                  onClick={() => navigate(`/checkout/${item.id}`, {
                     state: {
                       item: {
                         id: item.id,
                         name: item.name,
                         merchantName,
-                        merchant: item.merchant,
-                        price: item.price,
+                        price,
                         period: item.period,
                         type: item.charge_type,
                         totalCycles: item.total_cycles,

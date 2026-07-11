@@ -4,18 +4,30 @@
  */
 import { ethers } from "ethers";
 import OpenAI from "openai";
-import { provider, SUBSCRIPTION_RISK_THRESHOLD_USD } from "./config.js";
-import { ADDRESSES, CHARGE_REGISTRY_ABI, DEFAULT_HANDLER_ABI } from "./abis.js";
+import { provider, SUBSCRIPTION_RISK_THRESHOLD_USD, ADDRESSES } from "./config.js";
+import { CHARGE_REGISTRY_ABI, DEFAULT_HANDLER_ABI } from "./abis.js";
 import { getCrossChainSignal } from "./particleBalances.js";
 
 // Plain-language BNPL explanations via Zhipu GLM (OpenAI-compatible endpoint).
 // baseURL + model are env-driven so the exact region/dashboard values are set
 // by the operator, not hardcoded. Approval is score-based — the explanation is
 // only plain-language frosting, so a GLM failure must never block checkout.
-const glm = new OpenAI({
-  apiKey: process.env.GLM_API_KEY,
-  baseURL: process.env.GLM_BASE_URL || "https://open.bigmodel.cn/api/paas/v4",
-});
+//
+// The client is constructed lazily (not at module load) because `new OpenAI()`
+// throws synchronously when apiKey is falsy and OPENAI_API_KEY is also unset —
+// that would crash every import of this module (i.e. all of checkout) whenever
+// GLM_API_KEY isn't configured, instead of the documented graceful fallback.
+let glm = null;
+function getGlmClient() {
+  if (!process.env.GLM_API_KEY) throw new Error("GLM_API_KEY not set");
+  if (!glm) {
+    glm = new OpenAI({
+      apiKey: process.env.GLM_API_KEY,
+      baseURL: process.env.GLM_BASE_URL || "https://open.bigmodel.cn/api/paas/v4",
+    });
+  }
+  return glm;
+}
 
 // Score weights (sum = 100)
 const WEIGHTS = {
@@ -117,7 +129,7 @@ export async function evaluateBNPL(buyerAddress, requestedAmount) {
   let explanation = "";
   if (score >= 540 && score < 640) {
     try {
-      const msg = await glm.chat.completions.create({
+      const msg = await getGlmClient().chat.completions.create({
         model: process.env.GLM_MODEL || "glm-4.6",
         max_tokens: 150,
         messages: [{

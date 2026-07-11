@@ -2,24 +2,33 @@ import { ethers } from "ethers";
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 
+// Fail fast with one clear, named error instead of letting missing vars
+// surface as opaque downstream SDK errors (e.g. "invalid private key",
+// "supabaseUrl is required") at unpredictable call sites.
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
 export const ARBITRUM_RPC = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
 
 export const provider = new ethers.JsonRpcProvider(ARBITRUM_RPC);
 
 export const sweepAgentWallet = new ethers.Wallet(
-  process.env.SWEEP_AGENT_PRIVATE_KEY,
+  requireEnv("SWEEP_AGENT_PRIVATE_KEY"),
   provider
 );
 
 // The only EOA (besides the never-calling ScheduleEngine contract) that
 // ChargeRegistry.createCharge() accepts — used exclusively by
 // api/checkout/create.js after underwriting approval.
-export const ownerWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+export const ownerWallet = new ethers.Wallet(requireEnv("PRIVATE_KEY"), provider);
 
 // Server-side only — bypasses RLS via the service_role key. Never import into frontend code.
 export const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  requireEnv("SUPABASE_URL"),
+  requireEnv("SUPABASE_SERVICE_ROLE_KEY")
 );
 
 export const ADDRESSES = {
@@ -33,4 +42,3 @@ export const ADDRESSES = {
 };
 
 export const SUBSCRIPTION_RISK_THRESHOLD_USD = Number(process.env.SUBSCRIPTION_RISK_THRESHOLD_USD || "50");
-export const GRACE_PERIOD_SECONDS = Number(process.env.GRACE_PERIOD_SECONDS || 3 * 24 * 60 * 60);

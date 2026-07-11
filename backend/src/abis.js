@@ -22,7 +22,7 @@ export const SCHEDULE_ENGINE_ABI = [
 ];
 
 export const PAYOUT_ROUTER_ABI = [
-  "function executePayout(address merchant, uint256 grossAmount, uint256 chargeId) nonpayable",
+  "function executePayout(address merchant, uint256 grossAmount, uint256 chargeId)",
   "function configureMerchant(address merchant, uint8 mode)",
   "function merchantMode(address) view returns (uint8)",
   "function getMerchantStats(address merchant) view returns (uint256 totalCollected, uint256 totalPaidOut, uint256 totalFees, uint256 subscriberCount, uint8 mode)",
@@ -33,7 +33,7 @@ export const PAYOUT_ROUTER_ABI = [
 ];
 
 export const LIQUIDITY_POOL_ABI = [
-  "function frontCapital(address merchant, uint256 amount, uint256 chargeId) nonpayable",
+  "function frontCapital(address merchant, uint256 amount, uint256 chargeId)",
   "function recordRepayment(uint256 chargeId, uint256 amount)",
   "function availableLiquidity() view returns (uint256)",
   "function totalDeposited() view returns (uint256)",

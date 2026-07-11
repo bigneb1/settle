@@ -26,12 +26,12 @@ contract DeploySettle is Script {
         ScheduleEngine scheduleEngine = new ScheduleEngine(address(chargeRegistry));
         console2.log("ScheduleEngine:", address(scheduleEngine));
 
-        // 3. PayoutRouter
-        PayoutRouter payoutRouter = new PayoutRouter(usdcAddress, treasury);
+        // 3. PayoutRouter (depends on ChargeRegistry — cross-checks merchant/amount/cycle on payout)
+        PayoutRouter payoutRouter = new PayoutRouter(usdcAddress, treasury, address(chargeRegistry));
         console2.log("PayoutRouter:", address(payoutRouter));
 
-        // 4. LiquidityPool
-        LiquidityPool liquidityPool = new LiquidityPool(usdcAddress);
+        // 4. LiquidityPool (depends on ChargeRegistry — validates fronted capital against real BNPL charges)
+        LiquidityPool liquidityPool = new LiquidityPool(usdcAddress, address(chargeRegistry));
         console2.log("LiquidityPool:", address(liquidityPool));
 
         // 5. DefaultHandler
@@ -40,6 +40,10 @@ contract DeploySettle is Script {
 
         // Wire contracts
         chargeRegistry.setScheduleEngine(address(scheduleEngine));
+        // Must run before any BNPL charge can be created — createCharge()
+        // fails closed (reverts) for BNPL charges if defaultHandler is unset,
+        // by design, so a missed wiring call can't silently disable the gate.
+        chargeRegistry.setDefaultHandler(address(defaultHandler));
         scheduleEngine.setSweepAgent(sweepAgent);
 
         // settlementCaller for PayoutRouter and LiquidityPool must be the sweep-agent

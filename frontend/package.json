@@ -10,20 +10,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@icons-pack/react-simple-icons": "^13.13.0",
     "@particle-network/universal-account-sdk": "^1.0.24",
+    "@supabase/supabase-js": "^2.45.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-query": "^5.101.2",
+    "@web3icons/react": "^4.1.17",
     "autoprefixer": "^10.5.2",
     "ethers": "^6.13.4",
     "framer-motion": "^12.35.2",
     "lucide-react": "^1.22.0",
-    "magic-sdk": "^33.7.1",
+    "magic-sdk": "^33.9.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-is": "^19.2.7",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.9.0",
-    "sharp": "^0.35.2",
-    "@supabase/supabase-js": "^2.45.0",
     "tailwindcss": "^4.3.2",
     "viem": "^2.53.1"
   },
@@ -33,6 +35,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "oxlint": "^1.69.0",
+    "sharp": "^0.35.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.0"
   }

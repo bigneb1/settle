@@ -6,6 +6,7 @@
  * Vercel Cron: schedule this at api/cron/sweep.js and add "crons" to vercel.json.
  */
 import { ethers } from "ethers";
+import { timingSafeEqual } from "node:crypto";
 import { provider, sweepAgentWallet, ADDRESSES } from "./config.js";
 import { CHARGE_REGISTRY_ABI, SCHEDULE_ENGINE_ABI } from "./abis.js";
 import { executePayout } from "./payoutExecutor.js";
@@ -26,7 +27,15 @@ export async function settleCharge(chargeId, amount, success) {
 
   if (success) {
     const charge = await registry.getCharge(chargeId);
-    await executePayout(charge.merchant, amount, BigInt(chargeId));
+    const payoutResult = await executePayout(charge.merchant, amount, BigInt(chargeId));
+    if (!payoutResult.success) {
+      // The cycle is already recorded complete on-chain (recordSweepOutcome
+      // above), but the merchant was NOT actually paid. Don't swallow this —
+      // the caller must surface it distinctly rather than reporting a clean
+      // success to the buyer/ops.
+      console.error(`[settle] Payout FAILED after sweep outcome recorded: chargeId=${chargeId} merchant=${charge.merchant} error=${payoutResult.error}`);
+      return { recordTxHash: tx.hash, payoutFailed: true, payoutError: payoutResult.error };
+    }
   }
 
   return { recordTxHash: tx.hash };
@@ -48,7 +57,7 @@ export async function settleCharge(chargeId, amount, success) {
  * verified server-side by api/payments/confirm.js before settleCharge() pays out.
  */
 async function executeUniversalSweep(buyerAddress, amountRequired) {
-  console.log(`[sweep] No real UA sweep for ${buyerAddress}: ${amountRequired / 1e6} USDC (session-key delegation not implemented — buyer must use the Pay Now button)`);
+  console.log(`[sweep] No real UA sweep for ${buyerAddress}: ${amountRequired / 1_000_000n} USDC (session-key delegation not implemented — buyer must use the Pay Now button)`);
   return { success: false, simulated: true, amountSwept: 0n };
 }
 
@@ -69,16 +78,37 @@ async function processDueCharges() {
 
       const result = await executeUniversalSweep(charge.buyer, charge.amountPerCycle);
 
-      // Never settle on-chain for a simulated sweep — that would record a
-      // successful outcome and pay the merchant for funds that were never
-      // actually swept. The charge stays Active; the buyer's "Pay Now" button
-      // remains the real path.
-      if (result.simulated) {
-        console.log(`[sweep] Skipping on-chain settlement for charge ${i} — no real sweep occurred (buyer-initiated Pay Now required)`);
+      if (!result.simulated) {
+        // A real UA sweep actually moved funds (or genuinely failed to) —
+        // settle for real, paying the merchant on success.
+        await settleCharge(i, charge.amountPerCycle, result.success);
         continue;
       }
 
-      await settleCharge(i, charge.amountPerCycle, result.success);
+      // No real sweep occurred (session-key delegation isn't implemented —
+      // see executeUniversalSweep above). That does NOT mean this charge is
+      // unpaid forever: the buyer's own "Pay Now" button is the real
+      // collection path, verified server-side by api/payments/confirm.js.
+      // What the cron must still do is report the *absence* of payment so
+      // the on-chain grace-period/default state machine actually progresses
+      // — recordSweepOutcome(id, 0, false) here is a report of non-payment,
+      // not an attempted (and failed) fund movement, and is what starts the
+      // grace-period clock and, if the buyer never pays, flags the buyer in
+      // DefaultHandler once the grace period lapses.
+      const inGrace = await engine.inGrace(i);
+      if (!inGrace) {
+        console.log(`[sweep] Charge ${i} is overdue and unpaid — starting grace period`);
+        await settleCharge(i, 0n, false);
+        continue;
+      }
+
+      const graceEndsAt = Number(await engine.graceEndsAt(i));
+      if (now >= graceEndsAt) {
+        console.log(`[sweep] Charge ${i}'s grace period has expired — flagging default`);
+        await settleCharge(i, 0n, false);
+      } else {
+        console.log(`[sweep] Charge ${i} still within grace period (ends ${new Date(graceEndsAt * 1000).toISOString()}) — waiting, no on-chain action needed yet`);
+      }
     } catch (err) {
       console.error(`[sweep] Error on charge ${i}:`, err.message);
     }
@@ -87,8 +117,17 @@ async function processDueCharges() {
 
 // Vercel Cron export (Next.js App Router handler)
 export async function GET(req) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fail closed: an unset CRON_SECRET must never degrade to a guessable
+  // "Bearer undefined" bypass. Constant-time compare against timing attacks.
+  if (!process.env.CRON_SECRET) {
+    console.error("[sweep] CRON_SECRET is not configured — rejecting all requests");
+    return new Response("Unauthorized", { status: 401 });
+  }
+  const authHeader = req.headers.get("authorization") || "";
+  const expected = Buffer.from(`Bearer ${process.env.CRON_SECRET}`);
+  const actual = Buffer.from(authHeader);
+  const authorized = expected.length === actual.length && timingSafeEqual(expected, actual);
+  if (!authorized) {
     return new Response("Unauthorized", { status: 401 });
   }
   await processDueCharges();

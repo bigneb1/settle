@@ -1,6 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { IAssetsResponse } from '@particle-network/universal-account-sdk'
-import { getUnifiedBalance, isUniversalAccountConfigured } from '../lib/universalAccount'
 import { getUser } from '../lib/magic'
 
 interface WalletContextValue {
@@ -19,16 +18,39 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<IAssetsResponse | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
+  const [uaConfigured, setUaConfigured] = useState(false)
+  // lib/universalAccount.ts statically imports the full Particle Universal
+  // Account SDK — dynamically importing it here (instead of a top-level
+  // import) keeps that weight out of the one bundle every visitor loads,
+  // including anonymous Landing-page visitors who never touch a wallet.
+  // Cached after first load so repeated calls don't re-fetch the chunk.
+  const uaModuleRef = useRef<Promise<typeof import('../lib/universalAccount')> | null>(null)
+
+  const loadUaModule = useCallback(() => {
+    if (!uaModuleRef.current) {
+      uaModuleRef.current = import('../lib/universalAccount').then(mod => {
+        setUaConfigured(mod.isUniversalAccountConfigured())
+        return mod
+      })
+    }
+    return uaModuleRef.current
+  }, [])
+
+  useEffect(() => {
+    loadUaModule()
+  }, [loadUaModule])
 
   const refreshBalance = useCallback(async () => {
-    if (!address || !isUniversalAccountConfigured()) return
+    if (!address) return
+    const mod = await loadUaModule()
+    if (!mod.isUniversalAccountConfigured()) return
     setBalanceLoading(true)
     try {
-      setBalance(await getUnifiedBalance(address))
+      setBalance(await mod.getUnifiedBalance(address))
     } finally {
       setBalanceLoading(false)
     }
-  }, [address])
+  }, [address, loadUaModule])
 
   useEffect(() => {
     if (address) refreshBalance()
@@ -57,7 +79,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   return (
     <WalletContext.Provider
-      value={{ address, balance, balanceLoading, uaConfigured: isUniversalAccountConfigured(), connect, disconnect, refreshBalance }}
+      value={{ address, balance, balanceLoading, uaConfigured, connect, disconnect, refreshBalance }}
     >
       {children}
     </WalletContext.Provider>

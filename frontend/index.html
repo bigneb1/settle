@@ -5,6 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Settle</title>
+    <script>
+      // Runs before first paint to avoid a dark-theme flash for users who
+      // previously chose light mode (ThemeSwitcher's effect runs too late).
+      if (localStorage.getItem('settle-theme') === 'light') {
+        document.documentElement.classList.remove('dark')
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

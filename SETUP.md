@@ -10,20 +10,49 @@ All six contracts are **deployed and verified** on Sourcify (`perfect` match), B
 
 | Contract | Address | Arbiscan | Sourcify | Blockscout |
 |---|---|---|---|---|
-| ChargeRegistry | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` | [view](https://arbiscan.io/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e#code) | [view](https://repo.sourcify.dev/42161/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) | [view](https://arbitrum.blockscout.com/address/0xD24f0a4611AD52602Da28f6020098B4a66F7311e) |
-| ScheduleEngine | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` | [view](https://arbiscan.io/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63#code) | [view](https://repo.sourcify.dev/42161/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) | [view](https://arbitrum.blockscout.com/address/0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63) |
-| PayoutRouter | `0x37b46A98a65d671879797bE6e3F451B3929AA284` | [view](https://arbiscan.io/address/0x37b46A98a65d671879797bE6e3F451B3929AA284#code) | [view](https://repo.sourcify.dev/42161/0x37b46A98a65d671879797bE6e3F451B3929AA284) | [view](https://arbitrum.blockscout.com/address/0x37b46A98a65d671879797bE6e3F451B3929AA284) |
-| LiquidityPool | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` | [view](https://arbiscan.io/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727#code) | [view](https://repo.sourcify.dev/42161/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) | [view](https://arbitrum.blockscout.com/address/0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727) |
-| DefaultHandler | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` | [view](https://arbiscan.io/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054#code) | [view](https://repo.sourcify.dev/42161/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) | [view](https://arbitrum.blockscout.com/address/0x8a5943B16c3089C556DE21EddaaA0ca99379c054) |
-| DCAPlan | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` | [view](https://arbiscan.io/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968#code) | [view](https://repo.sourcify.dev/42161/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) | [view](https://arbitrum.blockscout.com/address/0x14be22B51e2A5E2157997CA62A895AC2B6a1e968) |
+| ChargeRegistry | `0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC` | [view](https://arbiscan.io/address/0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC#code) | [view](https://repo.sourcify.dev/42161/0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC) | [view](https://arbitrum.blockscout.com/address/0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC) |
+| ScheduleEngine | `0x9394f6f8a46828583a207D0b208bBe5d23934646` | [view](https://arbiscan.io/address/0x9394f6f8a46828583a207D0b208bBe5d23934646#code) | [view](https://repo.sourcify.dev/42161/0x9394f6f8a46828583a207D0b208bBe5d23934646) | [view](https://arbitrum.blockscout.com/address/0x9394f6f8a46828583a207D0b208bBe5d23934646) |
+| PayoutRouter | `0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C` | [view](https://arbiscan.io/address/0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C#code) | [view](https://repo.sourcify.dev/42161/0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C) | [view](https://arbitrum.blockscout.com/address/0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C) |
+| LiquidityPool | `0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25` | [view](https://arbiscan.io/address/0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25#code) | [view](https://repo.sourcify.dev/42161/0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25) | [view](https://arbitrum.blockscout.com/address/0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25) |
+| DefaultHandler | `0x8E502651a456757001e98a32b97036FD73D871Ce` | [view](https://arbiscan.io/address/0x8E502651a456757001e98a32b97036FD73D871Ce#code) | [view](https://repo.sourcify.dev/42161/0x8E502651a456757001e98a32b97036FD73D871Ce) | [view](https://arbitrum.blockscout.com/address/0x8E502651a456757001e98a32b97036FD73D871Ce) |
+| DCAPlan | `0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12` | [view](https://arbiscan.io/address/0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12#code) | [view](https://repo.sourcify.dev/42161/0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12) | [view](https://arbitrum.blockscout.com/address/0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12) |
 
 **USDC (Arbitrum One, 6 decimals):** `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`
 
-**Wiring** (verified on-chain post-deploy): `ChargeRegistry.scheduleEngine` → ScheduleEngine; `ScheduleEngine.sweepAgent` → sweep-agent wallet; `PayoutRouter`/`LiquidityPool` `settlementCaller` → sweep-agent wallet; `DefaultHandler.scheduleEngine` → ScheduleEngine; `DCAPlan.recorder` → sweep-agent wallet; `PayoutRouter.usdc` → USDC; `PayoutRouter.protocolTreasury` → deployer (placeholder — update via `setProtocolTreasury()` once you choose a real treasury wallet).
+**Wiring** (verified on-chain post-deploy): `ChargeRegistry.scheduleEngine` → ScheduleEngine; `ChargeRegistry.defaultHandler` → DefaultHandler (gates BNPL charge creation on-chain — added in the 2026-07-10 redeploy, see below); `ScheduleEngine.sweepAgent` → sweep-agent wallet; `ScheduleEngine.defaultHandler` → DefaultHandler (added in the 2026-07-11 redeploy — flags a buyer in `DefaultHandler` when a charge's grace period lapses, see below); `PayoutRouter`/`LiquidityPool` `settlementCaller` → sweep-agent wallet; `PayoutRouter`/`LiquidityPool` `chargeRegistry` → ChargeRegistry (cross-checks merchant/amount/cycle on payout, and validates fronted capital against a real BNPL charge); `DefaultHandler.scheduleEngine` → ScheduleEngine; `DCAPlan.recorder` → sweep-agent wallet; `PayoutRouter.usdc`/`LiquidityPool.usdc` → USDC; `PayoutRouter.protocolTreasury` → deployer (placeholder — update via `setProtocolTreasury()` once you choose a real treasury wallet).
 
-**Deployer / owner:** `0x24C48f32814113344f438932EF8DC7Bb08EBff00` (the only EOA `ChargeRegistry.createCharge()` accepts). **Sweep agent:** `0xE8551a5676432624A4593A1bae6351E0DB0B6E23`.
+**Deployer / owner:** `0x81711D73893051e6cbE7C9d846b68F81F4dCeD93` (the only EOA `ChargeRegistry.createCharge()` accepts). **Sweep agent:** `0xff90a5c9411B02104808Eb10B07790AB6aBA0915`.
 
-> You do **not** need to redeploy — the addresses above are already live. The `forge script` commands in section 1 are only for replicating on a fresh network.
+**`ScheduleEngine` redeploy, 2026-07-11:** the prior `ScheduleEngine` flipped a charge to `Defaulted` on grace-period expiry but never called `DefaultHandler.flagDefault()`, so buyer-level default tracking could never actually update. Fixed by redeploying `ScheduleEngine` with a `defaultHandler` reference (all 5 other contracts are untouched, same addresses as the 2026-07-10 deploy). Rollout was two-step, matching the existing split-governance model: (1) the new `ScheduleEngine` deployed, wired (`setDefaultHandler`/`setSweepAgent`), and `ChargeRegistry.setScheduleEngine()` updated immediately (deployer-owned, no delay); (2) `newEngine.acceptOwnership()` and `DefaultHandler.setScheduleEngine(newEngine)` scheduled and executed through the `TimelockController` (`DefaultHandler` is timelock-owned, so pointing it at the new `ScheduleEngine` needed the full 1h `schedule()` → `execute()` flow). See `contracts/script/RedeployScheduleEngine.s.sol`.
+
+> **2026-07-10 redeploy note:** all 6 contracts above were redeployed (new addresses) as part of a security audit fix pass — see "Known Open Items" in the README for what changed (cycle-aware payout replay guard, real-transfer-backed LP repayments, on-chain default gating, `Pausable` circuit breakers, `Ownable2Step`, O(1) buyer/merchant charge lookups). The previous deployment held $0 and had 0 charges at the time of redeploy, so nothing was migrated/lost. You do **not** need to redeploy again — the addresses above are already live. The `forge script` commands in section 1 are only for replicating on a fresh network.
+
+### Governance (same day, later on 2026-07-10)
+
+`owner()` is **not** the same address across all 6 contracts anymore:
+
+| Contract | Owner | Model |
+|---|---|---|
+| ChargeRegistry | `0x81711D73893051e6cbE7C9d846b68F81F4dCeD93` (deployer EOA) | Single key, no delay — required for synchronous checkout (`createCharge()` has no operational fallback) |
+| ScheduleEngine, PayoutRouter, LiquidityPool, DefaultHandler, DCAPlan | `0x1D389a6b40FBf2aAa09f7CF61C8FEB8B541a6639` (`TimelockController`) | 1h `minDelay`, 4-address multisig (deployer + 3 co-signers) hold both `PROPOSER_ROLE`/`EXECUTOR_ROLE` |
+
+Timelock co-signers: `0xCa62056DE13A40E547441C01D95eBc0AaaA4Fd55`, `0xC759E906A02825d483714b8141758F6258145572`, `0x747DF176962e1495355562Fe30b65F276f0B8404`.
+
+To run any admin action on the 5 timelocked contracts (`setSettlementCaller`, `setProtocolTreasury`, `pause`/`unpause`, etc.), it now takes two steps from any of the 4 signer keys:
+```bash
+cast send 0x1D389a6b40FBf2aAa09f7CF61C8FEB8B541a6639 \
+  "schedule(address,uint256,bytes,bytes32,bytes32,uint256)" \
+  <target> 0 <calldata> 0x0 <random-salt> 3600 \
+  --rpc-url $ARBITRUM_RPC_URL --private-key $SIGNER_KEY
+# wait 1 hour, then:
+cast send 0x1D389a6b40FBf2aAa09f7CF61C8FEB8B541a6639 \
+  "execute(address,uint256,bytes,bytes32,bytes32)" \
+  <target> 0 <calldata> 0x0 <same-salt> \
+  --rpc-url $ARBITRUM_RPC_URL --private-key $SIGNER_KEY
+```
+`ChargeRegistry`'s admin functions (`setScheduleEngine`, `setDefaultHandler`) skip all of this — call them directly with the deployer key, same as before.
+
+If you're replicating this setup on a fresh deploy, the scripts are `contracts/script/DeployTimelock.s.sol` (deploys the timelock, transfers all 6 contracts to it, schedules+executes the 6 `acceptOwnership()` calls) followed by `contracts/script/RevertChargeRegistryOwnership.s.sol` (schedules, then executes, handing `ChargeRegistry` specifically back to the deployer EOA).
 
 ### Arbiscan verification
 
@@ -34,12 +63,12 @@ All 6 contracts are verified on Arbiscan (green "Verified" badge). Sourcify + Bl
 3. For each of the 6 contracts:
    ```bash
    cd contracts
-   forge verify-contract 0xD24f0a4611AD52602Da28f6020098B4a66F7311e "src/ChargeRegistry.sol:ChargeRegistry"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63 "src/ScheduleEngine.sol:ScheduleEngine"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x37b46A98a65d671879797bE6e3F451B3929AA284 "src/PayoutRouter.sol:PayoutRouter"       --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY --constructor-args 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 0x24C48f32814113344f438932EF8DC7Bb08EBff00
-   forge verify-contract 0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727 "src/LiquidityPool.sol:LiquidityPool"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY --constructor-args 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
-   forge verify-contract 0x8a5943B16c3089C556DE21EddaaA0ca99379c054 "src/DefaultHandler.sol:DefaultHandler"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
-   forge verify-contract 0x14be22B51e2A5E2157997CA62A895AC2B6a1e968 "src/DCAPlan.sol:DCAPlan"                 --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC "src/ChargeRegistry.sol:ChargeRegistry"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x9394f6f8a46828583a207D0b208bBe5d23934646 "src/ScheduleEngine.sol:ScheduleEngine"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C "src/PayoutRouter.sol:PayoutRouter"       --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY --constructor-args $(cast abi-encode "constructor(address,address,address)" 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 0x81711D73893051e6cbE7C9d846b68F81F4dCeD93 0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC)
+   forge verify-contract 0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25 "src/LiquidityPool.sol:LiquidityPool"     --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY --constructor-args $(cast abi-encode "constructor(address,address)" 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC)
+   forge verify-contract 0x8E502651a456757001e98a32b97036FD73D871Ce "src/DefaultHandler.sol:DefaultHandler"   --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
+   forge verify-contract 0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12 "src/DCAPlan.sol:DCAPlan"                 --chain 42161 --verifier etherscan --etherscan-api-key $ARBISCAN_API_KEY
    ```
 
 ---
@@ -55,28 +84,17 @@ A dedicated Supabase project is provisioned for the off-chain indexer (catalog, 
 | **Anon (publishable) key** | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyYXpqZGVjcWhqZ2hpcGx4Y290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMTQ3NzMsImV4cCI6MjA5ODY5MDc3M30.URyUzJHQ8-x8IwwqVFFmaH-YrMLuusZpbdoAatr_M64` |
 | **Service-role key** | _get it from the [Supabase dashboard](https://supabase.com/dashboard/project/wrazjdecqhjghiplxcot/settings/api) → Project Settings → API → `service_role` secret key. Never expose this in the frontend._ |
 
-The schema, RLS policies, and the scheduled `index-events` edge function are already applied/deployed. If replicating on a new project, apply the migrations in `supabase/migrations/` in order (001–007) and deploy the edge function from `supabase/functions/index-events/index.ts`.
+The schema, RLS policies, and the scheduled `index-events` edge function are already applied/deployed — migrations `001` through `015` are all live on the `settle` project. If replicating on a new project, apply the migrations in `supabase/migrations/` in order (001–015; **006 requires hand-substituting your project's real anon key/URL in place of the `<ANON_KEY>`/`<SUPABASE_PROJECT_URL>` placeholders before applying it** — applying it verbatim silently breaks the indexer cron with no visible error) and deploy the edge function from `supabase/functions/index-events/index.ts`.
 
-Apply migration `007_nonce_allocator.sql` if not yet applied (needed for the checkout endpoint's nonce safety):
+Migrations `008`–`010` (added after this app's initial mainnet launch) close three bugs found in a later audit pass:
+- `008_anti_replay_tables.sql` — adds `consumed_checkout_signatures`/`consumed_payment_txs`/`consumed_dca_txs`, required by the backend's replay-protection guards in `checkout/create.js`/`payments/confirm.js`/`dca/confirm.js`.
+- `009_fix_nonce_alloc_rls_and_resync.sql` — `007`'s `resync_nonce()` had an invalid bare `RETURN` that threw on every call (the nonce allocator's only recovery path was fully broken), and `007`'s `nonce_alloc` table never had RLS enabled (anon-key-writable). Both fixed here.
+- `010_indexer_dedup_and_indexes.sql` — the indexer's inclusive block-range scan re-processed its boundary block every 5-minute cycle; this adds the unique constraints the corrected `index-events/index.ts` needs to make that idempotent, plus a couple of query-pattern indexes.
 
+If you're checking whether a project has all of this correctly applied, run:
 ```sql
-create table if not exists nonce_alloc (
-  wallet text primary key, next_nonce bigint not null default 0, updated_at timestamptz default now()
-);
-create or replace function alloc_nonce(w text) returns bigint as $$
-declare allocated bigint;
-begin
-  insert into nonce_alloc (wallet, next_nonce) values (w, 1)
-  on conflict (wallet) do update set next_nonce = nonce_alloc.next_nonce + 1, updated_at = now()
-  returning nonce_alloc.next_nonce - 1 into allocated;
-  return coalesce(allocated, 0);
-end; $$ language plpgsql;
-create or replace function resync_nonce(w text, floor bigint) returns bigint as $$
-begin
-  insert into nonce_alloc (wallet, next_nonce) values (w, floor + 1)
-  on conflict (wallet) do update set next_nonce = greatest(nonce_alloc.next_nonce, floor + 1), updated_at = now();
-  return greatest(nonce_alloc.next_nonce, floor);
-end; $$ language plpgsql;
+select proname, proconfig from pg_proc where proname in ('alloc_nonce','resync_nonce'); -- both should show search_path=public
+select relrowsecurity from pg_class where relname = 'nonce_alloc'; -- should be true
 ```
 
 ---
@@ -107,12 +125,12 @@ Three env files: root `.env` (contracts + shared), `backend/.env`, `frontend/.en
 | `VITE_SUPABASE_ANON_KEY` | _(the anon key above)_ |
 | `VITE_MAGIC_PUBLISHABLE_KEY` | `pk_live_DC4A447263F135A0` _(or your Magic dashboard publishable key)_ |
 | `VITE_ARBITRUM_RPC_URL` | `https://arb1.arbitrum.io/rpc` |
-| `VITE_CHARGE_REGISTRY_ADDR` | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` |
-| `VITE_SCHEDULE_ENGINE_ADDR` | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` |
-| `VITE_PAYOUT_ROUTER_ADDR` | `0x37b46A98a65d671879797bE6e3F451B3929AA284` |
-| `VITE_LIQUIDITY_POOL_ADDR` | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` |
-| `VITE_DEFAULT_HANDLER_ADDR` | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` |
-| `VITE_DCA_PLAN_ADDR` | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` |
+| `VITE_CHARGE_REGISTRY_ADDR` | `0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC` |
+| `VITE_SCHEDULE_ENGINE_ADDR` | `0x9394f6f8a46828583a207D0b208bBe5d23934646` |
+| `VITE_PAYOUT_ROUTER_ADDR` | `0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C` |
+| `VITE_LIQUIDITY_POOL_ADDR` | `0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25` |
+| `VITE_DEFAULT_HANDLER_ADDR` | `0x8E502651a456757001e98a32b97036FD73D871Ce` |
+| `VITE_DCA_PLAN_ADDR` | `0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12` |
 | `VITE_USDC_ADDRESS` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
 | `VITE_UA_DESTINATION_CHAIN_ID` | `42161` |
 | `VITE_API_URL` | _(your deployed backend URL, e.g. `https://settle-backend.vercel.app` — empty = same-origin)_ |
@@ -125,12 +143,12 @@ Three env files: root `.env` (contracts + shared), `backend/.env`, `frontend/.en
 | Variable | Value |
 |---|---|
 | `ARBITRUM_RPC_URL` | `https://arb1.arbitrum.io/rpc` |
-| `CHARGE_REGISTRY_ADDR` | `0xD24f0a4611AD52602Da28f6020098B4a66F7311e` |
-| `SCHEDULE_ENGINE_ADDR` | `0x12a26443f0dcCFd56Df16840F2EA56Dff58aFE63` |
-| `PAYOUT_ROUTER_ADDR` | `0x37b46A98a65d671879797bE6e3F451B3929AA284` |
-| `LIQUIDITY_POOL_ADDR` | `0xB8D9D1b021B82cb83Cd0d5516334Fa7158207727` |
-| `DEFAULT_HANDLER_ADDR` | `0x8a5943B16c3089C556DE21EddaaA0ca99379c054` |
-| `DCA_PLAN_ADDR` | `0x14be22B51e2A5E2157997CA62A895AC2B6a1e968` |
+| `CHARGE_REGISTRY_ADDR` | `0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC` |
+| `SCHEDULE_ENGINE_ADDR` | `0x9394f6f8a46828583a207D0b208bBe5d23934646` |
+| `PAYOUT_ROUTER_ADDR` | `0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C` |
+| `LIQUIDITY_POOL_ADDR` | `0xC206CE3881A949c1E00F9ed276C9aDe5C1dEDe25` |
+| `DEFAULT_HANDLER_ADDR` | `0x8E502651a456757001e98a32b97036FD73D871Ce` |
+| `DCA_PLAN_ADDR` | `0x869CbDA19fbD110A82eeAAb3fe1150945528Fe12` |
 | `USDC_ADDRESS` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
 | `PRIVATE_KEY` | _(deployer/owner key — the only address `ChargeRegistry.createCharge()` accepts)_ |
 | `SWEEP_AGENT_ADDRESS` | _(separate hot wallet for cron sweeps)_ |

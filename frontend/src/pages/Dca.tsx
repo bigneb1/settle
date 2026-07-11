@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { parseUnits } from 'viem'
+import { CHAIN_ID, type SUPPORTED_TOKEN_TYPE } from '@particle-network/universal-account-sdk'
 import { Loader2, Zap, TrendingUp, X } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { getOwnerDcaPlans, createDcaPlan, cancelDcaPlan, type OnChainDcaPlan } from '../lib/contracts'
-import { getDcaTargetTokens, executeDcaBuy, type DcaTargetToken } from '../lib/universalAccount'
+import { executeDcaBuy, getConvertTargets, type ConvertTarget } from '../lib/universalAccount'
 import { confirmDcaBuy } from '../lib/api'
 import { formatUSDC, shortHash, formatTs, formatCycleSeconds, DCA_STATUS_LABEL, DCA_STATUS_COLOR } from '../lib/format'
 
@@ -19,12 +20,21 @@ export default function Dca() {
   // UA cross-chain buy is available when Particle credentials are set and the
   // destination chain is the supported mainnet (Arbitrum One, 42161).
   const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
-  const targetTokens = getDcaTargetTokens()
+  // Any coin the SDK supports, on any chain it supports — not just ETH/BTC on
+  // one chain. Same registry the Universal Account convert form uses, minus
+  // Solana: DCAPlan.sol's targetToken field is a Solidity `address` (20-byte
+  // EVM only) — it can't store a Solana base58 account address. Convert
+  // doesn't have this constraint since Particle resolves the destination
+  // server-side from a token-type enum, not a stored on-chain address.
+  const targetTokens = getConvertTargets().filter(t => t.chainId !== CHAIN_ID.SOLANA_MAINNET)
+  const tokenTypes = Array.from(new Set(targetTokens.map(t => t.type)))
 
   const [plans, setPlans] = useState<OnChainDcaPlan[]>([])
   const [plansLoading, setPlansLoading] = useState(false)
 
-  const [assetIdx, setAssetIdx] = useState(0)
+  const [selectedType, setSelectedType] = useState<SUPPORTED_TOKEN_TYPE>(tokenTypes[0])
+  const targetsForType = targetTokens.filter(t => t.type === selectedType)
+  const [selectedChainId, setSelectedChainId] = useState<number>(targetsForType[0]?.chainId)
   const [amount, setAmount] = useState('50')
   const [cycleIdx, setCycleIdx] = useState(0)
   const [indefinite, setIndefinite] = useState(true)
@@ -36,16 +46,22 @@ export default function Dca() {
   const [buyResult, setBuyResult] = useState<{ id: number; txId: string } | { id: number; error: string } | null>(null)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
 
+  // Guards against a rapid wallet switch: only the response matching the
+  // address that's still current when it resolves is applied.
+  const latestAddressRequested = useRef<string | null>(null)
+
   const loadPlans = useCallback(async () => {
     if (!address) return
+    latestAddressRequested.current = address
     setPlansLoading(true)
     try {
       const result = await getOwnerDcaPlans(address as `0x${string}`)
+      if (latestAddressRequested.current !== address) return
       setPlans(result)
     } catch (err) {
       console.error('[dca] failed to load plans', err)
     } finally {
-      setPlansLoading(false)
+      if (latestAddressRequested.current === address) setPlansLoading(false)
     }
   }, [address])
 
@@ -53,14 +69,21 @@ export default function Dca() {
     loadPlans()
   }, [loadPlans])
 
-  function findAsset(tokenAddress: string): DcaTargetToken | undefined {
+  function findAsset(tokenAddress: string): ConvertTarget | undefined {
     return targetTokens.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase())
+  }
+
+  function selectType(type: SUPPORTED_TOKEN_TYPE) {
+    setSelectedType(type)
+    const first = targetTokens.find(t => t.type === type)
+    setSelectedChainId(first?.chainId ?? 0)
   }
 
   async function handleCreatePlan(e: React.FormEvent) {
     e.preventDefault()
-    if (!address || targetTokens.length === 0) return
-    const asset = targetTokens[assetIdx]
+    if (!address || !selectedChainId) return
+    const asset = targetsForType.find(t => t.chainId === selectedChainId)
+    if (!asset) return
     const amountUSD = Number(amount)
     if (!amountUSD || amountUSD <= 0) {
       setCreateError('Enter an amount greater than zero')
@@ -72,7 +95,7 @@ export default function Dca() {
     try {
       await createDcaPlan({
         targetChainId: BigInt(asset.chainId),
-        targetToken: asset.address,
+        targetToken: asset.address as `0x${string}`,
         amountPerCycleUSD: parseUnits(amount, 6),
         cycleSeconds: BigInt(CYCLE_OPTIONS[cycleIdx].seconds),
         totalCycles: indefinite ? 0n : BigInt(Math.max(1, Number(totalCyclesInput) || 1)),
@@ -156,25 +179,37 @@ export default function Dca() {
           <form onSubmit={handleCreatePlan} className="space-y-4">
             <div>
               <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Asset</label>
-              <div className="flex gap-2">
-                {targetTokens.map((t, i) => (
+              <div className="flex flex-wrap gap-2">
+                {tokenTypes.map(type => (
                   <button
                     type="button"
-                    key={t.address}
-                    onClick={() => setAssetIdx(i)}
-                    className={`px-4 py-2 text-xs font-medium rounded-sm border transition-colors ${
-                      assetIdx === i
+                    key={type}
+                    onClick={() => selectType(type)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-sm border transition-colors uppercase ${
+                      selectedType === type
                         ? 'bg-primary text-black border-primary'
                         : 'bg-background text-muted-foreground border-border hover:text-foreground'
                     }`}
                   >
-                    {t.label}
+                    {type}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">On chain</label>
+                <select
+                  value={selectedChainId}
+                  onChange={e => setSelectedChainId(Number(e.target.value))}
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                >
+                  {targetsForType.map(t => (
+                    <option key={`${t.type}-${t.chainId}`} value={t.chainId}>{t.chainLabel}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Amount per cycle (USD)</label>
                 <input
@@ -186,18 +221,19 @@ export default function Dca() {
                   className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Frequency</label>
-                <select
-                  value={cycleIdx}
-                  onChange={e => setCycleIdx(Number(e.target.value))}
-                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
-                >
-                  {CYCLE_OPTIONS.map((c, i) => (
-                    <option key={c.label} value={i}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Frequency</label>
+              <select
+                value={cycleIdx}
+                onChange={e => setCycleIdx(Number(e.target.value))}
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+              >
+                {CYCLE_OPTIONS.map((c, i) => (
+                  <option key={c.label} value={i}>{c.label}</option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center gap-3">

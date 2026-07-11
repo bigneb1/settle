@@ -7,14 +7,20 @@
     "sweep-agent": "node src/sweepAgent.js",
     "underwriting": "node src/underwriting.js",
     "payout-executor": "node src/payoutExecutor.js",
-    "dev": "node --watch src/sweepAgent.js"
+    "dev": "node --watch src/sweepAgent.js",
+    "dev-server": "node --watch dev-server.js"
   },
   "dependencies": {
-    "ethers": "^6.13.4",
-    "openai": "^4.77.0",
+    "@binance/connector": "^3.6.1",
     "@particle-network/universal-account-sdk": "^1.0.24",
     "@supabase/supabase-js": "^2.45.0",
-    "dotenv": "^16.4.5"
+    "bitget-api": "^3.1.10",
+    "bybit-api": "^4.7.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "gate-api": "^7.2.100",
+    "okx-api": "^3.1.6",
+    "openai": "^4.77.0"
   },
   "engines": {
     "node": ">=20"

@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
+
+/// @notice Minimal interface into DefaultHandler for the BNPL access gate,
+/// kept local so ChargeRegistry doesn't need to import DefaultHandler's
+/// full implementation (no circular dependency either way).
+interface IDefaultHandler {
+    function canAccessBNPL(address buyer) external view returns (bool ok, string memory reason);
+}
 
 /// @notice Generalized charge registry: handles both BNPL installment loans and Settle Pay subscriptions.
-contract ChargeRegistry is Ownable {
+contract ChargeRegistry is Ownable2Step {
     enum ChargeType { BNPL, Subscription }
     enum Status { Active, Completed, Cancelled, Defaulted }
 
@@ -26,6 +33,10 @@ contract ChargeRegistry is Ownable {
     mapping(uint256 => Charge) public charges;
 
     address public scheduleEngine;
+    address public defaultHandler;
+
+    mapping(address => uint256[]) private buyerChargeIds;
+    mapping(address => uint256[]) private merchantChargeIds;
 
     event ChargeCreated(
         uint256 indexed chargeId,
@@ -37,6 +48,7 @@ contract ChargeRegistry is Ownable {
     );
     event ChargeStatusChanged(uint256 indexed chargeId, Status status);
     event CycleCompleted(uint256 indexed chargeId, uint256 cycleNumber);
+    event DefaultHandlerUpdated(address handler);
 
     constructor() Ownable(msg.sender) {}
 
@@ -45,6 +57,17 @@ contract ChargeRegistry is Ownable {
         scheduleEngine = _engine;
     }
 
+    function setDefaultHandler(address _handler) external onlyOwner {
+        require(_handler != address(0), "zero address");
+        defaultHandler = _handler;
+        emit DefaultHandlerUpdated(_handler);
+    }
+
+    /// @notice Only the owner (deployer key) can create charges — the
+    /// scheduleEngine branch that existed here previously was never actually
+    /// called by ScheduleEngine (confirmed: it only calls markCycleComplete
+    /// and setStatus) and is removed to match the documented trust model in
+    /// api/checkout/create.js: "only accepts calls from owner()".
     function createCharge(
         address buyer,
         address merchant,
@@ -53,11 +76,16 @@ contract ChargeRegistry is Ownable {
         uint256 totalCycles,
         uint256 cycleSeconds,
         uint256 scoreAtIssuance
-    ) external returns (uint256 chargeId) {
-        require(msg.sender == scheduleEngine || msg.sender == owner(), "unauthorized");
+    ) external onlyOwner returns (uint256 chargeId) {
         require(buyer != address(0) && merchant != address(0), "zero address");
         require(amountPerCycle > 0, "zero amount");
         require(cycleSeconds > 0, "zero cycle");
+
+        if (chargeType == ChargeType.BNPL) {
+            require(defaultHandler != address(0), "default handler not configured");
+            (bool ok, ) = IDefaultHandler(defaultHandler).canAccessBNPL(buyer);
+            require(ok, "buyer blocked by default history");
+        }
 
         chargeId = chargeCount++;
         charges[chargeId] = Charge({
@@ -73,6 +101,8 @@ contract ChargeRegistry is Ownable {
             status: Status.Active,
             createdAt: block.timestamp
         });
+        buyerChargeIds[buyer].push(chargeId);
+        merchantChargeIds[merchant].push(chargeId);
 
         emit ChargeCreated(chargeId, buyer, merchant, chargeType, amountPerCycle, totalCycles);
     }
@@ -101,8 +131,14 @@ contract ChargeRegistry is Ownable {
         emit ChargeStatusChanged(chargeId, Status.Cancelled);
     }
 
+    /// @notice Any transition is allowed except out of a terminal state
+    /// (Completed/Cancelled) — those are permanent. Defaulted is left
+    /// owner-transitionable (e.g. manual off-chain resolution) since nothing
+    /// in the current design needs to lock that down further.
     function setStatus(uint256 chargeId, Status status) external {
         require(msg.sender == scheduleEngine || msg.sender == owner(), "unauthorized");
+        Status current = charges[chargeId].status;
+        require(current != Status.Completed && current != Status.Cancelled, "charge already finalized");
         charges[chargeId].status = status;
         emit ChargeStatusChanged(chargeId, status);
     }
@@ -111,27 +147,11 @@ contract ChargeRegistry is Ownable {
         return charges[chargeId];
     }
 
-    function getBuyerCharges(address buyer) external view returns (uint256[] memory ids) {
-        uint256 count = 0;
-        for (uint256 i = 0; i < chargeCount; i++) {
-            if (charges[i].buyer == buyer) count++;
-        }
-        ids = new uint256[](count);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < chargeCount; i++) {
-            if (charges[i].buyer == buyer) ids[idx++] = i;
-        }
+    function getBuyerCharges(address buyer) external view returns (uint256[] memory) {
+        return buyerChargeIds[buyer];
     }
 
-    function getMerchantCharges(address merchant) external view returns (uint256[] memory ids) {
-        uint256 count = 0;
-        for (uint256 i = 0; i < chargeCount; i++) {
-            if (charges[i].merchant == merchant) count++;
-        }
-        ids = new uint256[](count);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < chargeCount; i++) {
-            if (charges[i].merchant == merchant) ids[idx++] = i;
-        }
+    function getMerchantCharges(address merchant) external view returns (uint256[] memory) {
+        return merchantChargeIds[merchant];
     }
 }

@@ -1,16 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "./ChargeRegistry.sol";
+
+/// @notice Minimal interface into DefaultHandler, kept local so ScheduleEngine
+/// doesn't need to import DefaultHandler's full implementation — same pattern
+/// ChargeRegistry.sol already uses for its own DefaultHandler dependency.
+interface IDefaultHandlerFlag {
+    enum DefaultReason { InsufficientBalance, GracePeriodExpired, ManualFlagged }
+    function flagDefault(address buyer, uint256 chargeId, DefaultReason reason) external returns (uint256 recordId);
+}
 
 /// @notice Generalized due-date tracker and sweep-outcome recorder for BNPL installments and Settle Pay subscriptions.
 /// The actual cross-chain balance sweep executes off-chain via Universal Accounts SDK; this records outcomes on-chain.
-contract ScheduleEngine is Ownable {
+contract ScheduleEngine is Ownable2Step {
     ChargeRegistry public chargeRegistry;
 
     /// @notice Off-chain backend signer authorized to record sweep outcomes.
     address public sweepAgent;
+
+    /// @notice Buyer-level default tracking (isDefaulted/defaultCount, gates
+    /// canAccessBNPL for new charges). Optional by design — see the guarded
+    /// call in recordSweepOutcome below.
+    address public defaultHandler;
 
     uint256 public gracePeriod = 3 days;
 
@@ -23,6 +36,8 @@ contract ScheduleEngine is Ownable {
     event ChargeFlaggedDefault(uint256 indexed chargeId);
     event SweepAgentUpdated(address indexed agent);
     event GracePeriodUpdated(uint256 seconds_);
+    event DefaultHandlerUpdated(address handler);
+    event DefaultHandlerFlagFailed(uint256 indexed chargeId, address indexed buyer);
 
     constructor(address _chargeRegistry) Ownable(msg.sender) {
         require(_chargeRegistry != address(0), "zero address");
@@ -33,6 +48,12 @@ contract ScheduleEngine is Ownable {
         require(_agent != address(0), "zero address");
         sweepAgent = _agent;
         emit SweepAgentUpdated(_agent);
+    }
+
+    function setDefaultHandler(address _handler) external onlyOwner {
+        require(_handler != address(0), "zero address");
+        defaultHandler = _handler;
+        emit DefaultHandlerUpdated(_handler);
     }
 
     function setGracePeriod(uint256 _seconds) external onlyOwner {
@@ -65,6 +86,18 @@ contract ScheduleEngine is Ownable {
             } else if (block.timestamp > graceStartedAt[chargeId] + gracePeriod) {
                 chargeRegistry.setStatus(chargeId, ChargeRegistry.Status.Defaulted);
                 emit ChargeFlaggedDefault(chargeId);
+
+                // Buyer-level default tracking (canAccessBNPL gate + credit-scoring
+                // signal) is a secondary effect — guarded with try/catch so a
+                // misconfigured or reverting DefaultHandler can never block the
+                // charge-status transition above, which is the primary effect.
+                if (defaultHandler != address(0)) {
+                    try IDefaultHandlerFlag(defaultHandler).flagDefault(
+                        c.buyer, chargeId, IDefaultHandlerFlag.DefaultReason.GracePeriodExpired
+                    ) {} catch {
+                        emit DefaultHandlerFlagFailed(chargeId, c.buyer);
+                    }
+                }
             }
         }
     }

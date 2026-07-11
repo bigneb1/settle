@@ -67,6 +67,11 @@ export const DEFAULT_HANDLER_ABI = parseAbi([
   'function canAccessBNPL(address) view returns (bool, string)',
 ] as const)
 
+export const SCHEDULE_ENGINE_ABI = parseAbi([
+  'function isInGrace(uint256) view returns (bool)',
+  'function graceEndsAt(uint256) view returns (uint256)',
+] as const)
+
 export const DCA_PLAN_ABI = parseAbi([
   'function planCount() view returns (uint256)',
   'function getOwnerPlans(address planOwner) view returns (uint256[])',
@@ -121,6 +126,32 @@ export interface OnChainCharge {
   scoreAtIssuance: bigint
   status: number
   createdAt: bigint
+  /** Grace-period state from ScheduleEngine. Always false/0n for non-Active
+   * charges (only Active charges can be mid-grace) and when scheduleEngine
+   * isn't configured. */
+  inGrace: boolean
+  graceEndsAt: bigint
+}
+
+/** Fetches ScheduleEngine grace-period state for Active charges only and
+ * merges it in — mutates nothing, returns new objects. Skips non-Active
+ * charges (grace only applies while a charge is still Active) to avoid
+ * pointless RPC calls. */
+async function attachGraceState(charges: Omit<OnChainCharge, 'inGrace' | 'graceEndsAt'>[]): Promise<OnChainCharge[]> {
+  if (!ADDRESSES.scheduleEngine) {
+    return charges.map(c => ({ ...c, inGrace: false, graceEndsAt: 0n }))
+  }
+  const engine = ADDRESSES.scheduleEngine
+  return Promise.all(
+    charges.map(async c => {
+      if (c.status !== 0) return { ...c, inGrace: false, graceEndsAt: 0n }
+      const [inGrace, graceEndsAt] = await Promise.all([
+        publicClient.readContract({ address: engine, abi: SCHEDULE_ENGINE_ABI, functionName: 'isInGrace', args: [BigInt(c.id)] }),
+        publicClient.readContract({ address: engine, abi: SCHEDULE_ENGINE_ABI, functionName: 'graceEndsAt', args: [BigInt(c.id)] }),
+      ])
+      return { ...c, inGrace, graceEndsAt }
+    })
+  )
 }
 
 const PROTOCOL_STATS_SCAN_CAP = 500 // demo-scale cap; a real indexer (see supabase/) should replace this for production volume
@@ -140,16 +171,21 @@ export async function getProtocolStats(): Promise<ProtocolStats | null> {
     abi: CHARGE_REGISTRY_ABI,
     functionName: 'chargeCount',
   })
-  const total = Math.min(Number(count), PROTOCOL_STATS_SCAN_CAP)
+  const totalCount = Number(count)
+  const total = Math.min(totalCount, PROTOCOL_STATS_SCAN_CAP)
   if (total === 0) return { totalVolumeUSDC: 0n, activeCharges: 0, merchantCount: 0, avgScore: null }
 
+  // Scan the most recent `total` charges, not the oldest — otherwise once the
+  // protocol exceeds PROTOCOL_STATS_SCAN_CAP charges, these stats would
+  // permanently freeze at charges #0..cap-1 and never reflect new activity.
+  const startId = Math.max(0, totalCount - total)
   const charges = await Promise.all(
-    Array.from({ length: total }, (_, id) =>
+    Array.from({ length: total }, (_, i) =>
       publicClient.readContract({
         address: ADDRESSES.chargeRegistry!,
         abi: CHARGE_REGISTRY_GET_CHARGE_ABI,
         functionName: 'getCharge',
-        args: [BigInt(id)],
+        args: [BigInt(startId + i)],
       })
     )
   )
@@ -197,7 +233,7 @@ export async function getBuyerCharges(buyer: `0x${string}`): Promise<OnChainChar
       return { id: Number(id), ...c }
     })
   )
-  return charges
+  return attachGraceState(charges)
 }
 
 export interface OnChainDcaPlan {
@@ -307,7 +343,8 @@ export async function getMerchantSubscriptionCharges(merchant: `0x${string}`): P
       return { id: Number(id), ...c }
     })
   )
-  return charges.filter(c => c.chargeType === 1)
+  const withGrace = await attachGraceState(charges)
+  return withGrace.filter(c => c.chargeType === 1)
 }
 
 const PAYOUT_ROUTER_WRITE_ABI = ['function configureMerchant(address merchant, uint8 mode)']

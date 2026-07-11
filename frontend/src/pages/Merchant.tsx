@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { formatUSDC, shortAddr, shortHash, formatTs, STATUS_LABEL, STATUS_COLOR } from '../lib/format'
-import { Edit, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, type TooltipContentProps } from 'recharts'
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+import { formatUSDC, shortAddr, shortHash, formatTs, formatGraceCountdown, STATUS_LABEL, STATUS_COLOR } from '../lib/format'
+import { RefreshCw, Loader2, AlertTriangle } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
-import { getMerchantStats, getMerchantSubscriptionCharges, type MerchantStats, type OnChainCharge } from '../lib/contracts'
+import { getMerchantStats, getMerchantSubscriptionCharges, configureMerchantPayout, type MerchantStats, type OnChainCharge } from '../lib/contracts'
 import { supabase, type MerchantPayoutRow } from '../lib/supabase'
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: TooltipContentProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-card border border-border rounded-sm px-3 py-2 text-xs">
       <p className="text-muted-foreground mb-1">{label}</p>
-      <p className="font-mono text-primary">${payload[0].value.toFixed(2)}</p>
+      <p className="font-mono text-primary">${Number(payload[0].value ?? 0).toFixed(2)}</p>
     </div>
   )
 }
@@ -22,9 +23,16 @@ export default function Merchant() {
   const [payouts, setPayouts] = useState<MerchantPayoutRow[]>([])
   const [subscribers, setSubscribers] = useState<OnChainCharge[]>([])
   const [loading, setLoading] = useState(false)
+  const [switchingMode, setSwitchingMode] = useState(false)
+  const [modeError, setModeError] = useState<string | null>(null)
+
+  // Guards against a rapid wallet switch: only the response matching the
+  // address that's still current when it resolves is applied.
+  const latestAddressRequested = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     if (!address) return
+    latestAddressRequested.current = address
     setLoading(true)
     try {
       const [statsResult, payoutsResult, subsResult] = await Promise.all([
@@ -32,19 +40,35 @@ export default function Merchant() {
         supabase.from('merchant_payouts').select('*').eq('merchant', address.toLowerCase()).order('timestamp', { ascending: false }).limit(50),
         getMerchantSubscriptionCharges(address as `0x${string}`),
       ])
+      if (latestAddressRequested.current !== address) return
       setStats(statsResult)
       setPayouts((payoutsResult.data as MerchantPayoutRow[]) ?? [])
       setSubscribers(subsResult)
     } catch (err) {
       console.error('[merchant] failed to load merchant data', err)
     } finally {
-      setLoading(false)
+      if (latestAddressRequested.current === address) setLoading(false)
     }
   }, [address])
 
   useEffect(() => {
     load()
   }, [load])
+
+  async function handleTogglePayoutMode() {
+    if (!address || !stats) return
+    const nextMode = stats.mode === 0 ? 1 : 0
+    setSwitchingMode(true)
+    setModeError(null)
+    try {
+      await configureMerchantPayout(address as `0x${string}`, nextMode)
+      await load()
+    } catch (err) {
+      setModeError(err instanceof Error ? err.message : 'Could not update payout mode')
+    } finally {
+      setSwitchingMode(false)
+    }
+  }
 
   if (!address) {
     return (
@@ -79,9 +103,21 @@ export default function Merchant() {
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1 font-mono">{shortAddr(address)}</p>
         </div>
-        <button className="flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground text-xs font-medium px-3 py-2 rounded-sm transition-colors">
-          <Edit size={13} /> Edit Profile
-        </button>
+        {stats && (
+          <div className="text-right">
+            <button
+              onClick={handleTogglePayoutMode}
+              disabled={switchingMode}
+              className="flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground text-xs font-medium px-3 py-2 rounded-sm disabled:opacity-50 transition-colors"
+              title="Toggles PayoutRouter.configureMerchant on-chain"
+            >
+              {switchingMode ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Switch to {stats.mode === 0 ? 'Recurring' : 'One-Time'}
+            </button>
+            <p className="text-[10px] text-muted-foreground mt-1">Currently {stats.mode === 0 ? 'One-Time' : 'Recurring'} payout mode</p>
+            {modeError && <p className="text-[10px] text-destructive mt-1">{modeError}</p>}
+          </div>
+        )}
       </div>
 
       {loading && payouts.length === 0 && !stats ? (
@@ -124,7 +160,7 @@ export default function Merchant() {
                     axisLine={false}
                     tickFormatter={v => `$${v}`}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={CustomTooltip} />
                   <Line
                     type="monotone"
                     dataKey="revenue"
@@ -173,7 +209,13 @@ export default function Merchant() {
           {/* Subscribers */}
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-3">
-              Subscribers <span className="flex-1 h-px bg-border" />
+              Subscribers
+              {subscribers.some(s => s.inGrace) && (
+                <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-sm text-warning bg-warning/10 normal-case tracking-normal">
+                  <AlertTriangle size={10} /> {subscribers.filter(s => s.inGrace).length} at risk
+                </span>
+              )}
+              <span className="flex-1 h-px bg-border" />
             </p>
             <div className="bg-card border border-border rounded-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -194,6 +236,14 @@ export default function Merchant() {
                           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-sm ${STATUS_COLOR[s.status]}`}>
                             {STATUS_LABEL[s.status]}
                           </span>
+                          {s.inGrace && (
+                            <span
+                              className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-sm text-warning bg-warning/10"
+                              title="This buyer missed a scheduled sweep and is in the grace period before being flagged as defaulted."
+                            >
+                              <AlertTriangle size={10} /> Grace — {formatGraceCountdown(s.graceEndsAt)}
+                            </span>
+                          )}
                         </td>
                         <td className="text-xs text-muted-foreground">{formatTs(Number(s.createdAt))}</td>
                       </tr>

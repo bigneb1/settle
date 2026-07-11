@@ -14,6 +14,7 @@ import {
   SUPPORTED_TOKEN_TYPE,
   SUPPORTED_TARGET_TOKENS,
   UNIVERSAL_ACCOUNT_VERSION,
+  CHAIN_ID,
   type IAssetsResponse,
   type ITransaction,
   type EIP7702Authorization,
@@ -113,6 +114,20 @@ async function signEIP7702Authorizations(
   return authorizations
 }
 
+/**
+ * Shared sign-and-submit path for every UA transaction builder
+ * (createUniversalTransaction/createBuyTransaction/createConvertTransaction
+ * all return the same ITransaction shape and go through this identical flow).
+ */
+async function submitUaTransaction(ua: UniversalAccount, transaction: ITransaction): Promise<{ transactionId: string }> {
+  const authorizations = await signEIP7702Authorizations(transaction.userOps)
+  const signature = await signRootHash(transaction.rootHash)
+  const result = await ua.sendTransaction(transaction, signature, authorizations)
+
+  if (!result?.transactionId) throw new Error('Universal Account transaction failed to submit')
+  return { transactionId: result.transactionId }
+}
+
 export interface CrossChainPaymentResult {
   transactionId: string
   /**
@@ -164,44 +179,13 @@ export async function payChargeCycleCrossChain(params: {
 
   if (!transaction) throw new Error('Universal Account could not construct a route for this payment')
 
-  const authorizations = await signEIP7702Authorizations(transaction.userOps)
-  const signature = await signRootHash(transaction.rootHash)
-  const result = await ua.sendTransaction(transaction, signature, authorizations)
-
-  if (!result?.transactionId) throw new Error('Universal Account transaction failed to submit')
+  const result = await submitUaTransaction(ua, transaction)
 
   const destinationUserOp = transaction.userOps.find(op => op.chainId === destinationChainId)
   const destinationTxHash = destinationUserOp?.userOpHash ?? null
 
-  console.log(`[UA] chargeId=${chargeId} settled via UA tx ${result.transactionId} (destination hash: ${destinationTxHash ?? 'unknown'})`)
+  if (import.meta.env.DEV) console.log(`[UA] chargeId=${chargeId} settled via UA tx ${result.transactionId} (destination hash: ${destinationTxHash ?? 'unknown'})`)
   return { transactionId: result.transactionId, destinationTxHash }
-}
-
-export interface DcaTargetToken {
-  type: string
-  label: string
-  chainId: number
-  address: `0x${string}`
-  decimals: number
-}
-
-const DCA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
-
-/**
- * DCA targets: ETH and BTC on the same destination chain the payment flow
- * already uses, sourced from Particle's own supported-token registry rather
- * than hand-rolled addresses. Deliberately small — no strategy picker.
- */
-export function getDcaTargetTokens(): DcaTargetToken[] {
-  return SUPPORTED_TARGET_TOKENS
-    .filter(t => t.chainId === DCA_DESTINATION_CHAIN_ID && (t.type === SUPPORTED_TOKEN_TYPE.ETH || t.type === SUPPORTED_TOKEN_TYPE.BTC))
-    .map(t => ({
-      type: t.type,
-      label: t.type.toUpperCase(),
-      chainId: t.chainId,
-      address: t.address as `0x${string}`,
-      decimals: t.decimals,
-    }))
 }
 
 export interface DcaBuyResult {
@@ -232,12 +216,93 @@ export async function executeDcaBuy(params: {
 
   if (!transaction) throw new Error('Universal Account could not construct a route for this buy')
 
-  const authorizations = await signEIP7702Authorizations(transaction.userOps)
-  const signature = await signRootHash(transaction.rootHash)
-  const result = await ua.sendTransaction(transaction, signature, authorizations)
+  const result = await submitUaTransaction(ua, transaction)
 
-  if (!result?.transactionId) throw new Error('Universal Account buy transaction failed to submit')
+  if (import.meta.env.DEV) console.log(`[UA] DCA buy submitted: ${result.transactionId}`)
+  return result
+}
 
-  console.log(`[UA] DCA buy submitted: ${result.transactionId}`)
-  return { transactionId: result.transactionId }
+// ── Universal Account abstraction: unified balance breakdown + conversion ──
+
+const CHAIN_LABELS: Record<number, string> = {
+  [CHAIN_ID.ETHEREUM_MAINNET]: 'Ethereum',
+  [CHAIN_ID.BASE_MAINNET]: 'Base',
+  [CHAIN_ID.ARBITRUM_MAINNET_ONE]: 'Arbitrum',
+  [CHAIN_ID.OPTIMISM_MAINNET]: 'Optimism',
+  [CHAIN_ID.LINEA_MAINNET]: 'Linea',
+  [CHAIN_ID.BSC_MAINNET]: 'BNB Chain',
+  [CHAIN_ID.POLYGON_MAINNET]: 'Polygon',
+  [CHAIN_ID.AVALANCHE_MAINNET]: 'Avalanche',
+  [CHAIN_ID.BLAST_MAINNET]: 'Blast',
+  [CHAIN_ID.MANTA_MAINNET]: 'Manta',
+  [CHAIN_ID.MODE_MAINNET]: 'Mode',
+  [CHAIN_ID.SOLANA_MAINNET]: 'Solana',
+  [CHAIN_ID.CONFLUX_ESPACE_MAINNET]: 'Conflux eSpace',
+  [CHAIN_ID.BERACHAIN_MAINNET]: 'Berachain',
+  [CHAIN_ID.SONIC_MAINNET]: 'Sonic',
+  [CHAIN_ID.MERLIN_MAINNET]: 'Merlin',
+  [CHAIN_ID.XLAYER_MAINNET]: 'X Layer',
+  [CHAIN_ID.MANTLE_MAINNET]: 'Mantle',
+}
+
+/** Human-readable label for a chain ID, falling back to the raw number for any chain not in the map above. */
+export function getChainLabel(chainId: number): string {
+  return CHAIN_LABELS[chainId] ?? `Chain ${chainId}`
+}
+
+export interface ConvertTarget {
+  type: SUPPORTED_TOKEN_TYPE
+  label: string
+  chainId: number
+  chainLabel: string
+  address: string
+  decimals: number
+}
+
+/**
+ * Every destination (token type, chain) pair the SDK supports — the full
+ * registry, including Solana (chain 101) for usdc/usdt/sol. Used for both
+ * the Convert form and the DCA target picker (any coin, any chain, not
+ * restricted to ETH/BTC on one chain).
+ */
+export function getConvertTargets(): ConvertTarget[] {
+  return SUPPORTED_TARGET_TOKENS.map(t => ({
+    type: t.type,
+    label: t.type.toUpperCase(),
+    chainId: t.chainId,
+    chainLabel: getChainLabel(t.chainId),
+    address: t.address,
+    decimals: t.decimals,
+  }))
+}
+
+export interface ConvertResult {
+  transactionId: string
+}
+
+/**
+ * Converts (swaps) part of the buyer's unified balance into `destinationTokenType`
+ * on `destinationChainId` — the SDK sources funds from wherever the balance
+ * currently sits, same automatic sourcing as payChargeCycleCrossChain/executeDcaBuy.
+ * `amount` is how much of the destination token to receive (human-readable units).
+ */
+export async function convertAsset(params: {
+  ownerAddress: string
+  destinationChainId: number
+  destinationTokenType: SUPPORTED_TOKEN_TYPE
+  amount: string
+}): Promise<ConvertResult> {
+  const { ownerAddress, destinationChainId, destinationTokenType, amount } = params
+  const ua = getUniversalAccount(ownerAddress)
+
+  const transaction = await ua.createConvertTransaction({
+    chainId: destinationChainId,
+    expectToken: { type: destinationTokenType, amount },
+  })
+
+  if (!transaction) throw new Error('Universal Account could not construct a route for this conversion')
+
+  const result = await submitUaTransaction(ua, transaction)
+  if (import.meta.env.DEV) console.log(`[UA] convert submitted: ${result.transactionId}`)
+  return result
 }

@@ -3,11 +3,18 @@
     {
       "path": "/api/cron/sweep",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-profiles",
+      "schedule": "0 */6 * * *"
     }
   ],
   "functions": {
     "api/cron/sweep.js": {
       "maxDuration": 60
+    },
+    "api/cron/sync-profiles.js": {
+      "maxDuration": 300
     },
     "api/payments/confirm.js": {
       "maxDuration": 30
@@ -19,6 +26,15 @@
       "maxDuration": 45
     },
     "api/merchant/onboard.js": {
+      "maxDuration": 30
+    },
+    "api/profile/exchange/connect.js": {
+      "maxDuration": 30
+    },
+    "api/profile/exchange/sync.js": {
+      "maxDuration": 30
+    },
+    "api/profile/get.js": {
       "maxDuration": 30
     }
   }

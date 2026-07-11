@@ -1,12 +1,23 @@
 /**
  * Supabase Edge Function: index-events
- * Subscribes to all five Settle contract events via RPC polling and populates Supabase tables.
- * Scheduled every 5 minutes via pg_cron (see supabase/migrations/006_schedule_index_events_cron.sql).
+ * Subscribes to ChargeRegistry/ScheduleEngine/PayoutRouter events via RPC
+ * polling and populates Supabase tables. Scheduled every 5 minutes via
+ * pg_cron (see supabase/migrations/006_schedule_index_events_cron.sql).
  *
  * Contract addresses and RPC URL are public, already-verified deployment info
  * (see README "Deployed Contracts"), not secrets — hardcoded as fallbacks so
  * this function works without any dashboard-configured Edge Function secrets.
  * Still overridable via env vars if the deployment ever changes.
+ *
+ * DELIBERATELY not indexed: LiquidityPool and DCAPlan events. LiquidityPool
+ * currently has no caller anywhere (frontCapital/recordRepayment are unused
+ * by the app today — see README's BNPL settlement model, no upfront
+ * fronting), so there's nothing to index yet. DCAPlan's state (plans,
+ * cyclesCompleted, etc.) is read live on-chain by frontend/src/lib/contracts.ts
+ * instead of mirrored here — plan counts are expected to stay low enough
+ * that a live read is simpler and always-fresh, with no off-chain cache to
+ * keep in sync. Revisit if DCA volume grows enough to need history/analytics
+ * views that a live on-chain read can't serve well.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ethers } from "https://esm.sh/ethers@6";
@@ -21,7 +32,7 @@ const provider = new ethers.JsonRpcProvider(
 );
 
 const CHARGE_REGISTRY = Deno.env.get("CHARGE_REGISTRY_ADDR") || "0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC";
-const SCHEDULE_ENGINE = Deno.env.get("SCHEDULE_ENGINE_ADDR") || "0xA9e658f4E3C4F3510677c0cF9b5c592e9CB9f04C";
+const SCHEDULE_ENGINE = Deno.env.get("SCHEDULE_ENGINE_ADDR") || "0x9394f6f8a46828583a207D0b208bBe5d23934646";
 const PAYOUT_ROUTER = Deno.env.get("PAYOUT_ROUTER_ADDR") || "0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C";
 
 const REGISTRY_ABI = [
@@ -85,8 +96,32 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
     });
   }
 
-  // Update cycle completions and status changes
-  for (const ev of [...cycleEvents, ...statusEvents]) {
+  // Cycle completions. A CycleCompleted event is only ever emitted from
+  // ScheduleEngine.recordSweepOutcome's *success* branch (via
+  // ChargeRegistry.markCycleComplete) — which on-chain always resets
+  // ScheduleEngine's inGrace[chargeId] to false. Mirror that reset here too,
+  // otherwise a charge that recovers from grace by actually paying stays
+  // permanently stuck showing in_grace=true in Supabase (the live
+  // buyer/merchant-facing badges read grace state directly from chain via
+  // lib/contracts.ts, so this doesn't affect what users see today — but any
+  // future feature built against this column would get it wrong).
+  for (const ev of cycleEvents) {
+    const chargeId = ev.args[0];
+    const charge = await registry.getCharge(chargeId);
+    await supabase.from("charges").upsert({
+      id: Number(chargeId),
+      cycles_completed: Number(charge.cyclesCompleted),
+      next_due_at: Number(charge.nextDueAt),
+      status: Number(charge.status),
+      in_grace: false,
+    });
+  }
+
+  // Status changes (Completed/Cancelled/Defaulted) — in_grace is left alone
+  // here; ChargeFlaggedDefault's own handler below already sets it false,
+  // and other status transitions don't carry the same on-chain guarantee
+  // CycleCompleted does.
+  for (const ev of statusEvents) {
     const chargeId = ev.args[0];
     const charge = await registry.getCharge(chargeId);
     await supabase.from("charges").upsert({
@@ -97,18 +132,20 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
     });
   }
 
-  // Sweep history
+  // Sweep history. upsert + onConflict on (tx_hash, log_index) makes this
+  // idempotent against the intentional block-range overlap below.
   for (const ev of sweepEvents) {
     const [chargeId, amount, success] = ev.args;
     const block = await ev.getBlock();
-    await supabase.from("sweeps").insert({
+    await supabase.from("sweeps").upsert({
       charge_id: Number(chargeId),
       amount: amount.toString(),
       success,
       tx_hash: ev.transactionHash,
+      log_index: ev.index,
       block_number: ev.blockNumber,
       timestamp: block.timestamp,
-    });
+    }, { onConflict: "tx_hash,log_index", ignoreDuplicates: true });
   }
 
   // Grace starts
@@ -123,11 +160,14 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
     await supabase.from("charges").update({ status: 3, in_grace: false }).eq("id", Number(chargeId));
   }
 
-  // Merchant payouts
+  // Merchant payouts. upsert + onConflict makes the row itself idempotent
+  // against the intentional block-range overlap below, but update_merchant_totals
+  // is additive — it must only run once per real event, so it's gated on the
+  // upsert actually inserting a new row (an ignored duplicate returns no row).
   for (const ev of payoutEvents) {
     const [merchant, grossAmount, fee, netAmount, recurring, chargeId] = ev.args;
     const block = await ev.getBlock();
-    await supabase.from("merchant_payouts").insert({
+    const { data: inserted } = await supabase.from("merchant_payouts").upsert({
       merchant: merchant.toLowerCase(),
       gross_amount: grossAmount.toString(),
       fee: fee.toString(),
@@ -135,9 +175,12 @@ async function indexFromBlock(lastBlock: number, currentBlock: number) {
       recurring,
       charge_id: Number(chargeId),
       tx_hash: ev.transactionHash,
+      log_index: ev.index,
       timestamp: block.timestamp,
-    });
-    // Update merchant stats
+    }, { onConflict: "tx_hash,log_index", ignoreDuplicates: true }).select();
+
+    if (!inserted || inserted.length === 0) continue; // already processed in a prior overlapping run
+
     await supabase.rpc("update_merchant_totals", {
       p_merchant: merchant.toLowerCase(),
       p_gross: grossAmount.toString(),
@@ -157,13 +200,18 @@ Deno.serve(async () => {
   try {
     const { data: state } = await supabase.from("indexer_state").select("last_block").single();
     const currentBlock = await provider.getBlockNumber();
-    const lastBlock = state?.last_block ?? currentBlock - 1000;
+    // queryFilter's block range is inclusive on both ends, so the next scan
+    // must start one block past whatever was last recorded — otherwise the
+    // boundary block is re-processed on every single run. The upsert +
+    // onConflict guards above are a second, defense-in-depth safety net for
+    // this same boundary, not a substitute for correct range math.
+    const fromBlock = state?.last_block != null ? state.last_block + 1 : currentBlock - 1000;
 
-    await indexFromBlock(lastBlock, currentBlock);
+    await indexFromBlock(fromBlock, currentBlock);
 
     await supabase.from("indexer_state").upsert({ id: 1, last_block: currentBlock });
 
-    return new Response(JSON.stringify({ ok: true, indexed: currentBlock - lastBlock }), {
+    return new Response(JSON.stringify({ ok: true, indexed: currentBlock - fromBlock + 1 }), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {

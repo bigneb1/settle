@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase, type SweepRow } from '../lib/supabase'
-import { formatUSDC, shortAddr, shortHash, formatTs, STATUS_LABEL, STATUS_COLOR } from '../lib/format'
-import { CreditCard, DollarSign, Activity, Loader2, Zap } from 'lucide-react'
+import { formatUSDC, shortAddr, shortHash, formatTs, formatGraceCountdown, STATUS_LABEL, STATUS_COLOR } from '../lib/format'
+import { CreditCard, DollarSign, Activity, Loader2, Zap, ArrowRight, AlertTriangle } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { getBuyerCharges, ADDRESSES, type OnChainCharge } from '../lib/contracts'
 import { payChargeCycleCrossChain } from '../lib/universalAccount'
-import { confirmChargePayment } from '../lib/api'
+import { confirmChargePayment, getProfile } from '../lib/api'
 
 const CHARGE_TYPE_LABEL = ['BNPL', 'SUB']
 const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
@@ -52,17 +53,26 @@ export default function Dashboard() {
   const [payingId, setPayingId] = useState<number | null>(null)
   const [payResult, setPayResult] = useState<{ id: number; txId: string } | { id: number; error: string } | null>(null)
   const [sweeps, setSweeps] = useState<SweepRow[]>([])
+  const [sweepsLoading, setSweepsLoading] = useState(false)
+  const [sweepsError, setSweepsError] = useState<string | null>(null)
+  const [creditScore, setCreditScore] = useState<number | null>(null)
+
+  // Guards against a rapid wallet switch: only the response matching the
+  // address that's still current when it resolves is applied.
+  const latestAddressRequested = useRef<string | null>(null)
 
   const loadCharges = useCallback(async () => {
     if (!address) return
+    latestAddressRequested.current = address
     setChargesLoading(true)
     try {
       const result = await getBuyerCharges(address as `0x${string}`)
+      if (latestAddressRequested.current !== address) return
       setCharges(result)
     } catch (err) {
       console.error('[dashboard] failed to load charges', err)
     } finally {
-      setChargesLoading(false)
+      if (latestAddressRequested.current === address) setChargesLoading(false)
     }
   }, [address])
 
@@ -70,11 +80,29 @@ export default function Dashboard() {
     loadCharges()
   }, [loadCharges])
 
+  // Live credit score — matches Profile.tsx's own source exactly (same
+  // getProfile()/computeCreditProfile() backend call), instead of the stale
+  // scoreAtIssuance frozen on whichever charge happened to be created last.
+  // Independent of loadCharges so a buyer with zero charges still sees their
+  // real score rather than "Not yet scored".
   useEffect(() => {
+    if (!address) return
+    let cancelled = false
+    getProfile(address)
+      .then(profile => { if (!cancelled) setCreditScore(profile.creditProfile.overall_score) })
+      .catch(err => console.error('[dashboard] failed to load credit score', err))
+    return () => { cancelled = true }
+  }, [address])
+
+  useEffect(() => {
+    let cancelled = false
     if (charges.length === 0) {
       setSweeps([])
+      setSweepsError(null)
       return
     }
+    setSweepsLoading(true)
+    setSweepsError(null)
     supabase
       .from('sweeps')
       .select('*')
@@ -82,8 +110,14 @@ export default function Dashboard() {
       .order('timestamp', { ascending: false })
       .limit(50)
       .then(({ data, error }) => {
-        if (!error) setSweeps((data as SweepRow[]) ?? [])
+        if (cancelled) return
+        if (error) setSweepsError(error.message)
+        else setSweeps((data as SweepRow[]) ?? [])
+        setSweepsLoading(false)
       })
+    return () => {
+      cancelled = true
+    }
   }, [charges])
 
   async function handlePayNow(charge: OnChainCharge) {
@@ -119,8 +153,7 @@ export default function Dashboard() {
   }
 
   const activeCharges = charges.filter(c => c.status === 0)
-  const mostRecentScore = charges.length > 0 ? Number(charges[charges.length - 1].scoreAtIssuance) : 0
-  const score = mostRecentScore > 0 ? mostRecentScore : null
+  const score = creditScore
 
   const KPI = [
     { label: 'Active Charges', value: activeCharges.length.toString(), icon: Activity },
@@ -152,21 +185,38 @@ export default function Dashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-        {KPI.map((k, i) => (
-          <div key={k.label} className="bg-card border border-border rounded-sm p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">{k.label}</p>
-            {i === 2 ? (
-              <ScoreGauge score={score} />
-            ) : (
-              <div className="flex items-end justify-between">
-                <span className="text-xl font-mono font-bold text-foreground">
-                  {i === 3 && balanceLoading ? <Loader2 size={16} className="animate-spin" /> : k.value}
-                </span>
-                {k.icon && <k.icon size={16} className="text-primary mb-1" />}
-              </div>
-            )}
-          </div>
-        ))}
+        {KPI.map((k, i) => {
+          const isBalance = i === 3
+          const content = (
+            <>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">{k.label}</p>
+              {i === 2 ? (
+                <ScoreGauge score={score} />
+              ) : (
+                <div className="flex items-end justify-between">
+                  <span className="text-xl font-mono font-bold text-foreground">
+                    {isBalance && balanceLoading ? <Loader2 size={16} className="animate-spin" /> : k.value}
+                  </span>
+                  {k.icon && <k.icon size={16} className="text-primary mb-1" />}
+                </div>
+              )}
+              {isBalance && (
+                <p className="text-[10px] text-muted-foreground group-hover:text-primary mt-2 flex items-center gap-1 transition-colors">
+                  Across every chain — view by chain <ArrowRight size={10} />
+                </p>
+              )}
+            </>
+          )
+          return isBalance ? (
+            <Link key={k.label} to="/account" className="bg-card border border-border rounded-sm p-4 hover:border-primary/40 transition-colors group">
+              {content}
+            </Link>
+          ) : (
+            <div key={k.label} className="bg-card border border-border rounded-sm p-4">
+              {content}
+            </div>
+          )
+        })}
       </div>
 
       {/* Charges table */}
@@ -214,6 +264,14 @@ export default function Dashboard() {
                         <span className={`text-[10px] font-medium px-2 py-0.5 rounded-sm ${STATUS_COLOR[c.status]}`}>
                           {STATUS_LABEL[c.status]}
                         </span>
+                        {c.inGrace && (
+                          <span
+                            className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-sm text-warning bg-warning/10"
+                            title="Missed a scheduled sweep. Pay before the grace period ends to avoid being flagged as defaulted."
+                          >
+                            <AlertTriangle size={10} /> Grace — {formatGraceCountdown(c.graceEndsAt)}
+                          </span>
+                        )}
                       </td>
                       <td>
                         {c.status === 0 && uaConfigured && (
@@ -266,9 +324,16 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {sweeps.length === 0 ? (
+                {sweepsLoading && (
+                  <tr><td colSpan={5} className="text-center text-xs text-muted-foreground py-6"><Loader2 size={14} className="animate-spin inline mr-2" />Loading sweep history…</td></tr>
+                )}
+                {!sweepsLoading && sweepsError && (
+                  <tr><td colSpan={5} className="text-center text-xs text-destructive py-6">Failed to load sweep history: {sweepsError}</td></tr>
+                )}
+                {!sweepsLoading && !sweepsError && sweeps.length === 0 && (
                   <tr><td colSpan={5} className="text-center text-xs text-muted-foreground py-6">No sweeps yet</td></tr>
-                ) : sweeps.map(s => (
+                )}
+                {!sweepsLoading && !sweepsError && sweeps.map(s => (
                   <tr key={s.id}>
                     <td className="text-xs text-muted-foreground">{formatTs(s.timestamp)}</td>
                     <td className="font-mono text-xs text-muted-foreground">#{s.charge_id}</td>

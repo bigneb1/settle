@@ -12,11 +12,12 @@
  * signature = personal_sign("Settle checkout: catalogItemId=<id> buyer=<addr> ts=<ts>")
  */
 import { ethers } from "ethers";
-import { ownerWallet, provider, ADDRESSES, supabaseAdmin } from "../../src/config.js";
-import { CHARGE_REGISTRY_ABI } from "../../src/abis.js";
+import { supabaseAdmin } from "../../src/config.js";
 import { evaluateBNPL, evaluateSubscription } from "../../src/underwriting.js";
+import { getEffectiveCreditLimit } from "../../src/creditProfileEngine.js";
+import { safeError } from "../../src/errors.js";
+import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreation.js";
 
-const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_ABI, ownerWallet);
 const SIGNATURE_MAX_AGE_SECONDS = 300;
 
 export async function POST(req) {
@@ -39,6 +40,18 @@ export async function POST(req) {
     return json({ error: "Signature timestamp missing or expired" }, 401);
   }
 
+  // Lightweight rate limit: this buyer address gets at most 5 checkout
+  // attempts per rolling 5-minute window, using the consumed-signatures
+  // table we already write to (no separate rate-limit infra needed).
+  const { count: recentAttempts } = await supabaseAdmin
+    .from("consumed_checkout_signatures")
+    .select("ts", { count: "exact", head: true })
+    .eq("buyer_address", buyerAddress.toLowerCase())
+    .gte("ts", Math.floor(Date.now() / 1000) - SIGNATURE_MAX_AGE_SECONDS);
+  if ((recentAttempts ?? 0) >= 5) {
+    return json({ error: "Too many checkout attempts — please wait a few minutes and try again" }, 429);
+  }
+
   const expectedMessage = `Settle checkout: catalogItemId=${catalogItemId} buyer=${buyerAddress} ts=${ts}`;
   let recovered;
   try {
@@ -48,6 +61,16 @@ export async function POST(req) {
   }
   if (recovered.toLowerCase() !== buyerAddress.toLowerCase()) {
     return json({ error: "Signature does not match buyerAddress" }, 403);
+  }
+
+  // Consume this exact (buyer, catalogItem, ts) tuple exactly once. Without
+  // this, the same signed payload could be replayed repeatedly within its
+  // 300s freshness window to create multiple duplicate on-chain charges.
+  const { error: consumeErr } = await supabaseAdmin
+    .from("consumed_checkout_signatures")
+    .insert({ buyer_address: buyerAddress.toLowerCase(), catalog_item_id: catalogItemId, ts });
+  if (consumeErr) {
+    return json({ error: "This checkout request has already been submitted" }, 409);
   }
 
   const { data: item, error: itemErr } = await supabaseAdmin
@@ -70,9 +93,14 @@ export async function POST(req) {
     if (chargeType === 0) {
       const totalPriceUSD = Number(amountPerCycle * (totalCycles > 0n ? totalCycles : 1n)) / 1e6;
       const result = await evaluateBNPL(buyerAddress, totalPriceUSD);
+      // If the buyer has a cached, richer credit profile (exchange/dev-identity
+      // signals — see Profile page), it can only RAISE this limit above the
+      // base 5-signal calculation, never lower it — getEffectiveCreditLimit()
+      // guarantees that. Falls back to the base limit if no profile exists yet.
+      const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
       // evaluateBNPL's own `approved` is score-only and does NOT compare
       // requestedAmount against `limit` internally — enforce the cap here.
-      approved = result.approved && totalPriceUSD * 1_000_000 <= result.limit;
+      approved = result.approved && totalPriceUSD * 1_000_000 <= effectiveLimit;
       score = result.score;
       explanation = result.explanation || "";
     } else {
@@ -83,7 +111,7 @@ export async function POST(req) {
       explanation = "";
     }
   } catch (err) {
-    return json({ error: `Underwriting failed: ${err.message}` }, 502);
+    return json(safeError("checkout/create:underwriting", err, "Underwriting could not be completed"), 502);
   }
 
   if (!approved) {
@@ -92,15 +120,15 @@ export async function POST(req) {
 
   let tx, receipt;
   try {
-    [tx, receipt] = await sendCreateChargeWithNonce({ buyerAddress, item, chargeType, amountPerCycle, totalCycles, cycleSeconds, score });
+    [tx, receipt] = await sendCreateChargeWithNonce({ buyerAddress, merchant: item.merchant, chargeType, amountPerCycle, totalCycles, cycleSeconds, score });
   } catch (err) {
-    return json({ error: `On-chain charge creation failed: ${err.shortMessage || err.message}` }, 502);
+    return json(safeError("checkout/create:createCharge", err, "On-chain charge creation failed"), 502);
   }
 
   const parsed = receipt.logs
     .map(log => {
       try {
-        return registry.interface.parseLog(log);
+        return chargeRegistry.interface.parseLog(log);
       } catch {
         return null;
       }
@@ -111,7 +139,7 @@ export async function POST(req) {
   }
   const chargeId = Number(parsed.args.chargeId);
 
-  await supabaseAdmin.from("charges").upsert({
+  const { error: chargeUpsertErr } = await supabaseAdmin.from("charges").upsert({
     id: chargeId,
     buyer: buyerAddress.toLowerCase(),
     merchant: item.merchant.toLowerCase(),
@@ -126,46 +154,15 @@ export async function POST(req) {
     tx_hash: tx.hash,
     catalog_item_id: catalogItemId,
   });
+  if (chargeUpsertErr) {
+    // Non-fatal to the response — the charge is real on-chain and the
+    // index-events edge function will reconcile it independently — but this
+    // must not be silently lost, since it's the difference between a fast
+    // dashboard read and a 5-minute-stale one.
+    console.error(`[checkout/create] Off-chain charges upsert failed for chargeId=${chargeId}:`, chargeUpsertErr.message);
+  }
 
   return json({ approved: true, chargeId, score, explanation, txHash: tx.hash }, 200);
-}
-
-/**
- * Send createCharge with an explicit nonce allocated from Supabase, so concurrent
- * Vercel invocations of the same deployer key don't race on the next nonce.
- * On a stale-nonce revert (nonce too low / NONCE_EXPIRED / replacement
- * underpriced), re-sync the allocator to the chain-derived floor and retry once.
- */
-async function sendCreateChargeWithNonce({ buyerAddress, item, chargeType, amountPerCycle, totalCycles, cycleSeconds, score }) {
-  const ownerAddr = ownerWallet.address.toLowerCase();
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { data: nonce } = await supabaseAdmin.rpc("alloc_nonce", { w: ownerAddr });
-    try {
-      const tx = await registry.createCharge(
-        buyerAddress,
-        item.merchant,
-        chargeType,
-        amountPerCycle,
-        totalCycles,
-        cycleSeconds,
-        BigInt(score),
-        { nonce: BigInt(nonce) }
-      );
-      const receipt = await tx.wait();
-      return [tx, receipt];
-    } catch (err) {
-      const msg = (err.shortMessage || err.message || "").toLowerCase();
-      const isStaleNonce = msg.includes("nonce") || msg.includes("replacement") || msg.includes("already known");
-      if (isStaleNonce && attempt === 0) {
-        const chainNonce = await provider.getTransactionCount(ownerWallet.address, "latest");
-        await supabaseAdmin.rpc("resync_nonce", { w: ownerAddr, floor: chainNonce });
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("Nonce allocation exhausted retries");
 }
 
 function json(body, status = 200) {

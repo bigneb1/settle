@@ -45,6 +45,20 @@ export const DCA_STATUS_COLOR: Record<number, string> = {
   1: 'text-muted-foreground bg-border',
 }
 
+/** Human-readable countdown to a grace-period deadline, e.g. "2d 4h left" or
+ * "expiring soon" once under an hour remains. Assumes endsAt is in the future
+ * — callers only show this while `inGrace` is true. */
+export function formatGraceCountdown(endsAt: bigint | number): string {
+  const remainingMs = Number(endsAt) * 1000 - Date.now()
+  if (remainingMs <= 0) return 'expiring soon'
+  const totalHours = Math.floor(remainingMs / (60 * 60 * 1000))
+  const days = Math.floor(totalHours / 24)
+  const hours = totalHours % 24
+  if (days > 0) return `${days}d ${hours}h left`
+  if (totalHours > 0) return `${totalHours}h left`
+  return 'expiring soon'
+}
+
 export function formatCycleSeconds(seconds: number | bigint): string {
   const s = Number(seconds)
   if (s === 604800) return 'Weekly'

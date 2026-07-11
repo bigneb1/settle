@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @notice Tracks defaulted addresses, restricts future BNPL credit, and records on-chain reason codes.
-contract DefaultHandler is Ownable {
+contract DefaultHandler is Ownable2Step {
     enum DefaultReason {
         InsufficientBalance,   // sweep failed — no cross-chain balance found
         GracePeriodExpired,    // grace period elapsed without successful sweep
@@ -23,6 +23,9 @@ contract DefaultHandler is Ownable {
     mapping(address => uint256) public defaultCount;
     mapping(uint256 => DefaultRecord) public defaultRecords;
     uint256 public defaultRecordCount;
+
+    mapping(address => uint256[]) private buyerDefaultRecordIds;
+    mapping(address => uint256) public buyerUnresolvedDefaultCount;
 
     /// @notice Score penalty applied per default (subtracted from credit score).
     uint256 public defaultPenalty = 75;
@@ -56,6 +59,7 @@ contract DefaultHandler is Ownable {
 
         isDefaulted[buyer] = true;
         defaultCount[buyer] += 1;
+        buyerUnresolvedDefaultCount[buyer] += 1;
 
         recordId = defaultRecordCount++;
         defaultRecords[recordId] = DefaultRecord({
@@ -65,6 +69,7 @@ contract DefaultHandler is Ownable {
             timestamp: block.timestamp,
             resolved: false
         });
+        buyerDefaultRecordIds[buyer].push(recordId);
 
         emit DefaultFlagged(buyer, chargeId, reason, recordId);
     }
@@ -74,16 +79,11 @@ contract DefaultHandler is Ownable {
         require(!r.resolved, "already resolved");
         r.resolved = true;
 
-        // Re-evaluate if buyer still has unresolved defaults before clearing flag
         address buyer = r.buyer;
-        bool hasUnresolved = false;
-        for (uint256 i = 0; i < defaultRecordCount; i++) {
-            if (defaultRecords[i].buyer == buyer && !defaultRecords[i].resolved) {
-                hasUnresolved = true;
-                break;
-            }
+        if (buyerUnresolvedDefaultCount[buyer] > 0) {
+            buyerUnresolvedDefaultCount[buyer] -= 1;
         }
-        if (!hasUnresolved) {
+        if (buyerUnresolvedDefaultCount[buyer] == 0) {
             isDefaulted[buyer] = false;
         }
 
@@ -96,15 +96,7 @@ contract DefaultHandler is Ownable {
         return (true, "");
     }
 
-    function getBuyerDefaultRecords(address buyer) external view returns (uint256[] memory ids) {
-        uint256 count = 0;
-        for (uint256 i = 0; i < defaultRecordCount; i++) {
-            if (defaultRecords[i].buyer == buyer) count++;
-        }
-        ids = new uint256[](count);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < defaultRecordCount; i++) {
-            if (defaultRecords[i].buyer == buyer) ids[idx++] = i;
-        }
+    function getBuyerDefaultRecords(address buyer) external view returns (uint256[] memory) {
+        return buyerDefaultRecordIds[buyer];
     }
 }
