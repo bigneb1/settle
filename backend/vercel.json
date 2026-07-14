@@ -10,6 +10,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/", "destination": "/api/dashboard" },
     { "source": "/api/profile/exchange/:action", "destination": "/api/profile/exchange?action=:action" },
     { "source": "/api/profile/dev-identity/disconnect", "destination": "/api/profile/identity" },
     { "source": "/api/profile/github/callback", "destination": "/api/profile/identity?provider=github" },
