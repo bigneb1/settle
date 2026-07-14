@@ -5,12 +5,15 @@
 import { ethers } from "ethers";
 import { sweepAgentWallet, ADDRESSES } from "./config.js";
 import { PAYOUT_ROUTER_ABI } from "./abis.js";
+import { sendWithNonce } from "./nonceManager.js";
 
 const router = new ethers.Contract(ADDRESSES.payoutRouter, PAYOUT_ROUTER_ABI, sweepAgentWallet);
 
 export async function executePayout(merchant, grossAmount, chargeId) {
   try {
-    const tx = await router.executePayout(merchant, grossAmount, chargeId);
+    const tx = await sendWithNonce(sweepAgentWallet, nonce =>
+      router.executePayout(merchant, grossAmount, chargeId, { nonce })
+    );
     await tx.wait();
     console.log(`[payout] Settled chargeId=${chargeId} merchant=${merchant} gross=${grossAmount / 1_000_000n} USDC tx=${tx.hash}`);
     return { success: true, txHash: tx.hash };

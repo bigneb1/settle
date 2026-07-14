@@ -10,6 +10,7 @@ import { timingSafeEqual } from "node:crypto";
 import { provider, sweepAgentWallet, ADDRESSES } from "./config.js";
 import { CHARGE_REGISTRY_ABI, SCHEDULE_ENGINE_ABI } from "./abis.js";
 import { executePayout } from "./payoutExecutor.js";
+import { sendWithNonce } from "./nonceManager.js";
 
 const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_ABI, sweepAgentWallet);
 const engine = new ethers.Contract(ADDRESSES.scheduleEngine, SCHEDULE_ENGINE_ABI, sweepAgentWallet);
@@ -21,7 +22,9 @@ const engine = new ethers.Contract(ADDRESSES.scheduleEngine, SCHEDULE_ENGINE_ABI
  * a real Universal Account cross-chain transfer landed before calling this.
  */
 export async function settleCharge(chargeId, amount, success) {
-  const tx = await engine.recordSweepOutcome(chargeId, success ? amount : 0n, success);
+  const tx = await sendWithNonce(sweepAgentWallet, nonce =>
+    engine.recordSweepOutcome(chargeId, success ? amount : 0n, success, { nonce })
+  );
   await tx.wait();
   console.log(`[settle] Outcome recorded: chargeId=${chargeId} success=${success} tx=${tx.hash}`);
 

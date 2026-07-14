@@ -107,6 +107,16 @@ contract LiquidityPool is Ownable2Step, ReentrancyGuard, Pausable {
     /// the caller, mirroring deposit()'s pattern) instead of trusting a
     /// bookkeeping-only call, and is capped at the amount actually fronted
     /// for that charge so bookkeeping can never exceed real obligations.
+    ///
+    /// @dev totalDeposited already includes this charge's fronted principal -
+    /// frontCapital() only moves it from "available" to "deployed" by
+    /// incrementing totalDeployed, it never decrements totalDeposited. So
+    /// repayment must only reduce totalDeployed (principal returning from
+    /// "deployed" back to "available"), NOT add to totalDeposited again -
+    /// doing so double-counted the same principal, inflating every LP's
+    /// shareValue() with no real backing (caught in a 2026-07 remediation
+    /// pass; see test_FullBNPL_Lifecycle/test_LP_Repayment for the regression
+    /// coverage that would have caught this).
     function recordRepayment(uint256 chargeId, uint256 amount) external nonReentrant whenNotPaused {
         require(msg.sender == settlementCaller || msg.sender == owner(), "unauthorized");
         require(amount > 0, "zero amount");
@@ -122,7 +132,6 @@ contract LiquidityPool is Ownable2Step, ReentrancyGuard, Pausable {
         } else {
             totalDeployed = 0;
         }
-        totalDeposited += amount;  // repayment accrues to LP
 
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         emit CapitalRepaid(chargeId, amount);

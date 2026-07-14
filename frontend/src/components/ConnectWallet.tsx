@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Mail, ShieldCheck } from 'lucide-react'
-import { loginWithEmailOTP, type EmailOtpFlow } from '../lib/magic'
+import { loginWithEmailOTP, describeMagicLoginError, type EmailOtpFlow } from '../lib/magic'
 import SettleLogo from './SettleLogo'
 
 interface Props {
@@ -49,7 +49,7 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
       if (address) onConnected(address)
     } catch (err) {
       console.error('[magic] email OTP login failed:', err)
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(describeMagicLoginError(err))
       setStep('email')
       setLoading(false)
     }

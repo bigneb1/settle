@@ -10,6 +10,14 @@ interface IDefaultHandler {
     function canAccessBNPL(address buyer) external view returns (bool ok, string memory reason);
 }
 
+/// @notice Minimal interface into ScheduleEngine's grace-state reset, kept
+/// local (same pattern as IDefaultHandler above) so a manual reactivation out
+/// of Defaulted doesn't leave stale grace-period tracking behind on
+/// ScheduleEngine - see setStatus() below.
+interface IScheduleEngineReset {
+    function resetGraceState(uint256 chargeId) external;
+}
+
 /// @notice Generalized charge registry: handles both BNPL installment loans and Settle Pay subscriptions.
 contract ChargeRegistry is Ownable2Step {
     enum ChargeType { BNPL, Subscription }
@@ -49,12 +57,14 @@ contract ChargeRegistry is Ownable2Step {
     event ChargeStatusChanged(uint256 indexed chargeId, Status status);
     event CycleCompleted(uint256 indexed chargeId, uint256 cycleNumber);
     event DefaultHandlerUpdated(address handler);
+    event ScheduleEngineUpdated(address engine);
 
     constructor() Ownable(msg.sender) {}
 
     function setScheduleEngine(address _engine) external onlyOwner {
         require(_engine != address(0), "zero address");
         scheduleEngine = _engine;
+        emit ScheduleEngineUpdated(_engine);
     }
 
     function setDefaultHandler(address _handler) external onlyOwner {
@@ -141,6 +151,17 @@ contract ChargeRegistry is Ownable2Step {
         require(current != Status.Completed && current != Status.Cancelled, "charge already finalized");
         charges[chargeId].status = status;
         emit ChargeStatusChanged(chargeId, status);
+
+        // A manual reactivation out of Defaulted must also clear
+        // ScheduleEngine's grace-period tracking for this charge, or the very
+        // next failed sweep would see stale inGrace/graceStartedAt state and
+        // immediately re-default the buyer with no fresh grace period.
+        // Guarded with try/catch - same defensive pattern ScheduleEngine
+        // itself uses for its DefaultHandler call - a misconfigured or
+        // reverting ScheduleEngine must never block this status transition.
+        if (status == Status.Active && current == Status.Defaulted && scheduleEngine != address(0)) {
+            try IScheduleEngineReset(scheduleEngine).resetGraceState(chargeId) {} catch {}
+        }
     }
 
     function getCharge(uint256 chargeId) external view returns (Charge memory) {

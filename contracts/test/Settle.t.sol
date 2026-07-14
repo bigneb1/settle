@@ -381,6 +381,39 @@ contract SettleTest is Test {
         assertFalse(handler.isDefaulted(buyer2));
     }
 
+    /// @notice Regression test for the stale-grace-state bug fixed 2026-07:
+    /// manually reactivating a Defaulted charge back to Active must clear
+    /// ScheduleEngine's leftover inGrace/graceStartedAt/failedAttempts, or
+    /// the very next failed sweep would see graceStartedAt still in the past
+    /// and immediately re-default the buyer with zero fresh grace period.
+    function test_SetStatus_ReactivationResetsGraceState() public {
+        uint256 id = registry.createCharge(buyer, merchant, ChargeRegistry.ChargeType.BNPL, 100 * ONE_USDC, 4, MONTH, 700);
+        vm.warp(block.timestamp + MONTH);
+
+        vm.prank(sweepAgent);
+        engine.recordSweepOutcome(id, 0, false);
+        vm.warp(block.timestamp + 4 days);
+        vm.prank(sweepAgent);
+        engine.recordSweepOutcome(id, 0, false);
+        assertEq(uint256(registry.getCharge(id).status), uint256(ChargeRegistry.Status.Defaulted));
+        assertTrue(engine.isInGrace(id));
+
+        // Manual off-chain resolution: owner reinstates the charge.
+        registry.setStatus(id, ChargeRegistry.Status.Active);
+        assertEq(uint256(registry.getCharge(id).status), uint256(ChargeRegistry.Status.Active));
+        assertFalse(engine.isInGrace(id));
+        assertEq(engine.failedAttempts(id), 0);
+
+        // The next due cycle after reactivation must start a genuinely fresh
+        // grace period, not immediately re-default off stale state.
+        vm.warp(block.timestamp + MONTH);
+        vm.prank(sweepAgent);
+        engine.recordSweepOutcome(id, 0, false);
+        assertEq(uint256(registry.getCharge(id).status), uint256(ChargeRegistry.Status.Active));
+        assertTrue(engine.isInGrace(id));
+        assertEq(engine.graceEndsAt(id), block.timestamp + engine.gracePeriod());
+    }
+
     function test_RevertSweep_NotDueYet() public {
         uint256 id = registry.createCharge(buyer, merchant, ChargeRegistry.ChargeType.BNPL, 100 * ONE_USDC, 4, MONTH, 700);
         vm.prank(sweepAgent);
@@ -575,7 +608,15 @@ contract SettleTest is Test {
         usdc.approve(address(pool), 100 * ONE_USDC);
         pool.recordRepayment(id, 100 * ONE_USDC);
         assertEq(pool.totalDeployed(), 300 * ONE_USDC);
-        assertEq(pool.totalDeposited(), 1100 * ONE_USDC);
+        // totalDeposited must NOT double-count this repayment - frontCapital()
+        // never removed it from totalDeposited in the first place (only
+        // totalDeployed tracks capital-out), so it stays at the original
+        // deposit for the whole lifecycle. Regression test for the
+        // recordRepayment double-count bug fixed 2026-07.
+        assertEq(pool.totalDeposited(), 1000 * ONE_USDC);
+        // Real backing must match the ledger: pool's actual USDC balance is
+        // deposit(1000) - front(400) + repay(100) = 700.
+        assertEq(usdc.balanceOf(address(pool)), 700 * ONE_USDC);
     }
 
     function test_RevertRepayment_ExceedsFronted() public {
@@ -674,6 +715,12 @@ contract SettleTest is Test {
 
         assertEq(uint256(registry.getCharge(chargeId).status), uint256(ChargeRegistry.Status.Completed));
         assertEq(pool.totalDeployed(), 0);
+        // Regression test for the recordRepayment double-count bug: after a
+        // full deposit(400)->front(400)->repay(4x100) cycle, totalDeposited
+        // must equal the real backing (400), not an inflated 800.
+        assertEq(pool.totalDeposited(), 400 * ONE_USDC);
+        assertEq(usdc.balanceOf(address(pool)), 400 * ONE_USDC);
+        assertEq(pool.shareValue(lpProvider), 400 * ONE_USDC);
     }
 
     // ── Full integration: Subscription lifecycle ──

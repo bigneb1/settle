@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { parseUnits } from 'viem'
 import { CHAIN_ID, type SUPPORTED_TOKEN_TYPE } from '@particle-network/universal-account-sdk'
-import { Loader2, Zap, TrendingUp, X } from 'lucide-react'
+import { Loader2, Zap, TrendingUp, X, Wallet } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { getOwnerDcaPlans, createDcaPlan, cancelDcaPlan, type OnChainDcaPlan } from '../lib/contracts'
 import { executeDcaBuy, getConvertTargets, type ConvertTarget } from '../lib/universalAccount'
@@ -16,7 +16,7 @@ const CYCLE_OPTIONS = [
 const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
 
 export default function Dca() {
-  const { address, uaConfigured, refreshBalance } = useWallet()
+  const { address, uaConfigured, refreshBalance, openConnect } = useWallet()
   // UA cross-chain buy is available when Particle credentials are set and the
   // destination chain is the supported mainnet (Arbitrum One, 42161).
   const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
@@ -150,7 +150,14 @@ export default function Dca() {
   if (!address) {
     return (
       <div className="px-6 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Connect your wallet to set up recurring investments.</p>
+        <p className="text-sm text-muted-foreground mb-4">Log in to set up recurring investments.</p>
+        <button
+          onClick={openConnect}
+          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          <Wallet size={14} />
+          Log In
+        </button>
       </div>
     )
   }

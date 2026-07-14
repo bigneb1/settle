@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { IAssetsResponse } from '@particle-network/universal-account-sdk'
 import { getUser } from '../lib/magic'
+import ConnectWallet from '../components/ConnectWallet'
 
 interface WalletContextValue {
   address: string | null
@@ -10,6 +11,8 @@ interface WalletContextValue {
   connect: (address: string) => void
   disconnect: () => void
   refreshBalance: () => Promise<void>
+  /** Opens the Connect/login modal - available from any page, not just Layout. */
+  openConnect: () => void
 }
 
 const WalletContext = createContext<WalletContextValue | null>(null)
@@ -19,6 +22,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [balance, setBalance] = useState<IAssetsResponse | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
   const [uaConfigured, setUaConfigured] = useState(false)
+  const [showConnect, setShowConnect] = useState(false)
   // lib/universalAccount.ts statically imports the full Particle Universal
   // Account SDK - dynamically importing it here (instead of a top-level
   // import) keeps that weight out of the one bundle every visitor loads,
@@ -76,12 +80,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setAddress(null)
     setBalance(null)
   }, [])
+  const openConnect = useCallback(() => setShowConnect(true), [])
 
   return (
     <WalletContext.Provider
-      value={{ address, balance, balanceLoading, uaConfigured, connect, disconnect, refreshBalance }}
+      value={{ address, balance, balanceLoading, uaConfigured, connect, disconnect, refreshBalance, openConnect }}
     >
       {children}
+      {showConnect && !address && (
+        <ConnectWallet
+          onClose={() => setShowConnect(false)}
+          onConnected={addr => { connect(addr); setShowConnect(false) }}
+        />
+      )}
     </WalletContext.Provider>
   )
 }

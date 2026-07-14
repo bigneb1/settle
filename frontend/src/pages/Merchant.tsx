@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, type TooltipContentProps } from 'recharts'
 import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 import { formatUSDC, shortAddr, shortHash, formatTs, formatGraceCountdown, STATUS_LABEL, STATUS_COLOR } from '../lib/format'
-import { RefreshCw, Loader2, AlertTriangle, Plus, Trash2 } from 'lucide-react'
+import { RefreshCw, Loader2, AlertTriangle, Plus, Trash2, Wallet } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { getMerchantStats, getMerchantSubscriptionCharges, configureMerchantPayout, type MerchantStats, type OnChainCharge } from '../lib/contracts'
 import { supabase, type MerchantPayoutRow } from '../lib/supabase'
@@ -36,8 +36,12 @@ interface OnboardFormData {
   products: MerchantOnboardingProduct[]
 }
 
-const CHAINS = ['arbitrum', 'ethereum', 'polygon', 'optimism', 'base']
-const ASSETS = ['usdc', 'usdt', 'eth']
+// PayoutRouter and the merchant's Magic wallet are hardcoded to Arbitrum/USDC
+// today (see contracts.ts/magic.ts) - these are the only values that actually
+// affect settlement, so the picker below is intentionally locked to them
+// rather than offering chains/assets that would be silently ignored.
+const CHAINS = ['arbitrum']
+const ASSETS = ['usdc']
 
 const STEPS = [
   { n: 1 as Step, label: 'Business Info' },
@@ -236,7 +240,8 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
               <select
                 value={form.payoutChain}
                 onChange={e => update('payoutChain', e.target.value)}
-                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                disabled={CHAINS.length === 1}
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {CHAINS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
@@ -246,11 +251,15 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
               <select
                 value={form.payoutAsset}
                 onChange={e => update('payoutAsset', e.target.value)}
-                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                disabled={ASSETS.length === 1}
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {ASSETS.map(a => <option key={a} value={a}>{a.toUpperCase()}</option>)}
               </select>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Settle only settles payouts on Arbitrum in USDC today - more chains/assets are on the roadmap.
+            </p>
           </div>
         )}
 
@@ -385,7 +394,7 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
 }
 
 export default function Merchant() {
-  const { address } = useWallet()
+  const { address, openConnect } = useWallet()
   const [stats, setStats] = useState<MerchantStats | null>(null)
   const [payouts, setPayouts] = useState<MerchantPayoutRow[]>([])
   const [subscribers, setSubscribers] = useState<OnChainCharge[]>([])
@@ -447,7 +456,14 @@ export default function Merchant() {
   if (!address) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
-        <p className="text-sm text-muted-foreground">Connect your wallet to view your merchant dashboard.</p>
+        <p className="text-sm text-muted-foreground mb-4">Log in to view your merchant dashboard.</p>
+        <button
+          onClick={openConnect}
+          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          <Wallet size={14} />
+          Log In
+        </button>
       </div>
     )
   }

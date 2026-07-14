@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, Send } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, Send, Wallet } from 'lucide-react'
 import { BrowserProvider, isAddress } from 'ethers'
 import { useWallet } from '../context/WalletContext'
 import { getMagic } from '../lib/magic'
@@ -12,7 +12,7 @@ const CYCLE_OPTIONS = [
 ]
 
 export default function PayAnyAddress() {
-  const { address } = useWallet()
+  const { address, openConnect } = useWallet()
   const navigate = useNavigate()
 
   const [merchantAddress, setMerchantAddress] = useState('')
@@ -65,7 +65,14 @@ export default function PayAnyAddress() {
   if (!address) {
     return (
       <div className="px-6 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Connect your wallet to pay any address.</p>
+        <p className="text-sm text-muted-foreground mb-4">Log in to pay any address.</p>
+        <button
+          onClick={openConnect}
+          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          <Wallet size={14} />
+          Log In
+        </button>
       </div>
     )
   }

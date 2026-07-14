@@ -38,6 +38,7 @@ contract ScheduleEngine is Ownable2Step {
     event GracePeriodUpdated(uint256 seconds_);
     event DefaultHandlerUpdated(address handler);
     event DefaultHandlerFlagFailed(uint256 indexed chargeId, address indexed buyer);
+    event GraceStateReset(uint256 indexed chargeId);
 
     constructor(address _chargeRegistry) Ownable(msg.sender) {
         require(_chargeRegistry != address(0), "zero address");
@@ -100,6 +101,21 @@ contract ScheduleEngine is Ownable2Step {
                 }
             }
         }
+    }
+
+    /// @notice Clears this charge's grace-period tracking. Called
+    /// automatically by ChargeRegistry.setStatus() (via a guarded external
+    /// call) whenever a charge is manually moved out of Defaulted back to
+    /// Active, so a reinstated buyer gets a fresh grace period instead of
+    /// being immediately re-defaulted by stale inGrace/graceStartedAt state
+    /// left over from before the reactivation. Also directly callable by the
+    /// owner as a manual escape hatch.
+    function resetGraceState(uint256 chargeId) external {
+        require(msg.sender == owner() || msg.sender == address(chargeRegistry), "unauthorized");
+        failedAttempts[chargeId] = 0;
+        inGrace[chargeId] = false;
+        graceStartedAt[chargeId] = 0;
+        emit GraceStateReset(chargeId);
     }
 
     function isInGrace(uint256 chargeId) external view returns (bool) {

@@ -314,7 +314,7 @@ function CardTab() {
 }
 
 export default function Profile() {
-  const { address } = useWallet()
+  const { address, openConnect } = useWallet()
   const [profile, setProfile] = useState<FullProfile | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -406,7 +406,14 @@ export default function Profile() {
   if (!address) {
     return (
       <div className="px-6 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Connect your wallet to view your profile.</p>
+        <p className="text-sm text-muted-foreground mb-4">Log in to view your profile.</p>
+        <button
+          onClick={openConnect}
+          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          <WalletIcon size={14} />
+          Log In
+        </button>
       </div>
     )
   }

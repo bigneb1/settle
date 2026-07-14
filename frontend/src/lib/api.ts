@@ -119,10 +119,14 @@ export async function submitMerchantOnboarding(payload: {
   configureTxHash: string
   products: MerchantOnboardingProduct[]
 }): Promise<{ ok: true; payoutMode: number }> {
+  // Proves control of merchantAddress - without this, anyone who observes a
+  // real merchant's public configureTxHash could replay it with their own
+  // businessName/products and overwrite that merchant's storefront.
+  const { ts, signature } = await signProfileAction(payload.merchantAddress, 'merchant_onboard')
   const res = await fetch(`${API_URL}/api/merchant/onboard`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, ts, signature }),
   })
   const data = await parseJsonResponse(res)
   if (!res.ok) throw new Error(data.error || `Onboarding failed (${res.status})`)

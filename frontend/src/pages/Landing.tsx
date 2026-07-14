@@ -598,7 +598,7 @@ export default function Landing() {
                 <Link to="/catalog" className="group inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-7 py-3.5 rounded-sm hover:bg-primary-hover transition-all">
                   Browse Catalog <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link to="/merchant/onboard" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-7 py-3.5 rounded-sm hover:border-primary/40 hover:text-primary transition-all">
+                <Link to="/merchant" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-7 py-3.5 rounded-sm hover:border-primary/40 hover:text-primary transition-all">
                   Merchant Setup
                 </Link>
               </motion.div>
@@ -749,7 +749,7 @@ export default function Landing() {
             {[
               { icon: Shield, color: 'text-primary', bg: 'bg-primary/8', title: 'Universal Accounts', body: 'Particle Network\'s EIP-7702 mode. One balance, any chain, no bridging.' },
               { icon: Fingerprint, color: 'text-purple-400', bg: 'bg-purple-500/8', title: 'Embedded Wallets', body: 'Magic Labs email links and social login. No seed phrases for new users.' },
-              { icon: Sparkles, color: 'text-blue-400', bg: 'bg-blue-500/8', title: 'On-chain Credit Scoring', body: 'Five-signal scorer over cross-chain history. Claude explains borderline decisions.' },
+              { icon: Sparkles, color: 'text-blue-400', bg: 'bg-blue-500/8', title: 'On-chain Credit Scoring', body: 'Five-signal scorer over cross-chain history. An AI model explains borderline decisions.' },
               { icon: BarChart2, color: 'text-green-400', bg: 'bg-green-500/8', title: 'Arbitrum Settlement', body: 'Merchant payouts settle instantly on Arbitrum, fully on-chain and transparent.' },
             ].map((f, i) => (
               <FadeUp key={f.title} delay={i * 0.07}>
@@ -809,7 +809,7 @@ export default function Landing() {
                 <Link to="/catalog" className="group inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-8 py-4 rounded-sm hover:bg-primary-hover transition-all">
                   Launch Settle <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link to="/merchant/onboard" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-8 py-4 rounded-sm hover:border-primary/40 hover:text-primary transition-all">
+                <Link to="/merchant" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-8 py-4 rounded-sm hover:border-primary/40 hover:text-primary transition-all">
                   Become a merchant
                 </Link>
               </div>
@@ -828,7 +828,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="flex items-center justify-center gap-7 flex-wrap">
-            {[['Catalog', '/catalog'], ['Dashboard', '/dashboard'], ['Merchant', '/merchant'], ['Onboard', '/merchant/onboard']].map(([label, href]) => (
+            {[['Catalog', '/catalog'], ['Dashboard', '/dashboard'], ['Merchant', '/merchant'], ['Docs', '/docs']].map(([label, href]) => (
               <Link key={href} to={href} className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">{label}</Link>
             ))}
           </div>

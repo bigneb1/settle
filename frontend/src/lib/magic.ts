@@ -58,6 +58,33 @@ export function loginWithEmailOTP(email: string): EmailOtpFlow {
   }
 }
 
+/**
+ * Turns a raw Magic SDK login failure into an actionable message. Magic's
+ * iframe execution failures surface as a MagicRPCError with a JSON-RPC-style
+ * numeric `code` (see @magic-sdk/types' RPCErrorCode) - -32603 (Internal
+ * error) is what an unreachable/rate-limited custom RPC node (the `network`
+ * option passed to `new Magic()` above) typically surfaces as, since Magic's
+ * iframe validates/bootstraps against that node during login. This is
+ * distinct from a wrong-code retry (handled separately by onInvalidCode) or a
+ * domain-not-allowlisted CORS failure, so callers can point the user (or an
+ * operator) at the right fix instead of a generic "Login failed".
+ */
+export function describeMagicLoginError(err: unknown): string {
+  const code = (err as { code?: number | string } | null)?.code
+  const rawMessage = err instanceof Error ? err.message : String(err ?? '')
+
+  if (code === -32603) {
+    return 'Could not reach the Arbitrum RPC node used for login. This usually means the configured RPC endpoint is unreachable or rate-limiting requests - a dedicated RPC provider (Alchemy/Infura/QuickNode) is more reliable here than a public shared endpoint. Please try again in a moment.'
+  }
+  if (code === -10002) {
+    return 'Too many login attempts for this email - please wait a few minutes and try again.'
+  }
+  if (/domain/i.test(rawMessage) && /(allow|origin|cors)/i.test(rawMessage)) {
+    return 'This site is not yet approved for login - the domain needs to be added to the Magic dashboard\'s allowed-origins list.'
+  }
+  return rawMessage || 'Login failed'
+}
+
 export async function logout() {
   const magic = getMagic()
   await magic.user.logout()

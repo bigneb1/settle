@@ -8,14 +8,26 @@
  * on-chain before writing to Supabase - it never trusts the client-reported
  * payoutMode, only the MerchantConfigured event the tx actually emitted.
  *
+ * The on-chain check alone only proves *some* MerchantConfigured event for
+ * this address exists somewhere on-chain - since configureTxHash/merchantAddress
+ * are both public data, without a signature anyone could replay a real
+ * merchant's tx hash with their own businessName/products and overwrite that
+ * merchant's public storefront. So this also requires a fresh EIP-191
+ * signature proving the caller controls merchantAddress, same pattern as
+ * every buyer-facing profile endpoint (src/buyerAuth.js).
+ *
  * POST /api/merchant/onboard
  * { merchantAddress, businessName, chain, payoutMode, payoutChain, payoutAsset,
- *   configureTxHash, products: [{name, category, price, period, chargeType, totalCycles, cycleSeconds}] }
+ *   configureTxHash, ts, signature,
+ *   products: [{name, category, price, period, chargeType, totalCycles, cycleSeconds}] }
+ * signature = personal_sign("Settle profile: action=merchant_onboard buyer=<merchantAddress> ts=<ts>")
  */
 import { ethers } from "ethers";
 import { provider, ADDRESSES, supabaseAdmin } from "../../src/config.js";
 import { PAYOUT_ROUTER_ABI } from "../../src/abis.js";
 import { safeError } from "../../src/errors.js";
+import { verifyBuyerSignature } from "../../src/buyerAuth.js";
+import { checkIpRateLimit } from "../../src/rateLimit.js";
 
 const router = new ethers.Contract(ADDRESSES.payoutRouter, PAYOUT_ROUTER_ABI, provider);
 
@@ -27,10 +39,27 @@ export async function POST(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const merchantAddress = String(body.merchantAddress || "");
+  // Independent of any attacker-controlled field - must run first, same
+  // reasoning as payments/confirm.js and dca/confirm.js.
+  if (!(await checkIpRateLimit(req, "merchant/onboard"))) {
+    return json({ error: "Too many requests - please wait a few minutes" }, 429);
+  }
+
   const configureTxHash = String(body.configureTxHash || "");
-  if (!/^0x[0-9a-fA-F]{40}$/.test(merchantAddress) || !/^0x[0-9a-fA-F]{64}$/.test(configureTxHash)) {
-    return json({ error: "merchantAddress and a valid configureTxHash are required" }, 400);
+  if (!/^0x[0-9a-fA-F]{64}$/.test(configureTxHash)) {
+    return json({ error: "A valid configureTxHash is required" }, 400);
+  }
+
+  let merchantAddress;
+  try {
+    merchantAddress = verifyBuyerSignature({
+      buyer: body.merchantAddress,
+      action: "merchant_onboard",
+      ts: Number(body.ts),
+      signature: body.signature,
+    });
+  } catch (err) {
+    return json({ error: err.message }, 401);
   }
 
   const receipt = await provider.getTransactionReceipt(configureTxHash);

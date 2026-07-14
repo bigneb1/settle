@@ -19,6 +19,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const ExchangeDetails = lazy(() => import('./pages/ExchangeDetails'))
 const Account = lazy(() => import('./pages/Account'))
 const PayAnyAddress = lazy(() => import('./pages/PayAnyAddress'))
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageLoader() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
                 <Route path="/merchant" element={<Merchant />} />
                 <Route path="/docs" element={<Docs />} />
               </Route>
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>

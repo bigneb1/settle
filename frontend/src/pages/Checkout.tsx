@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CheckCircle, AlertCircle, XCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, AlertCircle, XCircle, Loader2, Wallet } from 'lucide-react'
 import { BrowserProvider } from 'ethers'
 import { formatUSDC } from '../lib/format'
 import { useWallet } from '../context/WalletContext'
@@ -23,7 +23,7 @@ export default function Checkout() {
   const { state } = useLocation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { address, balance } = useWallet()
+  const { address, balance, openConnect } = useWallet()
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -125,7 +125,14 @@ export default function Checkout() {
   if (!address) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
-        <p className="text-sm text-muted-foreground">Connect your wallet to check out.</p>
+        <p className="text-sm text-muted-foreground mb-4">Log in to check out.</p>
+        <button
+          onClick={openConnect}
+          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          <Wallet size={14} />
+          Log In
+        </button>
       </div>
     )
   }

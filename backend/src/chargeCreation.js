@@ -10,43 +10,26 @@
  * replacement underpriced), re-syncs the allocator to the chain-derived
  * floor and retries once.
  */
-import { ownerWallet, provider, ADDRESSES } from "./config.js";
+import { ownerWallet, ADDRESSES } from "./config.js";
 import { CHARGE_REGISTRY_ABI } from "./abis.js";
-import { supabaseAdmin } from "./config.js";
+import { sendWithNonce } from "./nonceManager.js";
 import { ethers } from "ethers";
 
 const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_ABI, ownerWallet);
 
 export async function sendCreateChargeWithNonce({ buyerAddress, merchant, chargeType, amountPerCycle, totalCycles, cycleSeconds, score }) {
-  const ownerAddr = ownerWallet.address.toLowerCase();
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { data: nonce } = await supabaseAdmin.rpc("alloc_nonce", { w: ownerAddr });
-    try {
-      const tx = await registry.createCharge(
-        buyerAddress,
-        merchant,
-        chargeType,
-        amountPerCycle,
-        totalCycles,
-        cycleSeconds,
-        BigInt(score),
-        { nonce: BigInt(nonce) }
-      );
-      const receipt = await tx.wait();
-      return [tx, receipt];
-    } catch (err) {
-      const msg = (err.shortMessage || err.message || "").toLowerCase();
-      const isStaleNonce = msg.includes("nonce") || msg.includes("replacement") || msg.includes("already known");
-      if (isStaleNonce && attempt === 0) {
-        const chainNonce = await provider.getTransactionCount(ownerWallet.address, "latest");
-        await supabaseAdmin.rpc("resync_nonce", { w: ownerAddr, floor: chainNonce });
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("Nonce allocation exhausted retries");
+  const tx = await sendWithNonce(ownerWallet, nonce => registry.createCharge(
+    buyerAddress,
+    merchant,
+    chargeType,
+    amountPerCycle,
+    totalCycles,
+    cycleSeconds,
+    BigInt(score),
+    { nonce }
+  ));
+  const receipt = await tx.wait();
+  return [tx, receipt];
 }
 
 export { registry as chargeRegistry };

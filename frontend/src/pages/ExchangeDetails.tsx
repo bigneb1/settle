@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown } from 'lucide-react'
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { EXCHANGES, ExchangeLogo } from '../lib/exchanges'
 import { getExchangeAccountDetails, type ExchangeAccountDetails, type SupportedExchange } from '../lib/api'
@@ -19,7 +19,7 @@ function formatDateTime(ms: number): string {
 }
 
 export default function ExchangeDetails() {
-  const { address } = useWallet()
+  const { address, openConnect } = useWallet()
   const { exchange } = useParams<{ exchange: string }>()
   const meta = EXCHANGES.find(e => e.key === exchange)
 
@@ -42,7 +42,14 @@ export default function ExchangeDetails() {
   if (!address) {
     return (
       <div className="px-6 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Connect your wallet to view exchange account details.</p>
+        <p className="text-sm text-muted-foreground mb-4">Log in to view exchange account details.</p>
+        <button
+          onClick={openConnect}
+          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          <Wallet size={14} />
+          Log In
+        </button>
       </div>
     )
   }

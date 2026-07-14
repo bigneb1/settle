@@ -35,6 +35,7 @@ contract DefaultHandler is Ownable2Step {
     event DefaultFlagged(address indexed buyer, uint256 chargeId, DefaultReason reason, uint256 recordId);
     event DefaultResolved(address indexed buyer, uint256 recordId);
     event ScheduleEngineUpdated(address engine);
+    event DefaultPenaltyUpdated(uint256 newPenalty);
 
     constructor() Ownable(msg.sender) {}
 
@@ -47,6 +48,7 @@ contract DefaultHandler is Ownable2Step {
     function setDefaultPenalty(uint256 _penalty) external onlyOwner {
         require(_penalty <= 300, "penalty too high");
         defaultPenalty = _penalty;
+        emit DefaultPenaltyUpdated(_penalty);
     }
 
     function flagDefault(

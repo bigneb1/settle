@@ -32,6 +32,11 @@ contract DCAPlan is Ownable2Step {
     /// @notice Off-chain backend signer authorized to record verified buy executions.
     address public recorder;
 
+    /// @notice O(1) owner->plan-ids lookup, mirroring ChargeRegistry's
+    /// buyerChargeIds pattern - getOwnerPlans() previously double-scanned
+    /// every plan ever created across the whole protocol on every call.
+    mapping(address => uint256[]) private ownerPlanIds;
+
     event PlanCreated(
         uint256 indexed planId,
         address indexed owner,
@@ -79,6 +84,8 @@ contract DCAPlan is Ownable2Step {
             createdAt: block.timestamp
         });
 
+        ownerPlanIds[msg.sender].push(planId);
+
         emit PlanCreated(planId, msg.sender, targetChainId, targetToken, amountPerCycleUSD, cycleSeconds, totalCycles);
     }
 
@@ -115,14 +122,6 @@ contract DCAPlan is Ownable2Step {
     }
 
     function getOwnerPlans(address planOwner) external view returns (uint256[] memory ids) {
-        uint256 count = 0;
-        for (uint256 i = 0; i < planCount; i++) {
-            if (plans[i].owner == planOwner) count++;
-        }
-        ids = new uint256[](count);
-        uint256 idx = 0;
-        for (uint256 i = 0; i < planCount; i++) {
-            if (plans[i].owner == planOwner) ids[idx++] = i;
-        }
+        return ownerPlanIds[planOwner];
     }
 }

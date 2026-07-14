@@ -48,6 +48,7 @@ contract PayoutRouter is Ownable2Step, ReentrancyGuard, Pausable {
     event FeeBpsUpdated(uint256 newFeeBps);
     event TreasuryUpdated(address newTreasury);
     event SettlementCallerUpdated(address caller);
+    event SubscriberCountChanged(address indexed merchant, uint256 newCount);
 
     constructor(address _usdc, address _protocolTreasury, address _chargeRegistry) Ownable(msg.sender) {
         require(_usdc != address(0) && _protocolTreasury != address(0) && _chargeRegistry != address(0), "zero address");
@@ -116,6 +117,7 @@ contract PayoutRouter is Ownable2Step, ReentrancyGuard, Pausable {
     function incrementSubscriberCount(address merchant) external {
         require(msg.sender == settlementCaller || msg.sender == owner(), "unauthorized");
         merchantSubscriberCount[merchant] += 1;
+        emit SubscriberCountChanged(merchant, merchantSubscriberCount[merchant]);
     }
 
     function decrementSubscriberCount(address merchant) external {
@@ -123,6 +125,7 @@ contract PayoutRouter is Ownable2Step, ReentrancyGuard, Pausable {
         if (merchantSubscriberCount[merchant] > 0) {
             merchantSubscriberCount[merchant] -= 1;
         }
+        emit SubscriberCountChanged(merchant, merchantSubscriberCount[merchant]);
     }
 
     function getMerchantStats(address merchant) external view returns (

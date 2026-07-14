@@ -20,6 +20,7 @@ import { provider, sweepAgentWallet, ADDRESSES, supabaseAdmin } from "../../src/
 import { DCA_PLAN_ABI } from "../../src/abis.js";
 import { safeError } from "../../src/errors.js";
 import { checkIpRateLimit } from "../../src/rateLimit.js";
+import { sendWithNonce } from "../../src/nonceManager.js";
 
 const dca = new ethers.Contract(ADDRESSES.dcaPlan, DCA_PLAN_ABI, sweepAgentWallet);
 const dcaReadOnly = new ethers.Contract(ADDRESSES.dcaPlan, DCA_PLAN_ABI, provider);
@@ -90,10 +91,17 @@ export async function POST(req) {
 
   // Defensive content check: if the SDK response includes chain-destination
   // info, it must include this plan's target chain. The SDK types
-  // getTransaction() as Promise<any> with no guaranteed runtime shape, so we
-  // only reject on an explicit mismatch - an absent/differently-shaped field
-  // is logged, not silently trusted, but doesn't hard-fail an otherwise
-  // FINISHED transaction we can't fully introspect.
+  // getTransaction() as Promise<any> with no guaranteed runtime shape (checked
+  // directly against node_modules/@particle-network/universal-account-sdk's
+  // .d.ts - genuinely `Promise<any>`, not just an incomplete type export), so
+  // we only reject on an explicit mismatch - an absent/differently-shaped
+  // field is logged, not silently trusted, but doesn't hard-fail an otherwise
+  // FINISHED transaction we can't fully introspect. Revisited during the
+  // 2026-07 remediation pass and deliberately left as-is: flipping this to
+  // reject-on-missing would risk hard-failing every legitimate DCA
+  // confirmation the moment the SDK's actual response omits this field,
+  // which can't be verified without a live Particle-backed transaction - a
+  // worse outcome than the narrow soft-spot this closes.
   const toChains = tx?.tokenChanges?.toChains;
   if (Array.isArray(toChains) && toChains.length > 0) {
     const matchesTargetChain = toChains.map(Number).includes(Number(plan.targetChainId));
@@ -113,7 +121,9 @@ export async function POST(req) {
   }
 
   try {
-    const recordTx = await dca.recordBuyExecuted(planId, plan.amountPerCycleUSD, transactionId);
+    const recordTx = await sendWithNonce(sweepAgentWallet, nonce =>
+      dca.recordBuyExecuted(planId, plan.amountPerCycleUSD, transactionId, { nonce })
+    );
     await recordTx.wait();
     return json({ ok: true, planId, recordTxHash: recordTx.hash });
   } catch (err) {
