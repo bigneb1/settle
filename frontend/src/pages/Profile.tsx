@@ -62,7 +62,11 @@ function ConnectExchangeModal({ exchange, onClose, onConnected }: {
     setSubmitting(true)
     setError(null)
     try {
-      await connectExchangeAccount(address, exchange, apiKey, apiSecret, needsPass ? apiPass : undefined)
+      // .trim() guards against invisible leading/trailing whitespace from a
+      // copy-paste (a stray newline/space copied along with the credential) -
+      // these fields are password-masked, so the user can't visually catch
+      // that themselves, and exchanges match passphrases/keys exactly.
+      await connectExchangeAccount(address, exchange, apiKey.trim(), apiSecret.trim(), needsPass ? apiPass.trim() : undefined)
       onConnected()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')

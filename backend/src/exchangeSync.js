@@ -31,6 +31,15 @@ export async function connectExchange({ buyer, exchange, apiKey, apiSecret, apiP
   const adapter = ADAPTERS[exchange];
   if (!adapter) throw new Error(`Unsupported exchange: ${exchange}`);
 
+  // Defensive second trim (the frontend already trims) - a stray
+  // leading/trailing whitespace character copy-pasted along with a
+  // credential is invisible in a password-masked field but fails an
+  // exchange's exact-match check (e.g. OKX's passphrase), producing a
+  // confusing "incorrect" error for a credential the user is certain is right.
+  apiKey = apiKey?.trim();
+  apiSecret = apiSecret?.trim();
+  apiPass = apiPass?.trim() || undefined;
+
   await adapter.testConnection({ apiKey, apiSecret, apiPass }); // throws with a real provider error if invalid
 
   const { data: secretId, error: vaultErr } = await supabaseAdmin.rpc("store_encrypted_credential", {
