@@ -5,12 +5,40 @@
 // this file is dev tooling only, never deployed.
 import 'dotenv/config'
 import http from 'node:http'
-import { readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const API_DIR = path.join(import.meta.dirname, 'api')
 const PORT = Number(process.env.DEV_SERVER_PORT || 8787)
+
+// Mirrors vercel.json's `rewrites` (Vercel applies these in production;
+// this file must replicate them locally, or fewer physical route files than
+// external URLs - see api/profile/exchange.js and api/profile/identity.js,
+// consolidated to fit Vercel Hobby's 12-function-per-deployment cap - would
+// 404 in dev even though they work in production). Converts Vercel's `:name`
+// path-segment syntax into a regex with named capture groups, then resolves
+// the same `:name` placeholders in `destination`'s query string.
+const REWRITES = JSON.parse(readFileSync(path.join(import.meta.dirname, 'vercel.json'), 'utf8')).rewrites.map(
+  ({ source, destination }) => {
+    const paramNames = []
+    const pattern = '^' + source.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, (_, name) => {
+      paramNames.push(name)
+      return '([^/]+)'
+    }) + '$'
+    return { regex: new RegExp(pattern), paramNames, destination }
+  }
+)
+
+function applyRewrites(pathname) {
+  for (const { regex, paramNames, destination } of REWRITES) {
+    const match = pathname.match(regex)
+    if (!match) continue
+    const params = Object.fromEntries(paramNames.map((name, i) => [name, match[i + 1]]))
+    return destination.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, (_, name) => params[name] ?? '')
+  }
+  return null
+}
 
 function walk(dir, base = '') {
   const routes = []
@@ -47,6 +75,20 @@ const server = http.createServer(async (nodeReq, nodeRes) => {
   const forwardedProto = nodeReq.headers['x-forwarded-proto'] || 'http'
   const base = forwardedHost ? `${forwardedProto}://${forwardedHost}` : `http://localhost:${PORT}`
   const url = new URL(nodeReq.url, base)
+
+  // Apply the same rewrites vercel.json declares, so a route consolidated
+  // into fewer physical files (see REWRITES above) still resolves locally
+  // under its original external path. Any query params already on the
+  // incoming request are preserved alongside the rewrite's own.
+  const rewriteDestination = applyRewrites(url.pathname)
+  if (rewriteDestination) {
+    const rewritten = new URL(rewriteDestination, url.origin)
+    for (const [key, value] of url.searchParams) {
+      if (!rewritten.searchParams.has(key)) rewritten.searchParams.set(key, value)
+    }
+    url.pathname = rewritten.pathname
+    url.search = rewritten.search
+  }
 
   // Local-only convenience CORS (this server never runs in production).
   nodeRes.setHeader('Access-Control-Allow-Origin', '*')

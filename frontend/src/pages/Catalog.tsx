@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Search, ShoppingCart, RefreshCw, Loader2 } from 'lucide-react'
+import { Search, ShoppingCart, RefreshCw, Loader2, CreditCard, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, type CatalogItemRow } from '../lib/supabase'
 import { formatUSDC } from '../lib/format'
 import { shortAddr } from '../lib/format'
+import { useWallet } from '../context/WalletContext'
+import { useAvailableBnplCredit } from '../lib/creditLimit'
 
 type Filter = 'all' | 'bnpl' | 'sub'
 
@@ -14,6 +16,8 @@ export default function Catalog() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { address } = useWallet()
+  const { availableUsdc, loading: creditLoading } = useAvailableBnplCredit(address)
 
   useEffect(() => {
     let cancelled = false
@@ -51,10 +55,23 @@ export default function Catalog() {
 
   return (
     <div className="px-6 py-8">
-      <div className="mb-7">
+      <div className="mb-4">
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Browse</p>
         <h1 className="text-2xl font-semibold text-foreground">Catalog</h1>
       </div>
+
+      {address && (
+        <div className="mb-6 inline-flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-sm px-3 py-2">
+          <CreditCard size={13} className="text-primary shrink-0" />
+          {creditLoading ? (
+            'Loading your available BNPL credit…'
+          ) : availableUsdc !== null ? (
+            <>Available BNPL credit: <span className="font-mono text-foreground font-semibold">{formatUSDC(availableUsdc)}</span></>
+          ) : (
+            'Could not load your available BNPL credit'
+          )}
+        </div>
+      )}
 
       {/* Search + filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -156,6 +173,28 @@ export default function Catalog() {
                   {item.charge_type === 0 ? <ShoppingCart size={13} /> : <RefreshCw size={13} />}
                   {item.charge_type === 0 ? 'Buy Now (BNPL)' : 'Subscribe'}
                 </button>
+                {item.charge_type === 1 && (
+                  <button
+                    onClick={() => navigate(`/checkout/${item.id}`, {
+                      state: {
+                        item: {
+                          id: item.id,
+                          name: item.name,
+                          merchantName,
+                          price,
+                          period: item.period,
+                          type: item.charge_type,
+                          totalCycles: item.total_cycles,
+                        },
+                        preferBnpl: true,
+                      },
+                    })}
+                    className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <Zap size={11} />
+                    Pay via BNPL instead
+                  </button>
+                )}
               </div>
             )
           })}

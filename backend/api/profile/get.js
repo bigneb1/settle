@@ -17,6 +17,9 @@ import { supabaseAdmin } from "../../src/config.js";
 import { computeCreditProfile } from "../../src/creditProfileEngine.js";
 import { computeWalletReputation } from "../../src/walletReputation.js";
 import { safeError } from "../../src/errors.js";
+import { json, corsPreflight } from "../../src/http.js";
+
+export const OPTIONS = corsPreflight;
 
 export async function POST(req) {
   let body;
@@ -92,11 +95,4 @@ export async function POST(req) {
   } catch (err) {
     return json(safeError("profile/get", err, "Could not load profile"), 500);
   }
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }

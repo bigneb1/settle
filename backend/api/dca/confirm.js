@@ -21,6 +21,9 @@ import { DCA_PLAN_ABI } from "../../src/abis.js";
 import { safeError } from "../../src/errors.js";
 import { checkIpRateLimit } from "../../src/rateLimit.js";
 import { sendWithNonce } from "../../src/nonceManager.js";
+import { json, corsPreflight } from "../../src/http.js";
+
+export const OPTIONS = corsPreflight;
 
 const dca = new ethers.Contract(ADDRESSES.dcaPlan, DCA_PLAN_ABI, sweepAgentWallet);
 const dcaReadOnly = new ethers.Contract(ADDRESSES.dcaPlan, DCA_PLAN_ABI, provider);
@@ -129,11 +132,4 @@ export async function POST(req) {
   } catch (err) {
     return json(safeError("dca/confirm:recordBuyExecuted", err, "Could not record the DCA buy on-chain"), 409);
   }
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }

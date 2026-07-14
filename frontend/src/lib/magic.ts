@@ -3,12 +3,22 @@ import { Magic } from 'magic-sdk'
 type MagicInstance = ReturnType<typeof createMagic>
 
 function createMagic() {
+  // No public-RPC fallback here on purpose - the shared arb1.arbitrum.io/rpc
+  // endpoint gets rate-limited/unstable under load (confirmed directly: it
+  // intermittently failed real eth_call requests during testing), and Magic's
+  // login flow bootstraps against this exact URL, so a silent fallback to it
+  // would reintroduce the "Magic RPC Error: [-32603]" login failures this was
+  // fixed for. A dedicated RPC endpoint is required.
+  const rpcUrl = import.meta.env.VITE_ARBITRUM_RPC_URL
+  if (!rpcUrl) {
+    throw new Error('VITE_ARBITRUM_RPC_URL is not set - a dedicated Arbitrum RPC endpoint is required for login to work reliably.')
+  }
   return new Magic(import.meta.env.VITE_MAGIC_PUBLISHABLE_KEY || 'pk_live_placeholder', {
     // Without this, magic.rpcProvider defaults to Ethereum mainnet - harmless for
     // signRootHash/sign7702Authorization (chain-agnostic), but plain EOA writes
     // (DCAPlan.createPlan/cancelPlan) need to land on Arbitrum specifically.
     network: {
-      rpcUrl: import.meta.env.VITE_ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+      rpcUrl,
       chainId: 42161,
     },
   })

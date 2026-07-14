@@ -8,8 +8,20 @@
  * the buyer, this endpoint requires one at the app level: proof the caller
  * controls buyerAddress before we create a real charge against it.
  *
- * POST /api/checkout/create  { buyerAddress, catalogItemId, ts, signature }
- * signature = personal_sign("Settle checkout: catalogItemId=<id> buyer=<addr> ts=<ts>")
+ * A catalog item's own charge_type is its default payment method, but a
+ * buyer may instead pay a Subscription-tagged item via BNPL installments
+ * (e.g. "pay 6 months of membership upfront in installments" instead of
+ * subscribing indefinitely) - the only allowed override direction, since a
+ * BNPL item already has a merchant-fixed total price that doesn't map onto
+ * an indefinite subscription. The chosen chargeType/totalCycles are baked
+ * into the signed message so a tampered request (e.g. swapping in a cheaper
+ * underwriting path post-signature) fails signature verification.
+ *
+ * POST /api/checkout/create
+ * { buyerAddress, catalogItemId, ts, signature, chargeType?, totalCycles? }
+ * signature = personal_sign(
+ *   "Settle checkout: catalogItemId=<id> buyer=<addr> chargeType=<0|1> totalCycles=<n> ts=<ts>"
+ * )
  */
 import { ethers } from "ethers";
 import { supabaseAdmin } from "../../src/config.js";
@@ -17,8 +29,12 @@ import { evaluateBNPL, evaluateSubscription } from "../../src/underwriting.js";
 import { getEffectiveCreditLimit } from "../../src/creditProfileEngine.js";
 import { safeError } from "../../src/errors.js";
 import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreation.js";
+import { json, corsPreflight } from "../../src/http.js";
+
+export const OPTIONS = corsPreflight;
 
 const SIGNATURE_MAX_AGE_SECONDS = 300;
+const MAX_BNPL_OVERRIDE_CYCLES = 60;
 
 export async function POST(req) {
   let body;
@@ -52,7 +68,39 @@ export async function POST(req) {
     return json({ error: "Too many checkout attempts - please wait a few minutes and try again" }, 429);
   }
 
-  const expectedMessage = `Settle checkout: catalogItemId=${catalogItemId} buyer=${buyerAddress} ts=${ts}`;
+  // Fetched before signature verification since the signed message includes
+  // the effective chargeType/totalCycles, which depend on this item's own
+  // default plus any allowed buyer override.
+  const { data: item, error: itemErr } = await supabaseAdmin
+    .from("catalog_items")
+    .select("*")
+    .eq("id", catalogItemId)
+    .eq("active", true)
+    .maybeSingle();
+  if (itemErr || !item) {
+    return json({ error: "Catalog item not found" }, 404);
+  }
+
+  const amountPerCycle = BigInt(item.price);
+  const cycleSeconds = BigInt(item.cycle_seconds);
+
+  let chargeType = item.charge_type; // 0=BNPL, 1=Subscription
+  let totalCycles = chargeType === 0 ? BigInt(item.total_cycles) : 0n;
+
+  const requestedChargeType = body.chargeType === 0 || body.chargeType === 1 ? body.chargeType : null;
+  if (requestedChargeType !== null && requestedChargeType !== item.charge_type) {
+    if (item.charge_type !== 1 || requestedChargeType !== 0) {
+      return json({ error: "Invalid payment method for this item" }, 400);
+    }
+    const requestedTotalCycles = Number(body.totalCycles);
+    if (!Number.isInteger(requestedTotalCycles) || requestedTotalCycles < 1 || requestedTotalCycles > MAX_BNPL_OVERRIDE_CYCLES) {
+      return json({ error: `totalCycles must be an integer between 1 and ${MAX_BNPL_OVERRIDE_CYCLES}` }, 400);
+    }
+    chargeType = 0;
+    totalCycles = BigInt(requestedTotalCycles);
+  }
+
+  const expectedMessage = `Settle checkout: catalogItemId=${catalogItemId} buyer=${buyerAddress} chargeType=${chargeType} totalCycles=${totalCycles} ts=${ts}`;
   let recovered;
   try {
     recovered = ethers.verifyMessage(expectedMessage, signature);
@@ -72,21 +120,6 @@ export async function POST(req) {
   if (consumeErr) {
     return json({ error: "This checkout request has already been submitted" }, 409);
   }
-
-  const { data: item, error: itemErr } = await supabaseAdmin
-    .from("catalog_items")
-    .select("*")
-    .eq("id", catalogItemId)
-    .eq("active", true)
-    .maybeSingle();
-  if (itemErr || !item) {
-    return json({ error: "Catalog item not found" }, 404);
-  }
-
-  const amountPerCycle = BigInt(item.price);
-  const chargeType = item.charge_type; // 0=BNPL, 1=Subscription
-  const totalCycles = chargeType === 0 ? BigInt(item.total_cycles) : 0n;
-  const cycleSeconds = BigInt(item.cycle_seconds);
 
   let approved, score, explanation;
   try {
@@ -163,11 +196,4 @@ export async function POST(req) {
   }
 
   return json({ approved: true, chargeId, score, explanation, txHash: tx.hash }, 200);
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }

@@ -4,10 +4,15 @@
  * polling and populates Supabase tables. Scheduled every 5 minutes via
  * pg_cron (see supabase/migrations/006_schedule_index_events_cron.sql).
  *
- * Contract addresses and RPC URL are public, already-verified deployment info
- * (see README "Deployed Contracts"), not secrets - hardcoded as fallbacks so
- * this function works without any dashboard-configured Edge Function secrets.
+ * Contract addresses are public, already-verified deployment info (see
+ * README "Deployed Contracts"), not secrets - hardcoded as fallbacks so this
+ * function works without any dashboard-configured Edge Function secrets.
  * Still overridable via env vars if the deployment ever changes.
+ *
+ * ARBITRUM_RPC_URL has no such fallback - the shared arb1.arbitrum.io/rpc
+ * endpoint is unreliable under load (confirmed directly via repeated eth_call
+ * failures), so this indexer must be given a dedicated endpoint rather than
+ * silently degrading to one that drops requests.
  *
  * DELIBERATELY not indexed: LiquidityPool and DCAPlan events. LiquidityPool
  * currently has no caller anywhere (frontCapital/recordRepayment are unused
@@ -27,9 +32,11 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const provider = new ethers.JsonRpcProvider(
-  Deno.env.get("ARBITRUM_RPC_URL") || "https://arb1.arbitrum.io/rpc"
-);
+const arbitrumRpcUrl = Deno.env.get("ARBITRUM_RPC_URL");
+if (!arbitrumRpcUrl) {
+  throw new Error("ARBITRUM_RPC_URL is not set - a dedicated Arbitrum RPC endpoint is required.");
+}
+const provider = new ethers.JsonRpcProvider(arbitrumRpcUrl);
 
 const CHARGE_REGISTRY = Deno.env.get("CHARGE_REGISTRY_ADDR") || "0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC";
 const SCHEDULE_ENGINE = Deno.env.get("SCHEDULE_ENGINE_ADDR") || "0x9394f6f8a46828583a207D0b208bBe5d23934646";

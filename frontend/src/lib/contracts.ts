@@ -3,9 +3,18 @@ import { arbitrum } from 'viem/chains'
 import { BrowserProvider, Contract } from 'ethers'
 import { getMagic } from './magic'
 
+// viem's `arbitrum` chain definition bakes in arb1.arbitrum.io/rpc as its own
+// default transport, so passing `undefined` here would silently re-introduce
+// the same unreliable public endpoint this env var was meant to replace -
+// require it explicitly instead.
+const arbitrumRpcUrl = import.meta.env.VITE_ARBITRUM_RPC_URL
+if (!arbitrumRpcUrl) {
+  throw new Error('VITE_ARBITRUM_RPC_URL is not set - a dedicated Arbitrum RPC endpoint is required.')
+}
+
 export const publicClient = createPublicClient({
   chain: arbitrum,
-  transport: http(import.meta.env.VITE_ARBITRUM_RPC_URL || undefined),
+  transport: http(arbitrumRpcUrl),
 })
 
 export const ADDRESSES = {

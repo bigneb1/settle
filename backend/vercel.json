@@ -2,12 +2,18 @@
   "crons": [
     {
       "path": "/api/cron/sweep",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/sync-profiles",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 12 * * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/api/profile/exchange/:action", "destination": "/api/profile/exchange?action=:action" },
+    { "source": "/api/profile/dev-identity/disconnect", "destination": "/api/profile/identity" },
+    { "source": "/api/profile/github/callback", "destination": "/api/profile/identity?provider=github" },
+    { "source": "/api/profile/gitlab/callback", "destination": "/api/profile/identity?provider=gitlab" }
   ],
   "functions": {
     "api/cron/sweep.js": {
@@ -28,10 +34,7 @@
     "api/merchant/onboard.js": {
       "maxDuration": 30
     },
-    "api/profile/exchange/connect.js": {
-      "maxDuration": 30
-    },
-    "api/profile/exchange/sync.js": {
+    "api/profile/exchange.js": {
       "maxDuration": 30
     },
     "api/profile/get.js": {

@@ -61,16 +61,27 @@ export type CheckoutResult =
   | { approved: true; chargeId: number; score: number; explanation: string; txHash: string }
   | { approved: false; score: number; explanation: string }
 
+/**
+ * chargeType/totalCycles are the *effective* payment method for this
+ * checkout - normally the catalog item's own default, but a Subscription
+ * item may instead be paid via BNPL installments (see Checkout.tsx's
+ * payVia toggle). Both must match exactly what was signed in `signature`
+ * (see the message built in Checkout.tsx) - the backend recomputes the
+ * same effective values from the catalog item + this override and rejects
+ * the signature if they don't match, so this can't be tampered with.
+ */
 export async function createCheckoutCharge(
   buyerAddress: string,
   catalogItemId: number,
+  chargeType: 0 | 1,
+  totalCycles: number,
   ts: number,
   signature: string
 ): Promise<CheckoutResult> {
   const res = await fetch(`${API_URL}/api/checkout/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyerAddress, catalogItemId, ts, signature }),
+    body: JSON.stringify({ buyerAddress, catalogItemId, chargeType, totalCycles, ts, signature }),
   })
   const data = await parseJsonResponse(res)
   if (!res.ok) throw new Error(data.error || `Checkout failed (${res.status})`)

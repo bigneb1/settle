@@ -11,7 +11,11 @@ function requireEnv(name) {
   return value;
 }
 
-export const ARBITRUM_RPC = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
+// No public-RPC fallback - the shared arb1.arbitrum.io/rpc endpoint is
+// unreliable under load (confirmed directly via repeated eth_call failures),
+// and this backend signs/broadcasts real transactions, so a flaky endpoint
+// here risks stuck nonces and failed settlements, not just a bad UX.
+export const ARBITRUM_RPC = requireEnv("ARBITRUM_RPC_URL");
 
 export const provider = new ethers.JsonRpcProvider(ARBITRUM_RPC);
 

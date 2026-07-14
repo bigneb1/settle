@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CheckCircle, AlertCircle, XCircle, Loader2, Wallet } from 'lucide-react'
+import { ArrowLeft, CheckCircle, AlertCircle, XCircle, Loader2, Wallet, CreditCard } from 'lucide-react'
 import { BrowserProvider } from 'ethers'
 import { formatUSDC } from '../lib/format'
 import { useWallet } from '../context/WalletContext'
@@ -8,6 +8,7 @@ import { getMagic } from '../lib/magic'
 import { createCheckoutCharge, type CheckoutResult } from '../lib/api'
 import { supabase, type CatalogItemRow } from '../lib/supabase'
 import { shortAddr } from '../lib/format'
+import { useAvailableBnplCredit } from '../lib/creditLimit'
 
 interface CheckoutItem {
   id: number
@@ -19,14 +20,23 @@ interface CheckoutItem {
   totalCycles: number
 }
 
+const MAX_BNPL_OVERRIDE_CYCLES = 60
+
 export default function Checkout() {
   const { state } = useLocation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { address, balance, openConnect } = useWallet()
+  const { availableUsdc, loading: creditLoading } = useAvailableBnplCredit(address)
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // A Subscription-tagged catalog item can instead be paid via BNPL
+  // installments - 'default' keeps the catalog item's own charge type,
+  // 'bnpl' overrides it. Only meaningful when the item is a Subscription;
+  // BNPL items already are BNPL, so there's nothing to toggle.
+  const [payVia, setPayVia] = useState<'default' | 'bnpl'>(state?.preferBnpl ? 'bnpl' : 'default')
+  const [bnplCycles, setBnplCycles] = useState('6')
 
   // Navigation state (from Catalog's "Buy Now" click) is used only as an
   // instant-render hint - the real source of truth is always the fresh
@@ -95,9 +105,21 @@ export default function Checkout() {
   const price = checkoutItem.price
   const fee = price / 40n // 2.5%
   const total = price + fee
-  const cycles = checkoutItem.type === 0 ? Number(checkoutItem.totalCycles) || 0 : 0
 
-  const schedule = checkoutItem.type === 0 ? Array.from({ length: cycles }, (_, i) => ({
+  // Only a Subscription item (type 1) can be overridden to BNPL - a BNPL
+  // item already has a merchant-fixed installment count, so there's no
+  // sensible reverse direction (an indefinite subscription has no fixed
+  // total price to preserve).
+  const canChooseBnpl = checkoutItem.type === 1
+  const bnplOverride = canChooseBnpl && payVia === 'bnpl'
+  const effectiveType: 0 | 1 = bnplOverride ? 0 : checkoutItem.type
+  const bnplCyclesNum = Number(bnplCycles)
+  const validBnplCycles = Number.isInteger(bnplCyclesNum) && bnplCyclesNum >= 1 && bnplCyclesNum <= MAX_BNPL_OVERRIDE_CYCLES
+  const cycles = effectiveType === 0
+    ? (bnplOverride ? bnplCyclesNum : Number(checkoutItem.totalCycles) || 0)
+    : 0
+
+  const schedule = effectiveType === 0 ? Array.from({ length: cycles }, (_, i) => ({
     cycle: i + 1,
     date: new Date(Date.now() + i * 30 * 86400_000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     amount: price,
@@ -105,15 +127,16 @@ export default function Checkout() {
 
   async function handleConfirm() {
     if (!address) return
+    if (bnplOverride && !validBnplCycles) return
     setConfirming(true)
     setError(null)
     try {
       const ts = Math.floor(Date.now() / 1000)
-      const message = `Settle checkout: catalogItemId=${checkoutItem.id} buyer=${address} ts=${ts}`
+      const message = `Settle checkout: catalogItemId=${checkoutItem.id} buyer=${address} chargeType=${effectiveType} totalCycles=${cycles} ts=${ts}`
       const magic = getMagic()
       const signer = await new BrowserProvider(magic.rpcProvider as never).getSigner()
       const signature = await signer.signMessage(message)
-      const outcome = await createCheckoutCharge(address, checkoutItem.id, ts, signature)
+      const outcome = await createCheckoutCharge(address, checkoutItem.id, effectiveType, cycles, ts, signature)
       setResult(outcome)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed')
@@ -142,7 +165,7 @@ export default function Checkout() {
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
         <CheckCircle size={48} className="text-primary mb-4" />
         <h2 className="text-xl font-semibold text-foreground mb-2">Charge Created</h2>
-        <p className="text-sm text-muted-foreground mb-1">Your {item.type === 0 ? 'BNPL charge' : 'subscription'} is now active on-chain.</p>
+        <p className="text-sm text-muted-foreground mb-1">Your {effectiveType === 0 ? 'BNPL charge' : 'subscription'} is now active on-chain.</p>
         <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{result.chargeId}</p>
         <button
           onClick={() => navigate('/dashboard')}
@@ -200,13 +223,50 @@ export default function Checkout() {
             </div>
             <div className="mb-4">
               <p className="text-xs text-muted-foreground mb-0.5">Charge type</p>
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-sm ${item.type === 0 ? 'bg-purple-900/40 text-purple-400' : 'bg-blue-900/40 text-blue-400'}`}>
-                {item.type === 0 ? (cycles > 0 ? `BNPL · ${cycles} installments` : 'BNPL · schedule unavailable') : 'Subscription · Indefinite'}
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-sm ${effectiveType === 0 ? 'bg-purple-900/40 text-purple-400' : 'bg-blue-900/40 text-blue-400'}`}>
+                {effectiveType === 0 ? (cycles > 0 ? `BNPL · ${cycles} installments` : 'BNPL · schedule unavailable') : 'Subscription · Indefinite'}
               </span>
             </div>
+
+            {canChooseBnpl && (
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground mb-2">How do you want to pay?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setPayVia('default')}
+                    className={`text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors ${payVia === 'default' ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Subscribe (indefinite)
+                  </button>
+                  <button
+                    onClick={() => setPayVia('bnpl')}
+                    className={`text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors ${payVia === 'bnpl' ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Pay via BNPL instead
+                  </button>
+                </div>
+                {bnplOverride && (
+                  <div className="mt-3">
+                    <label className="block text-xs text-muted-foreground mb-1.5">Number of installments</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_BNPL_OVERRIDE_CYCLES}
+                      value={bnplCycles}
+                      onChange={e => setBnplCycles(e.target.value)}
+                      className="w-full bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                    />
+                    {!validBnplCycles && (
+                      <p className="text-[10px] text-destructive mt-1">Enter a whole number between 1 and {MAX_BNPL_OVERRIDE_CYCLES}.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="border-t border-border pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{item.type === 0 ? 'Per installment' : 'Per cycle'}</span>
+                <span className="text-muted-foreground">{effectiveType === 0 ? 'Per installment' : 'Per cycle'}</span>
                 <span className="font-mono text-foreground">{formatUSDC(price)}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -221,7 +281,7 @@ export default function Checkout() {
           </div>
 
           {/* BNPL schedule */}
-          {item.type === 0 && (
+          {effectiveType === 0 && (
             <div className="bg-card border border-border rounded-sm p-5">
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Installment Schedule</p>
               {cycles === 0 ? (
@@ -258,11 +318,25 @@ export default function Checkout() {
               </div>
             </div>
 
-            {item.type === 0 && (
-              <div className="flex items-center gap-2 bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-4">
-                <AlertCircle size={14} className="text-primary flex-shrink-0" />
-                <p className="text-xs text-primary">BNPL doesn't require funds now - approval is based on your on-chain credit score.</p>
-              </div>
+            {effectiveType === 0 && (
+              <>
+                <div className="flex items-center gap-2 bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-4">
+                  <AlertCircle size={14} className="text-primary flex-shrink-0" />
+                  <p className="text-xs text-primary">BNPL doesn't require funds now - approval is based on your on-chain credit score.</p>
+                </div>
+                <div className="flex items-center gap-2 bg-background border border-border rounded-sm p-3 mb-4">
+                  <CreditCard size={14} className="text-muted-foreground flex-shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    {creditLoading ? (
+                      'Loading your available BNPL credit…'
+                    ) : availableUsdc !== null ? (
+                      <>Available BNPL credit: <span className="font-mono text-foreground font-semibold">{formatUSDC(availableUsdc)}</span></>
+                    ) : (
+                      'Could not load your available BNPL credit'
+                    )}
+                  </p>
+                </div>
+              </>
             )}
 
             {error && (
@@ -274,10 +348,10 @@ export default function Checkout() {
 
             <button
               onClick={handleConfirm}
-              disabled={confirming}
+              disabled={confirming || (bnplOverride && !validBnplCycles)}
               className="w-full bg-primary text-black font-semibold text-sm py-3 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
             >
-              {confirming ? 'Broadcasting…' : `Confirm ${item.type === 0 ? 'BNPL Charge' : 'Subscription'}`}
+              {confirming ? 'Broadcasting…' : `Confirm ${effectiveType === 0 ? 'BNPL Charge' : 'Subscription'}`}
             </button>
             <p className="text-[10px] text-muted-foreground text-center mt-3">
               Transaction will be signed via your Universal Account on Arbitrum
@@ -287,7 +361,7 @@ export default function Checkout() {
           <div className="bg-card border border-border rounded-sm p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">What happens next</p>
             <ul className="space-y-2 text-xs text-muted-foreground">
-              {item.type === 0 ? (
+              {effectiveType === 0 ? (
                 <>
                   <li className="flex gap-2"><span className="text-primary">1.</span> Charge created on ChargeRegistry</li>
                   <li className="flex gap-2"><span className="text-primary">2.</span> Merchant is paid each cycle via PayoutRouter as ScheduleEngine sweeps your wallet</li>

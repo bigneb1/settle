@@ -22,6 +22,9 @@ import { evaluateBNPL, evaluateSubscription } from "../../src/underwriting.js";
 import { getEffectiveCreditLimit } from "../../src/creditProfileEngine.js";
 import { safeError } from "../../src/errors.js";
 import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreation.js";
+import { json, corsPreflight } from "../../src/http.js";
+
+export const OPTIONS = corsPreflight;
 
 const SIGNATURE_MAX_AGE_SECONDS = 300;
 // Kept to the same two presets Dashboard/Dca/format.ts already recognize
@@ -184,11 +187,4 @@ export async function POST(req) {
   }
 
   return json({ approved: true, chargeId, score, explanation, txHash: tx.hash }, 200);
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }

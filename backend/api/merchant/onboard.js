@@ -28,6 +28,9 @@ import { PAYOUT_ROUTER_ABI } from "../../src/abis.js";
 import { safeError } from "../../src/errors.js";
 import { verifyBuyerSignature } from "../../src/buyerAuth.js";
 import { checkIpRateLimit } from "../../src/rateLimit.js";
+import { json, corsPreflight } from "../../src/http.js";
+
+export const OPTIONS = corsPreflight;
 
 const router = new ethers.Contract(ADDRESSES.payoutRouter, PAYOUT_ROUTER_ABI, provider);
 
@@ -127,11 +130,4 @@ export async function POST(req) {
   }
 
   return json({ ok: true, payoutMode }, 200);
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }

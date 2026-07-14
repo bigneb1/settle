@@ -124,7 +124,7 @@ Three env files: root `.env` (contracts + shared), `backend/.env`, `frontend/.en
 | `VITE_SUPABASE_URL` | `https://wrazjdecqhjghiplxcot.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | _(the anon key above)_ |
 | `VITE_MAGIC_PUBLISHABLE_KEY` | `pk_live_DC4A447263F135A0` _(or your Magic dashboard publishable key)_ |
-| `VITE_ARBITRUM_RPC_URL` | `https://arb1.arbitrum.io/rpc` |
+| `VITE_ARBITRUM_RPC_URL` | _(your dedicated Arbitrum One RPC endpoint - Alchemy/Infura/QuickNode/etc; required, no public-endpoint fallback)_ |
 | `VITE_CHARGE_REGISTRY_ADDR` | `0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC` |
 | `VITE_SCHEDULE_ENGINE_ADDR` | `0x9394f6f8a46828583a207D0b208bBe5d23934646` |
 | `VITE_PAYOUT_ROUTER_ADDR` | `0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C` |
@@ -144,7 +144,7 @@ Three env files: root `.env` (contracts + shared), `backend/.env`, `frontend/.en
 
 | Variable | Value |
 |---|---|
-| `ARBITRUM_RPC_URL` | `https://arb1.arbitrum.io/rpc` |
+| `ARBITRUM_RPC_URL` | _(your dedicated Arbitrum One RPC endpoint - same as above; required, no public-endpoint fallback)_ |
 | `CHARGE_REGISTRY_ADDR` | `0x9ee48583EafCcC2cdaB8Ae321B3e350244d0efBC` |
 | `SCHEDULE_ENGINE_ADDR` | `0x9394f6f8a46828583a207D0b208bBe5d23934646` |
 | `PAYOUT_ROUTER_ADDR` | `0xA1B8dB68E45eAE8ed7420311677aB5b139B9592C` |
@@ -190,7 +190,7 @@ Copy `.env.example` → `.env` and fill `ARBITRUM_RPC_URL`, `PRIVATE_KEY`, `PROT
 
 **Frontend** - import the repo as a Vercel project. If Root Directory = repo root, the root `vercel.json` builds `frontend/`. If Root Directory = `frontend`, `frontend/vercel.json` applies. Either works. Set the `VITE_*` env vars above, then deploy.
 
-**Backend** - separate Vercel project, Root Directory = `backend`. Set the non-`VITE_` env vars above. `backend/vercel.json` configures the cron schedule (`*/5 * * * *` for `/api/cron/sweep`) and the function `maxDuration`s.
+**Backend** - separate Vercel project, Root Directory = `backend`. Set the non-`VITE_` env vars above. `backend/vercel.json` configures the cron schedule and the function `maxDuration`s. On a Hobby-plan Vercel account, cron jobs are capped at once per day - `/api/cron/sweep` runs at `0 0 * * *` and `/api/cron/sync-profiles` at `0 12 * * *` (tighten to `*/5 * * * *` / `0 */6 * * *` if/when the account upgrades to Pro, which lifts that cap).
 
 **Magic dashboard** - add your deployed frontend domain (e.g. `settlepay-rouge.vercel.app`) and `http://localhost:5173` to the Magic dashboard's allowed-domains list, else email-code login throws a CORS error.
 

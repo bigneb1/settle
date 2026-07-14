@@ -7,6 +7,7 @@ import { useWallet } from '../context/WalletContext'
 import { getBuyerCharges, ADDRESSES, type OnChainCharge } from '../lib/contracts'
 import { payChargeCycleCrossChain } from '../lib/universalAccount'
 import { confirmChargePayment, getProfile } from '../lib/api'
+import { outstandingBnplPrincipal } from '../lib/creditLimit'
 
 const CHARGE_TYPE_LABEL = ['BNPL', 'SUB']
 const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
@@ -56,6 +57,7 @@ export default function Dashboard() {
   const [sweepsLoading, setSweepsLoading] = useState(false)
   const [sweepsError, setSweepsError] = useState<string | null>(null)
   const [creditScore, setCreditScore] = useState<number | null>(null)
+  const [creditLimitUsdc, setCreditLimitUsdc] = useState<bigint | null>(null)
 
   // Guards against a rapid wallet switch: only the response matching the
   // address that's still current when it resolves is applied.
@@ -80,19 +82,31 @@ export default function Dashboard() {
     loadCharges()
   }, [loadCharges])
 
-  // Live credit score - matches Profile.tsx's own source exactly (same
-  // getProfile()/computeCreditProfile() backend call), instead of the stale
-  // scoreAtIssuance frozen on whichever charge happened to be created last.
-  // Independent of loadCharges so a buyer with zero charges still sees their
-  // real score rather than "Not yet scored".
+  // Live credit score + limit - matches Profile.tsx's own source exactly
+  // (same getProfile()/computeCreditProfile() backend call), instead of the
+  // stale scoreAtIssuance frozen on whichever charge happened to be created
+  // last. Independent of loadCharges so a buyer with zero charges still sees
+  // their real score rather than "Not yet scored".
   useEffect(() => {
     if (!address) return
     let cancelled = false
     getProfile(address)
-      .then(profile => { if (!cancelled) setCreditScore(profile.creditProfile.overall_score) })
+      .then(profile => {
+        if (cancelled) return
+        setCreditScore(profile.creditProfile.overall_score)
+        setCreditLimitUsdc(BigInt(profile.creditProfile.credit_line_usdc))
+      })
       .catch(err => console.error('[dashboard] failed to load credit score', err))
     return () => { cancelled = true }
   }, [address])
+
+  // Available BNPL credit = limit minus principal still outstanding on
+  // Active BNPL charges (reuses the charges list already loaded above -
+  // no second getBuyerCharges() call needed).
+  const outstandingBnplUsdc = outstandingBnplPrincipal(charges)
+  const availableBnplUsdc = creditLimitUsdc !== null
+    ? (creditLimitUsdc > outstandingBnplUsdc ? creditLimitUsdc - outstandingBnplUsdc : 0n)
+    : null
 
   useEffect(() => {
     let cancelled = false
@@ -159,6 +173,7 @@ export default function Dashboard() {
     { label: 'Active Charges', value: activeCharges.length.toString(), icon: Activity },
     { label: 'Total Cycles Paid', value: charges.reduce((a, c) => a + Number(c.cyclesCompleted), 0).toString(), icon: DollarSign },
     { label: 'Credit Score', value: null, icon: null },
+    { label: 'Available BNPL Credit', value: availableBnplUsdc !== null ? formatUSDC(availableBnplUsdc) : '-', icon: CreditCard },
     { label: 'Unified Balance', value: balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-', icon: CreditCard },
   ]
 
@@ -191,9 +206,9 @@ export default function Dashboard() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
         {KPI.map((k, i) => {
-          const isBalance = i === 3
+          const isBalance = i === 4
           const content = (
             <>
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">{k.label}</p>

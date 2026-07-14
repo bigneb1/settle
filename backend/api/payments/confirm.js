@@ -26,6 +26,9 @@ import { CHARGE_REGISTRY_ABI } from "../../src/abis.js";
 import { settleCharge } from "../../src/sweepAgent.js";
 import { safeError } from "../../src/errors.js";
 import { checkIpRateLimit } from "../../src/rateLimit.js";
+import { json, corsPreflight } from "../../src/http.js";
+
+export const OPTIONS = corsPreflight;
 
 const ERC20_TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 const registry = new ethers.Contract(ADDRESSES.chargeRegistry, CHARGE_REGISTRY_ABI, provider);
@@ -119,11 +122,4 @@ export async function POST(req) {
   } catch (err) {
     return json(safeError("payments/confirm:settleCharge", err, "Could not settle this charge"), 409);
   }
-}
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }

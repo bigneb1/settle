@@ -8,6 +8,8 @@ import {
 import { SiGithub, SiGitlab } from '@icons-pack/react-simple-icons'
 import { useWallet } from '../context/WalletContext'
 import { formatUSDC } from '../lib/format'
+import { getBuyerCharges } from '../lib/contracts'
+import { outstandingBnplPrincipal } from '../lib/creditLimit'
 import { EXCHANGES, NEEDS_PASSPHRASE, ExchangeLogo } from '../lib/exchanges'
 import {
   getProfile, connectExchangeAccount, disconnectExchangeAccount, syncExchangeAccount,
@@ -322,6 +324,7 @@ export default function Profile() {
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [tab, setTab] = useState<'credit' | 'card'>('credit')
   const [searchParams, setSearchParams] = useSearchParams()
+  const [outstandingBnplUsdc, setOutstandingBnplUsdc] = useState<bigint>(0n)
   const latestAddressRequested = useRef<string | null>(null)
 
   const load = async () => {
@@ -344,6 +347,21 @@ export default function Profile() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address])
+
+  // Powers the "Available" figure on the credit-line card below - the total
+  // credit_line_usdc computed by underwriting isn't the same as what's
+  // actually left to spend once outstanding BNPL installments are counted.
+  useEffect(() => {
+    if (!address) {
+      setOutstandingBnplUsdc(0n)
+      return
+    }
+    let cancelled = false
+    getBuyerCharges(address as `0x${string}`)
+      .then(charges => { if (!cancelled) setOutstandingBnplUsdc(outstandingBnplPrincipal(charges)) })
+      .catch(err => console.error('[profile] failed to load charges for available-credit calc', err))
+    return () => { cancelled = true }
   }, [address])
 
   // Surface OAuth callback results (redirected here from the backend with
@@ -485,8 +503,20 @@ export default function Profile() {
               <span className="text-sm font-medium text-primary mt-1">{creditProfile.credit_tier}</span>
             </div>
             <div className="bg-card border border-border rounded-sm p-5">
-              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Available Credit Line</p>
-              <p className="text-3xl font-mono font-bold text-foreground mb-2">{formatUSDC(BigInt(creditProfile.credit_line_usdc))}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Available BNPL Credit</p>
+              {(() => {
+                const limitUsdc = BigInt(creditProfile.credit_line_usdc)
+                const availableUsdc = limitUsdc > outstandingBnplUsdc ? limitUsdc - outstandingBnplUsdc : 0n
+                return (
+                  <>
+                    <p className="text-3xl font-mono font-bold text-foreground mb-1">{formatUSDC(availableUsdc)}</p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      of {formatUSDC(limitUsdc)} total limit
+                      {outstandingBnplUsdc > 0n && ` · ${formatUSDC(outstandingBnplUsdc)} outstanding`}
+                    </p>
+                  </>
+                )
+              })()}
               <p className="text-xs text-muted-foreground">Computed {new Date(creditProfile.computed_at).toLocaleString()}</p>
             </div>
             <div className="bg-card border border-border rounded-sm p-5">
