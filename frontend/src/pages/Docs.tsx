@@ -58,7 +58,7 @@ const API_ENDPOINTS = [
   {
     method: 'GET',
     path: '/api/cron/sweep',
-    desc: 'Vercel Cron entrypoint (every 5 minutes). Polls ChargeRegistry for due charges. Cannot execute a real UA sweep (no delegated session - see Known Limitations), but reports non-payment on-chain via ScheduleEngine.recordSweepOutcome(id, 0, false), which starts the grace-period clock and, once it lapses, flags the buyer in DefaultHandler.',
+    desc: 'Vercel Cron entrypoint (daily on the current Hobby-plan schedule - 0 0 * * * - tightens to every few minutes on Pro, which lifts Vercel Hobby\'s once-daily cron cap). Polls ChargeRegistry for due charges. Cannot execute a real UA sweep (no delegated session - see Known Limitations), but reports non-payment on-chain via ScheduleEngine.recordSweepOutcome(id, 0, false), which starts the grace-period clock and, once it lapses, flags the buyer in DefaultHandler.',
     auth: 'Bearer CRON_SECRET',
   },
   {
@@ -71,28 +71,35 @@ const API_ENDPOINTS = [
   {
     method: 'POST',
     path: '/api/dca/confirm',
-    desc: "Verifies a buyer's DCA buy by querying Particle's own transaction status for that transactionId (requires UA_TRANSACTION_STATUS.FINISHED) - not an on-chain receipt check, since a buy has no settlement address to inspect. Each transactionId is consumed exactly once. Then calls DCAPlan.recordBuyExecuted.",
+    desc: "Verifies a buyer's DCA buy by querying Particle's own transaction status for that transactionId (requires UA_TRANSACTION_STATUS.FINISHED) - not an on-chain receipt check, since a buy has no settlement address to inspect. Each transactionId is consumed exactly once. Then calls DCAPlan.recordBuyExecuted. Best-effort extracts the actual acquired asset/amount from Particle's response for display, falling back to just the tx hash when the SDK's response doesn't include it.",
     body: '{ planId: number, ownerAddress: string, transactionId: string }',
-    responses: '200 { ok, planId, recordTxHash } · 400/402/403/409/500/502 on validation or verification failure',
+    responses: '200 { ok, planId, recordTxHash, acquired } · 400/402/403/409/500/502 on validation or verification failure',
   },
   {
     method: 'POST',
     path: '/api/checkout/create',
-    desc: "Verifies the buyer's EIP-191 signature proving control of buyerAddress, looks up the catalog item from Supabase, runs underwriting (evaluateBNPL with an independent limit-cap check, or evaluateSubscription), and if approved calls ChargeRegistry.createCharge signed by the deployer key. Each (buyer, catalogItemId, ts) signature tuple is consumed exactly once; rate-limited to 5 attempts per buyer per 5-minute window.",
+    desc: "Verifies the buyer's EIP-191 signature proving control of buyerAddress, looks up the catalog item from Supabase, and runs underwriting (evaluateBNPL, or evaluateSubscription). Subscriptions are created immediately if approved. BNPL is approved against only the financeable fraction of the price (10-30%, scaled by score - see How It Works) - if approved, this returns a down-payment quote instead of creating a charge; the charge for the financed remainder is only created once checkout/confirm-downpayment verifies the down payment. Each (buyer, catalogItemId, ts) signature tuple is consumed exactly once; rate-limited to 5 attempts per buyer per 5-minute window.",
     body: '{ buyerAddress: string, catalogItemId: number, ts: number, signature: string }',
-    responses: '200 { approved, chargeId, score, explanation, txHash } or { approved: false, score, explanation } · 400/401/403/404/409/429/502 on validation or verification failure',
+    responses: '200 { approved: true, chargeId, score, explanation, txHash } (subscription) or { approved: true, requiresDownPayment: true, merchantAddress, downPaymentUSD, financedAmountUSD, score, explanation } (BNPL) or { approved: false, score, explanation } · 400/401/403/404/409/429/502 on validation or verification failure',
   },
   {
     method: 'POST',
     path: '/api/checkout/create-direct',
-    desc: '"Pay Any Address" - same underwriting/on-chain flow as checkout/create, but for an arbitrary recipient address instead of a catalog item. Neither createCharge nor executePayout require the recipient to be an onboarded merchant. Shares its nonce-safe sender with checkout/create.',
+    desc: '"Pay Any Address" - same underwriting/down-payment flow as checkout/create, but for an arbitrary recipient address instead of a catalog item. Neither createCharge nor executePayout require the recipient to be an onboarded merchant. Shares its nonce-safe sender with checkout/create.',
     body: '{ buyerAddress, merchantAddress, chargeType, amountPerCycle, totalCycles, cycleSeconds, ts, signature }',
-    responses: '200 { approved, chargeId, score, explanation, txHash } or { approved: false, score, explanation } · 400/401/403/404/409/429/502 on validation or verification failure',
+    responses: '200 { approved: true, chargeId, score, explanation, txHash } (subscription) or { approved: true, requiresDownPayment: true, ... } (BNPL) or { approved: false, score, explanation } · 400/401/403/404/409/429/502 on validation or verification failure',
+  },
+  {
+    method: 'POST',
+    path: '/api/checkout/confirm-downpayment',
+    desc: "BNPL only. Independently re-derives the same underwriting/financing math checkout/create(-direct) already quoted - nothing from that call is persisted - then verifies downPaymentTxHash on-chain: a real ERC20 Transfer from the buyer directly to the merchant's own address (not PayoutRouter - no protocol fee applies to this leg), for at least the required down payment. No signature required - the verified on-chain transfer is the proof, which also avoids a cross-chain payment potentially outlasting a signature's freshness window. Each downPaymentTxHash is consumed exactly once. On success, calls ChargeRegistry.createCharge for the financed remainder only.",
+    body: '{ buyerAddress, catalogItemId? | merchantAddress?, chargeType: 0, totalCycles, amountPerCycle?, cycleSeconds?, downPaymentTxHash }',
+    responses: '200 { approved: true, chargeId, score, txHash, downPaymentTxHash } · 400/402/404/409/502 on validation or verification failure',
   },
   {
     method: 'POST',
     path: '/api/merchant/onboard',
-    desc: "Verifies the MerchantConfigured event in the submitted configureTxHash on-chain - never trusts the client-reported payout mode - then upserts the merchant row and inserts any catalog items into Supabase.",
+    desc: "Verifies the MerchantConfigured event in the submitted configureTxHash on-chain - never trusts the client-reported payout mode - then upserts the merchant row and inserts any catalog items (name, price, optional description shown to buyers on the catalog card and at checkout) into Supabase.",
     body: '{ merchantAddress, businessName, chain, payoutMode, payoutChain, payoutAsset, configureTxHash, products: [...] }',
     responses: '200 { ok, payoutMode } · 400/402/404/500 on validation, verification, or save failure',
   },
@@ -220,26 +227,30 @@ export default function Docs() {
             </p>
             <p>Core products, all settling on Arbitrum:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li><strong className="text-foreground">BNPL</strong> - split a purchase into fixed installments; the merchant is paid each cycle via PayoutRouter as the buyer actually repays - there is no upfront capital-fronting path. Unpaid charges start a grace-period clock and are flagged in `DefaultHandler` once it lapses.</li>
-              <li><strong className="text-foreground">Subscriptions</strong> - automated recurring billing with a lightweight risk gate below a configurable USD threshold.</li>
+              <li><strong className="text-foreground">BNPL</strong> - Settle finances only a fraction of the price (10-30%, scaled by your credit score) and splits that into fixed installments; you pay the rest upfront, directly to the merchant, verified on-chain before the charge exists. The merchant is paid each cycle via PayoutRouter as you actually repay - there is no upfront capital-fronting path. Unpaid charges start a grace-period clock and are flagged in `DefaultHandler` once it lapses.</li>
+              <li><strong className="text-foreground">Subscriptions</strong> - automated recurring billing with a lightweight risk gate below a configurable USD threshold, financed in full each cycle (no down payment). Your dashboard shows an explicit status per subscription (Active, Grace, Cancelled, Defaulted) and what it means for your access.</li>
               <li><strong className="text-foreground">Pay Any Address</strong> - the same BNPL/subscription machinery, but to any wallet address instead of a catalog item - neither `createCharge` nor `executePayout` require an onboarded merchant, so a buyer can split a payment to a non-Settle merchant (e.g. a marketplace checkout) into installments.</li>
               <li><strong className="text-foreground">DCA</strong> - recurring cross-chain investment into any coin the buyer holds (via Particle's supported token types, including Solana as a destination), on a Weekly/Monthly schedule.</li>
               <li><strong className="text-foreground">Universal Account page</strong> (<code className="text-foreground">/account</code>) - a unified view of the buyer's balance across every chain Particle's Universal Account spans, plus a form to convert assets cross-chain into any supported token/chain combination.</li>
               <li><strong className="text-foreground">Identity & Credit Profile</strong> - connect exchange accounts and a GitHub/GitLab identity to raise (never lower) a buyer's real BNPL credit limit; see <a className="text-primary hover:underline" href="#identity">Identity & Credit Profile</a> below.</li>
               <li><strong className="text-foreground">Card</strong> - a "Card" tab on <code className="text-foreground">/profile</code>, explicitly labeled "Soon" - a teaser for a future virtual-card product, not yet functional.</li>
             </ul>
+            <p>Every place your connected wallet's address is shown - sidebar, page headers, checkout - is click-to-copy.</p>
           </Section>
 
           <Section id="how-it-works" title="How It Works">
             <p>
               <strong className="text-foreground">BNPL</strong> - a buyer is scored by a five-signal underwriter
               (wallet age, repayment history, default history, protocol diversity, balance consistency - now including
-              a real cross-chain balance signal via Particle). If approved, the charge is created on-chain and the buyer
-              repays over fixed installments. Each installment is a real Universal Account cross-chain operation - the
-              buyer clicks "Pay Now," USDC is sourced from whatever chain their balance sits on, and it settles into
-              PayoutRouter on Arbitrum. The merchant is paid each cycle via PayoutRouter.executePayout as the
-              ScheduleEngine sweeps - there is no upfront capital-fronting path from LiquidityPool; payouts track
-              actual repayment, not a promise of one.
+              a real cross-chain balance signal via Particle). If approved, Settle finances only a fraction of the
+              price - 10% at the minimum approval score, scaling linearly up to 30% at a top score - within the
+              score-derived credit limit. The buyer pays the remainder as a real upfront on-chain transfer directly to
+              the merchant; once that's independently verified on-chain, a charge is created for the financed
+              remainder only, split over fixed installments. Each installment is then a real Universal Account
+              cross-chain operation - the buyer clicks "Pay Now," USDC is sourced from whatever chain their balance
+              sits on, and it settles into PayoutRouter on Arbitrum. The merchant is paid each cycle via
+              PayoutRouter.executePayout as the ScheduleEngine sweeps - there is no upfront capital-fronting path from
+              LiquidityPool; payouts track actual repayment, not a promise of one.
             </p>
             <p>
               <strong className="text-foreground">Subscriptions</strong> - the same charge/repayment machinery as
@@ -256,7 +267,8 @@ export default function Docs() {
               convert flow, which resolves the destination server-side instead of storing an address on-chain). Each
               buy cycle is a real Universal Account operation using `createBuyTransaction()` - since a buy has no
               counterparty to pay, the purchased asset lands directly in the buyer's own account on the destination
-              chain.
+              chain. A confirmed buy shows the actual asset and amount acquired when Particle's response includes it,
+              not just a transaction hash.
             </p>
           </Section>
 
@@ -324,6 +336,11 @@ export default function Docs() {
               <strong className="text-foreground"> raise-never-lower</strong> guarantee - connecting an account can
               only increase a buyer's real purchasing limit at checkout, never decrease it below the base
               score-derived limit.
+            </p>
+            <p>
+              Connecting or syncing an account recomputes the credit profile immediately, and the Profile page shows
+              an explicit result - e.g. "Binance connected. Your credit score rose from 640 to 655." - rather than
+              leaving it to guess whether anything changed.
             </p>
           </Section>
 
