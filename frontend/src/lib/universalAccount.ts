@@ -142,25 +142,21 @@ export interface CrossChainPaymentResult {
 }
 
 /**
- * The one required "cross-chain operation moving value via UA" for the hackathon's
- * Universal Accounts Track: settle a BNPL installment or subscription cycle by
- * sourcing USDC from wherever the buyer's Universal Account balance sits, and
- * delivering it to Settle's Arbitrum settlement address. No bridge UI, no chain
- * picker, no manual approval step - the SDK sources liquidity automatically.
- *
- * This is buyer-triggered (button click), not an unattended background sweep -
- * unattended auto-debit would need a session-key/delegation mechanism on top of
- * this, which is out of scope for the hackathon demo.
+ * Sends amountUSDC to settlementAddress on destinationChainId via a Universal
+ * Account, sourcing funds from wherever the buyer's balance currently sits.
+ * Shared by payChargeCycleCrossChain (a charge cycle) and the BNPL
+ * down-payment flow (Checkout.tsx/PayAnyAddress.tsx, which has no chargeId
+ * yet - the charge is only created after the down payment is confirmed, see
+ * api/checkout/confirm-downpayment.js).
  */
-export async function payChargeCycleCrossChain(params: {
+export async function payAmountCrossChain(params: {
   ownerAddress: string
-  chargeId: number
   amountUSDC: bigint // 6 decimals
   settlementAddress: `0x${string}`
   destinationChainId: number
   destinationUsdcAddress: `0x${string}`
 }): Promise<CrossChainPaymentResult> {
-  const { ownerAddress, chargeId, amountUSDC, settlementAddress, destinationChainId, destinationUsdcAddress } = params
+  const { ownerAddress, amountUSDC, settlementAddress, destinationChainId, destinationUsdcAddress } = params
   const ua = getUniversalAccount(ownerAddress)
 
   const erc20 = new Interface(['function transfer(address to, uint256 amount) external returns (bool)'])
@@ -184,8 +180,32 @@ export async function payChargeCycleCrossChain(params: {
   const destinationUserOp = transaction.userOps.find(op => op.chainId === destinationChainId)
   const destinationTxHash = destinationUserOp?.userOpHash ?? null
 
-  if (import.meta.env.DEV) console.log(`[UA] chargeId=${chargeId} settled via UA tx ${result.transactionId} (destination hash: ${destinationTxHash ?? 'unknown'})`)
   return { transactionId: result.transactionId, destinationTxHash }
+}
+
+/**
+ * The one required "cross-chain operation moving value via UA" for the hackathon's
+ * Universal Accounts Track: settle a BNPL installment or subscription cycle by
+ * sourcing USDC from wherever the buyer's Universal Account balance sits, and
+ * delivering it to Settle's Arbitrum settlement address. No bridge UI, no chain
+ * picker, no manual approval step - the SDK sources liquidity automatically.
+ *
+ * This is buyer-triggered (button click), not an unattended background sweep -
+ * unattended auto-debit would need a session-key/delegation mechanism on top of
+ * this, which is out of scope for the hackathon demo.
+ */
+export async function payChargeCycleCrossChain(params: {
+  ownerAddress: string
+  chargeId: number
+  amountUSDC: bigint // 6 decimals
+  settlementAddress: `0x${string}`
+  destinationChainId: number
+  destinationUsdcAddress: `0x${string}`
+}): Promise<CrossChainPaymentResult> {
+  const { chargeId, ...rest } = params
+  const result = await payAmountCrossChain(rest)
+  if (import.meta.env.DEV) console.log(`[UA] chargeId=${chargeId} settled via UA tx ${result.transactionId} (destination hash: ${result.destinationTxHash ?? 'unknown'})`)
+  return result
 }
 
 export interface DcaBuyResult {

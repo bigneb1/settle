@@ -109,6 +109,7 @@ export async function POST(req) {
           merchant: merchantAddress.toLowerCase(),
           name: String(p.name || "").slice(0, 200),
           category: String(p.category || "").slice(0, 100),
+          description: typeof p.description === "string" && p.description.trim() ? p.description.trim().slice(0, 500) : null,
           price: String(BigInt(Math.round(priceNum))), // USDC 6-dec, bigint-as-text
           period: String(p.period || "monthly"),
           charge_type: p.chargeType === 1 ? 1 : 0,

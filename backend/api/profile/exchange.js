@@ -78,7 +78,12 @@ async function handleConnect(req) {
 
   try {
     await connectExchange({ buyer, exchange, apiKey, apiSecret, apiPass });
-    return json({ ok: true, exchange }, 200);
+    // Recompute now (not just on an explicit "Sync" or the once-daily cron) -
+    // otherwise the buyer's credit_profiles row stays stale indefinitely if
+    // one already existed from an earlier /profile visit, and the frontend
+    // has nothing new to show right after connecting.
+    const profile = await computeCreditProfile(buyer);
+    return json({ ok: true, exchange, profile }, 200);
   } catch (err) {
     // Provider auth-rejection messages (e.g. "Invalid OK-ACCESS-KEY") are
     // safe and useful to return directly - they don't leak this app's

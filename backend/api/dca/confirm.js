@@ -115,6 +115,30 @@ export async function POST(req) {
     console.warn(`[dca/confirm] transactionId=${transactionId} response had no tokenChanges.toChains to cross-check against planId=${planId}`);
   }
 
+  // Best-effort: surface what the buyer actually acquired (asset + quantity),
+  // not just a tx hash. getTransaction()'s own signature is Promise<any> (see
+  // comment above), but the SDK's exported ITokenChanges/ITokenWithUSD types
+  // describe `tokenChanges.incr` as the account's increased holdings for this
+  // transaction - the runtime response isn't type-checked against that, so
+  // this stays optional/soft rather than required, same rationale as the
+  // toChains cross-check above.
+  let acquired = null;
+  const incr = tx?.tokenChanges?.incr;
+  if (Array.isArray(incr)) {
+    const match = incr.find(t =>
+      String(t?.token?.address || "").toLowerCase() === String(plan.targetToken).toLowerCase() &&
+      Number(t?.token?.chainId) === Number(plan.targetChainId)
+    ) ?? incr[0];
+    if (match?.token) {
+      acquired = {
+        symbol: match.token.symbol ?? null,
+        amount: match.amount ?? null,
+        decimals: match.token.decimals ?? null,
+        amountInUSD: match.amountInUSD ?? null,
+      };
+    }
+  }
+
   // Consume the transactionId exactly once - the unique constraint is the lock.
   const { error: consumeErr } = await supabaseAdmin
     .from("consumed_dca_txs")
@@ -128,7 +152,7 @@ export async function POST(req) {
       dca.recordBuyExecuted(planId, plan.amountPerCycleUSD, transactionId, { nonce })
     );
     await recordTx.wait();
-    return json({ ok: true, planId, recordTxHash: recordTx.hash });
+    return json({ ok: true, planId, recordTxHash: recordTx.hash, acquired });
   } catch (err) {
     return json(safeError("dca/confirm:recordBuyExecuted", err, "Could not record the DCA buy on-chain"), 409);
   }

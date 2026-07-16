@@ -5,10 +5,15 @@ import { BrowserProvider } from 'ethers'
 import { formatUSDC } from '../lib/format'
 import { useWallet } from '../context/WalletContext'
 import { getMagic } from '../lib/magic'
-import { createCheckoutCharge, type CheckoutResult } from '../lib/api'
+import { createCheckoutCharge, confirmDownPayment, type CheckoutResult } from '../lib/api'
 import { supabase, type CatalogItemRow } from '../lib/supabase'
 import { shortAddr } from '../lib/format'
 import { useAvailableBnplCredit } from '../lib/creditLimit'
+import { payAmountCrossChain } from '../lib/universalAccount'
+import { ADDRESSES } from '../lib/contracts'
+import CopyableAddress from '../components/CopyableAddress'
+
+const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
 
 interface CheckoutItem {
   id: number
@@ -18,6 +23,7 @@ interface CheckoutItem {
   period: string
   type: 0 | 1
   totalCycles: number
+  description: string | null
 }
 
 const MAX_BNPL_OVERRIDE_CYCLES = 60
@@ -31,6 +37,14 @@ export default function Checkout() {
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Set once the buyer's down payment (BNPL only) has been paid and
+  // confirmed - the on-chain charge for the financed remainder exists at
+  // that point. Kept separate from `result` since a single checkout now has
+  // two distinct steps for BNPL: get approved + a down-payment quote, then
+  // pay it and get a real charge.
+  const [downPaymentResult, setDownPaymentResult] = useState<{ chargeId: number; txHash: string } | null>(null)
+  const [payingDownPayment, setPayingDownPayment] = useState(false)
+  const [downPaymentError, setDownPaymentError] = useState<string | null>(null)
   // A Subscription-tagged catalog item can instead be paid via BNPL
   // installments - 'default' keeps the catalog item's own charge type,
   // 'bnpl' overrides it. Only meaningful when the item is a Subscription;
@@ -76,6 +90,7 @@ export default function Checkout() {
             period: row.period,
             type: row.charge_type,
             totalCycles: row.total_cycles,
+            description: row.description,
           })
         }
         setLoading(false)
@@ -145,6 +160,39 @@ export default function Checkout() {
     }
   }
 
+  async function handlePayDownPayment() {
+    if (!address || !result?.approved || !('requiresDownPayment' in result)) return
+    setPayingDownPayment(true)
+    setDownPaymentError(null)
+    try {
+      const downPaymentRaw = BigInt(Math.round(result.downPaymentUSD * 1_000_000))
+      const { destinationTxHash } = await payAmountCrossChain({
+        ownerAddress: address,
+        amountUSDC: downPaymentRaw,
+        settlementAddress: result.merchantAddress as `0x${string}`,
+        destinationChainId: UA_DESTINATION_CHAIN_ID,
+        destinationUsdcAddress: ADDRESSES.usdc,
+      })
+      if (!destinationTxHash) {
+        throw new Error('Universal Account transaction submitted, but no Arbitrum settlement hash was returned to confirm on-chain')
+      }
+      // Independently verified server-side (never trusts this client) before
+      // the on-chain charge for the financed remainder is created.
+      const confirmResult = await confirmDownPayment({
+        buyerAddress: address,
+        catalogItemId: checkoutItem.id,
+        chargeType: 0,
+        totalCycles: cycles,
+        downPaymentTxHash: destinationTxHash,
+      })
+      setDownPaymentResult({ chargeId: confirmResult.chargeId, txHash: confirmResult.txHash })
+    } catch (err) {
+      setDownPaymentError(err instanceof Error ? err.message : 'Down payment failed')
+    } finally {
+      setPayingDownPayment(false)
+    }
+  }
+
   if (!address) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
@@ -160,7 +208,54 @@ export default function Checkout() {
     )
   }
 
-  if (result?.approved === true) {
+  if (downPaymentResult) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
+        <CheckCircle size={48} className="text-primary mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Charge Created</h2>
+        <p className="text-sm text-muted-foreground mb-1">Your down payment was confirmed - your BNPL charge for the financed remainder is now active on-chain.</p>
+        <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{downPaymentResult.chargeId}</p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          View Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  if (result?.approved === true && 'requiresDownPayment' in result) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center max-w-md mx-auto">
+        <CreditCard size={48} className="text-primary mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Down Payment Required</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Settle finances {formatUSDC(BigInt(Math.round(result.financedAmountUSD * 1_000_000)))} of this purchase via BNPL installments.
+          Pay the remaining <span className="font-mono text-foreground">{formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))}</span> now,
+          directly to the merchant, to create your charge.
+        </p>
+        {downPaymentError && (
+          <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/40 rounded-sm p-3 mb-4 text-left">
+            <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+            <p className="text-xs text-red-400">{downPaymentError}</p>
+          </div>
+        )}
+        <button
+          onClick={handlePayDownPayment}
+          disabled={payingDownPayment}
+          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+        >
+          {payingDownPayment ? 'Paying…' : `Pay ${formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
+        </button>
+        <p className="text-[10px] text-muted-foreground text-center mt-3">
+          Transaction will be signed via your Universal Account on Arbitrum
+        </p>
+      </div>
+    )
+  }
+
+  if (result?.approved === true && !('requiresDownPayment' in result)) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
         <CheckCircle size={48} className="text-primary mb-4" />
@@ -220,6 +315,9 @@ export default function Checkout() {
             <div className="mb-4">
               <p className="text-xs text-muted-foreground mb-0.5">Item</p>
               <p className="text-sm font-medium text-foreground">{item.name}</p>
+              {item.description && (
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">{item.description}</p>
+              )}
             </div>
             <div className="mb-4">
               <p className="text-xs text-muted-foreground mb-0.5">Charge type</p>
@@ -311,7 +409,7 @@ export default function Checkout() {
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Payment Source</p>
             <div className="bg-background border border-border rounded-sm p-4 mb-4">
               <p className="text-xs text-muted-foreground mb-1">Universal Account</p>
-              <p className="font-mono text-sm text-foreground">{address.slice(0, 6)}...{address.slice(-4)}</p>
+              <CopyableAddress address={address} display={`${address.slice(0, 6)}...${address.slice(-4)}`} className="font-mono text-sm text-foreground" />
               <div className="flex items-center justify-between mt-2">
                 <p className="text-xs text-muted-foreground">USDC Balance</p>
                 <p className="font-mono text-sm text-primary">{balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-'}</p>
@@ -322,7 +420,7 @@ export default function Checkout() {
               <>
                 <div className="flex items-center gap-2 bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-4">
                   <AlertCircle size={14} className="text-primary flex-shrink-0" />
-                  <p className="text-xs text-primary">BNPL doesn't require funds now - approval is based on your on-chain credit score.</p>
+                  <p className="text-xs text-primary">Approval is based on your on-chain credit score. Settle only finances a fraction of the price (10-30%, based on your score) - you'll pay the rest as an upfront down payment if approved.</p>
                 </div>
                 <div className="flex items-center gap-2 bg-background border border-border rounded-sm p-3 mb-4">
                   <CreditCard size={14} className="text-muted-foreground flex-shrink-0" />
@@ -363,10 +461,11 @@ export default function Checkout() {
             <ul className="space-y-2 text-xs text-muted-foreground">
               {effectiveType === 0 ? (
                 <>
-                  <li className="flex gap-2"><span className="text-primary">1.</span> Charge created on ChargeRegistry</li>
-                  <li className="flex gap-2"><span className="text-primary">2.</span> Merchant is paid each cycle via PayoutRouter as ScheduleEngine sweeps your wallet</li>
-                  <li className="flex gap-2"><span className="text-primary">3.</span> ScheduleEngine sweeps your UA every 30 days</li>
-                  <li className="flex gap-2"><span className="text-primary">4.</span> After all cycles, charge is marked Completed</li>
+                  <li className="flex gap-2"><span className="text-primary">1.</span> If approved, pay the down payment directly to the merchant</li>
+                  <li className="flex gap-2"><span className="text-primary">2.</span> Charge created on ChargeRegistry for the financed remainder</li>
+                  <li className="flex gap-2"><span className="text-primary">3.</span> Merchant is paid each cycle via PayoutRouter as ScheduleEngine sweeps your wallet</li>
+                  <li className="flex gap-2"><span className="text-primary">4.</span> ScheduleEngine sweeps your UA every 30 days</li>
+                  <li className="flex gap-2"><span className="text-primary">5.</span> After all cycles, charge is marked Completed</li>
                 </>
               ) : (
                 <>

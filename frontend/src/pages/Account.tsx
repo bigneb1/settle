@@ -4,6 +4,7 @@ import { Loader2, Layers, ArrowLeftRight, RefreshCw, Wallet } from 'lucide-react
 import { useWallet } from '../context/WalletContext'
 import { shortAddr, shortHash } from '../lib/format'
 import { convertAsset, getConvertTargets, getChainLabel, type ConvertTarget } from '../lib/universalAccount'
+import CopyableAddress from '../components/CopyableAddress'
 
 const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
 
@@ -80,7 +81,7 @@ export default function Account() {
       <div className="mb-7">
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Chain Abstraction</p>
         <h1 className="text-2xl font-semibold text-foreground">Universal Account</h1>
-        <p className="text-sm text-muted-foreground mt-1 font-mono">{shortAddr(address)}</p>
+        <CopyableAddress address={address} display={shortAddr(address)} className="text-sm text-muted-foreground mt-1 font-mono" />
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
           Your wallet is upgraded (EIP-7702) into one account that sees every chain's balance as a single pool of funds - no bridging, no manual swaps, no picking a network first.
         </p>

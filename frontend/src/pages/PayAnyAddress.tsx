@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, Send, Wallet } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, CreditCard, Send, Wallet } from 'lucide-react'
 import { BrowserProvider, isAddress } from 'ethers'
 import { useWallet } from '../context/WalletContext'
 import { getMagic } from '../lib/magic'
-import { createDirectCharge, type CheckoutResult } from '../lib/api'
+import { createDirectCharge, confirmDownPayment, type CheckoutResult } from '../lib/api'
+import { formatUSDC } from '../lib/format'
+import { payAmountCrossChain } from '../lib/universalAccount'
+import { ADDRESSES } from '../lib/contracts'
 
 const CYCLE_OPTIONS = [
   { label: 'Weekly', seconds: 604800 },
   { label: 'Monthly', seconds: 2592000 },
 ]
+
+const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
 
 export default function PayAnyAddress() {
   const { address, openConnect } = useWallet()
@@ -23,6 +28,12 @@ export default function PayAnyAddress() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // See Checkout.tsx for the same pattern: BNPL now finances only a fraction
+  // of the total, so an approval requires a separate down-payment step
+  // before a real charge exists.
+  const [downPaymentResult, setDownPaymentResult] = useState<{ chargeId: number; txHash: string } | null>(null)
+  const [payingDownPayment, setPayingDownPayment] = useState(false)
+  const [downPaymentError, setDownPaymentError] = useState<string | null>(null)
 
   const amountNum = Number(amount)
   const cyclesNum = Number(totalCycles)
@@ -62,6 +73,39 @@ export default function PayAnyAddress() {
     }
   }
 
+  async function handlePayDownPayment() {
+    if (!address || !result?.approved || !('requiresDownPayment' in result)) return
+    setPayingDownPayment(true)
+    setDownPaymentError(null)
+    try {
+      const downPaymentRaw = BigInt(Math.round(result.downPaymentUSD * 1_000_000))
+      const { destinationTxHash } = await payAmountCrossChain({
+        ownerAddress: address,
+        amountUSDC: downPaymentRaw,
+        settlementAddress: result.merchantAddress as `0x${string}`,
+        destinationChainId: UA_DESTINATION_CHAIN_ID,
+        destinationUsdcAddress: ADDRESSES.usdc,
+      })
+      if (!destinationTxHash) {
+        throw new Error('Universal Account transaction submitted, but no Arbitrum settlement hash was returned to confirm on-chain')
+      }
+      const confirmResult = await confirmDownPayment({
+        buyerAddress: address,
+        merchantAddress: result.merchantAddress,
+        chargeType: 0,
+        totalCycles: cyclesNum,
+        amountPerCycle: String(Math.round(amountNum * 1_000_000)),
+        cycleSeconds,
+        downPaymentTxHash: destinationTxHash,
+      })
+      setDownPaymentResult({ chargeId: confirmResult.chargeId, txHash: confirmResult.txHash })
+    } catch (err) {
+      setDownPaymentError(err instanceof Error ? err.message : 'Down payment failed')
+    } finally {
+      setPayingDownPayment(false)
+    }
+  }
+
   if (!address) {
     return (
       <div className="px-6 py-16 text-center">
@@ -77,7 +121,54 @@ export default function PayAnyAddress() {
     )
   }
 
-  if (result?.approved === true) {
+  if (downPaymentResult) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
+        <CheckCircle size={48} className="text-primary mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Charge Created</h2>
+        <p className="text-sm text-muted-foreground mb-1">Your down payment was confirmed - your BNPL charge for the financed remainder to {merchantAddress.slice(0, 6)}...{merchantAddress.slice(-4)} is now active on-chain.</p>
+        <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{downPaymentResult.chargeId}</p>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+        >
+          View Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  if (result?.approved === true && 'requiresDownPayment' in result) {
+    return (
+      <div className="px-6 py-16 flex flex-col items-center justify-center text-center max-w-md mx-auto">
+        <CreditCard size={48} className="text-primary mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Down Payment Required</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Settle finances {formatUSDC(BigInt(Math.round(result.financedAmountUSD * 1_000_000)))} of this payment via BNPL installments.
+          Pay the remaining <span className="font-mono text-foreground">{formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))}</span> now,
+          directly to {merchantAddress.slice(0, 6)}...{merchantAddress.slice(-4)}, to create your charge.
+        </p>
+        {downPaymentError && (
+          <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/40 rounded-sm p-3 mb-4 text-left">
+            <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+            <p className="text-xs text-red-400">{downPaymentError}</p>
+          </div>
+        )}
+        <button
+          onClick={handlePayDownPayment}
+          disabled={payingDownPayment}
+          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+        >
+          {payingDownPayment ? 'Paying…' : `Pay ${formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
+        </button>
+        <p className="text-[10px] text-muted-foreground text-center mt-3">
+          Transaction will be signed via your Universal Account on Arbitrum
+        </p>
+      </div>
+    )
+  }
+
+  if (result?.approved === true && !('requiresDownPayment' in result)) {
     return (
       <div className="px-6 py-16 flex flex-col items-center justify-center text-center">
         <CheckCircle size={48} className="text-primary mb-4" />
@@ -207,7 +298,7 @@ export default function PayAnyAddress() {
           <AlertCircle size={14} className="text-primary flex-shrink-0" />
           <p className="text-xs text-primary">
             {chargeType === 0
-              ? "BNPL doesn't require funds now - approval is based on your on-chain credit score."
+              ? "Approval is based on your on-chain credit score. Settle only finances a fraction of the amount (10-30%, based on your score) - you'll pay the rest as an upfront down payment if approved."
               : 'Approval is based on your on-chain wallet history.'}
           </p>
         </div>

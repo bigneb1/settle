@@ -46,7 +46,14 @@ export async function confirmChargePayment(chargeId: number, txHash: string): Pr
   return data
 }
 
-export async function confirmDcaBuy(planId: number, ownerAddress: string, transactionId: string): Promise<{ ok: true; planId: number; recordTxHash: string }> {
+export interface DcaAcquiredAsset {
+  symbol: string | null
+  amount: string | null
+  decimals: number | null
+  amountInUSD: string | null
+}
+
+export async function confirmDcaBuy(planId: number, ownerAddress: string, transactionId: string): Promise<{ ok: true; planId: number; recordTxHash: string; acquired: DcaAcquiredAsset | null }> {
   const res = await fetch(`${API_URL}/api/dca/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,6 +67,48 @@ export async function confirmDcaBuy(planId: number, ownerAddress: string, transa
 export type CheckoutResult =
   | { approved: true; chargeId: number; score: number; explanation: string; txHash: string }
   | { approved: false; score: number; explanation: string }
+  // BNPL only: Settle finances just a fraction of the price (10-30%, scaled
+  // by score) - the buyer must pay the rest as an upfront down payment to
+  // merchantAddress before a charge is created. See confirmDownPayment below.
+  | { approved: true; requiresDownPayment: true; merchantAddress: string; downPaymentUSD: number; financedAmountUSD: number; score: number; explanation: string }
+
+export interface DownPaymentConfirmResult {
+  approved: true
+  chargeId: number
+  score: number
+  txHash: string
+  downPaymentTxHash: string
+}
+
+/**
+ * Confirms a real on-chain BNPL down payment (a direct USDC transfer to the
+ * merchant's own address, sourced via Universal Account - see
+ * lib/universalAccount.ts's payAmountCrossChain) and creates the on-chain
+ * charge for the financed remainder. No signature needed here - the transfer
+ * itself, with its sender independently verified server-side to be
+ * buyerAddress, is the proof (same pattern as confirmChargePayment above) -
+ * unlike createCheckoutCharge/createDirectCharge's signed quote step, whose
+ * 300s freshness window a cross-chain transfer could easily outlast.
+ */
+export async function confirmDownPayment(params: {
+  buyerAddress: string
+  catalogItemId?: number
+  merchantAddress?: string
+  chargeType: 0
+  totalCycles: number
+  amountPerCycle?: string
+  cycleSeconds?: number
+  downPaymentTxHash: string
+}): Promise<DownPaymentConfirmResult> {
+  const res = await fetch(`${API_URL}/api/checkout/confirm-downpayment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  const data = await parseJsonResponse(res)
+  if (!res.ok) throw new Error(data.error || `Down payment confirmation failed (${res.status})`)
+  return data
+}
 
 /**
  * chargeType/totalCycles are the *effective* payment method for this
@@ -118,6 +167,7 @@ export interface MerchantOnboardingProduct {
   chargeType: 0 | 1
   totalCycles: number
   cycleSeconds: number
+  description: string
 }
 
 export async function submitMerchantOnboarding(payload: {
@@ -262,7 +312,7 @@ export async function connectExchangeAccount(
   apiKey: string,
   apiSecret: string,
   apiPass?: string,
-): Promise<{ ok: true }> {
+): Promise<{ ok: true; profile: CreditProfile }> {
   const { ts, signature } = await signProfileAction(address, 'connect_exchange')
   const res = await fetch(`${API_URL}/api/profile/exchange/connect`, {
     method: 'POST',
@@ -286,7 +336,7 @@ export async function disconnectExchangeAccount(address: string, exchange: Suppo
   return data
 }
 
-export async function syncExchangeAccount(address: string, exchange: SupportedExchange): Promise<{ ok: true }> {
+export async function syncExchangeAccount(address: string, exchange: SupportedExchange): Promise<{ ok: true; profile: CreditProfile }> {
   const { ts, signature } = await signProfileAction(address, 'sync_exchange')
   const res = await fetch(`${API_URL}/api/profile/exchange/sync`, {
     method: 'POST',

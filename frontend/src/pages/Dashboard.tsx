@@ -8,6 +8,7 @@ import { getBuyerCharges, ADDRESSES, type OnChainCharge } from '../lib/contracts
 import { payChargeCycleCrossChain } from '../lib/universalAccount'
 import { confirmChargePayment, getProfile } from '../lib/api'
 import { outstandingBnplPrincipal } from '../lib/creditLimit'
+import CopyableAddress from '../components/CopyableAddress'
 
 const CHARGE_TYPE_LABEL = ['BNPL', 'SUB']
 const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
@@ -58,6 +59,11 @@ export default function Dashboard() {
   const [sweepsError, setSweepsError] = useState<string | null>(null)
   const [creditScore, setCreditScore] = useState<number | null>(null)
   const [creditLimitUsdc, setCreditLimitUsdc] = useState<bigint | null>(null)
+  // What the buyer actually subscribed for - name/description of the catalog
+  // item behind a subscription charge, joined from Supabase's `charges`
+  // mirror table (which carries catalog_item_id; the on-chain struct itself
+  // doesn't). Keyed by charge id, subscriptions only.
+  const [catalogMeta, setCatalogMeta] = useState<Record<number, { name: string; description: string | null }>>({})
 
   // Guards against a rapid wallet switch: only the response matching the
   // address that's still current when it resolves is applied.
@@ -134,6 +140,40 @@ export default function Dashboard() {
     }
   }, [charges])
 
+  useEffect(() => {
+    let cancelled = false
+    const subscriptionIds = charges.filter(c => c.chargeType === 1).map(c => c.id)
+    if (subscriptionIds.length === 0) {
+      setCatalogMeta({})
+      return
+    }
+    supabase
+      .from('charges')
+      .select('id, catalog_items(name, description)')
+      .in('id', subscriptionIds)
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return
+        const map: Record<number, { name: string; description: string | null }> = {}
+        for (const row of data as unknown as { id: number; catalog_items: { name: string; description: string | null } | null }[]) {
+          if (row.catalog_items) map[row.id] = row.catalog_items
+        }
+        setCatalogMeta(map)
+      })
+    return () => { cancelled = true }
+  }, [charges])
+
+  // Payment status is what actually determines a subscriber's entitlement
+  // here - there's no separate access/fulfillment system, so this line makes
+  // that relationship explicit rather than leaving "Active" to be read as a
+  // pure billing label.
+  function subscriptionAccessLine(c: OnChainCharge): string {
+    if (c.status === 3) return 'Defaulted - access should be considered ended by the merchant'
+    if (c.status === 2) return 'Cancelled - access has ended'
+    if (c.status === 1) return 'Completed'
+    if (c.inGrace) return `Grace period - pay within ${formatGraceCountdown(c.graceEndsAt)} to keep access`
+    return 'Active - your access is current'
+  }
+
   async function handlePayNow(charge: OnChainCharge) {
     if (!address || !ADDRESSES.payoutRouter) return
     setPayingId(charge.id)
@@ -197,7 +237,7 @@ export default function Dashboard() {
       <div className="mb-7">
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Buyer</p>
         <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1 font-mono">{shortAddr(address)}</p>
+        <CopyableAddress address={address} display={shortAddr(address)} className="text-sm text-muted-foreground mt-1 font-mono" />
         {!uaConfigured && (
           <p className="text-xs text-warning mt-2">
             Particle Network credentials not configured - unified balance and cross-chain payments are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
@@ -271,7 +311,18 @@ export default function Dashboard() {
                           {CHARGE_TYPE_LABEL[c.chargeType]}
                         </span>
                       </td>
-                      <td className="font-mono text-xs">{shortAddr(c.merchant)}</td>
+                      <td className="font-mono text-xs">
+                        {shortAddr(c.merchant)}
+                        {c.chargeType === 1 && catalogMeta[c.id] && (
+                          <div className="mt-1 font-sans normal-case">
+                            <p className="text-foreground font-medium">{catalogMeta[c.id].name}</p>
+                            {catalogMeta[c.id].description && (
+                              <p className="text-muted-foreground text-[10px] leading-snug max-w-[16rem]">{catalogMeta[c.id].description}</p>
+                            )}
+                            <p className="text-muted-foreground text-[10px] mt-0.5">{subscriptionAccessLine(c)}</p>
+                          </div>
+                        )}
+                      </td>
                       <td className="font-mono">{formatUSDC(c.amountPerCycle)}</td>
                       <td className="font-mono text-xs">
                         {Number(c.totalCycles) === 0

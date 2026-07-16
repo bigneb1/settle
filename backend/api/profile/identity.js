@@ -20,6 +20,7 @@
 import { completeDevIdentityConnect, verifyAndDecodeState } from "../../src/devIdentity.js";
 import { verifyBuyerSignature } from "../../src/buyerAuth.js";
 import { supabaseAdmin } from "../../src/config.js";
+import { computeCreditProfile } from "../../src/creditProfileEngine.js";
 import { safeError } from "../../src/errors.js";
 import { json, corsPreflight } from "../../src/http.js";
 
@@ -64,7 +65,22 @@ export async function GET(req) {
 
   try {
     await completeDevIdentityConnect(provider, code, redirectUri, buyer);
-    return redirect(`/profile?connected=${provider}`);
+    // Recompute now (same bug class as the exchange-connect fix in
+    // profile/exchange.js's handleConnect) - otherwise credit_profiles stays
+    // stale until an explicit Sync or the once-daily cron. There's no
+    // "before" score to show a delta with here (this is a full-page OAuth
+    // redirect - any pre-connect score held in memory on the client is gone
+    // by the time this callback runs), so the new score is passed through
+    // the redirect for the frontend to show as an absolute value instead.
+    let newScore = null;
+    try {
+      const profile = await computeCreditProfile(buyer);
+      newScore = profile.overall_score;
+    } catch (err) {
+      console.error(`[profile/${provider}/callback] credit profile recompute failed:`, err.message);
+    }
+    const scoreParam = newScore !== null ? `&score=${newScore}` : "";
+    return redirect(`/profile?connected=${provider}${scoreParam}`);
   } catch (err) {
     safeError(`profile/${provider}/callback`, err, `${provider} connection failed`);
     return redirect(`/profile?connect_error=${encodeURIComponent(`${provider}_connect_failed`)}`);

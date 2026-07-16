@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { parseUnits } from 'viem'
+import { parseUnits, formatUnits } from 'viem'
 import { CHAIN_ID, type SUPPORTED_TOKEN_TYPE } from '@particle-network/universal-account-sdk'
 import { Loader2, Zap, TrendingUp, X, Wallet } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { getOwnerDcaPlans, createDcaPlan, cancelDcaPlan, type OnChainDcaPlan } from '../lib/contracts'
 import { executeDcaBuy, getConvertTargets, type ConvertTarget } from '../lib/universalAccount'
-import { confirmDcaBuy } from '../lib/api'
+import { confirmDcaBuy, type DcaAcquiredAsset } from '../lib/api'
 import { formatUSDC, shortHash, formatTs, formatCycleSeconds, DCA_STATUS_LABEL, DCA_STATUS_COLOR } from '../lib/format'
 
 const CYCLE_OPTIONS = [
@@ -43,7 +43,7 @@ export default function Dca() {
   const [createError, setCreateError] = useState<string | null>(null)
 
   const [executingId, setExecutingId] = useState<number | null>(null)
-  const [buyResult, setBuyResult] = useState<{ id: number; txId: string } | { id: number; error: string } | null>(null)
+  const [buyResult, setBuyResult] = useState<{ id: number; txId: string; acquired: DcaAcquiredAsset | null } | { id: number; error: string } | null>(null)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
 
   // Guards against a rapid wallet switch: only the response matching the
@@ -123,9 +123,9 @@ export default function Dca() {
 
       // Independently verified server-side via Particle's transaction status
       // before DCAPlan.recordBuyExecuted runs.
-      await confirmDcaBuy(plan.id, address, transactionId)
+      const { acquired } = await confirmDcaBuy(plan.id, address, transactionId)
 
-      setBuyResult({ id: plan.id, txId: transactionId })
+      setBuyResult({ id: plan.id, txId: transactionId, acquired })
       await Promise.all([refreshBalance(), loadPlans()])
     } catch (err) {
       console.error('[dca] buy execution failed', err)
@@ -361,7 +361,15 @@ export default function Dca() {
           </div>
         </div>
         {buyResult && 'txId' in buyResult && (
-          <p className="text-xs text-primary mt-2">Plan #{buyResult.id} bought via Universal Account - tx {shortHash(buyResult.txId)}</p>
+          <p className="text-xs text-primary mt-2">
+            Plan #{buyResult.id} bought via Universal Account
+            {buyResult.acquired?.amount && buyResult.acquired?.decimals != null ? (
+              <> - acquired <span className="font-mono">{formatUnits(BigInt(buyResult.acquired.amount), buyResult.acquired.decimals)} {buyResult.acquired.symbol ?? ''}</span>
+              {buyResult.acquired.amountInUSD && <> (${Number(buyResult.acquired.amountInUSD).toFixed(2)})</>} - tx {shortHash(buyResult.txId)}</>
+            ) : (
+              <> - tx {shortHash(buyResult.txId)}</>
+            )}
+          </p>
         )}
         {buyResult && 'error' in buyResult && (
           <p className="text-xs text-red-400 mt-2">Plan #{buyResult.id} buy failed: {buyResult.error}</p>

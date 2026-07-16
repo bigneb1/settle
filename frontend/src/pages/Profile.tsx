@@ -14,7 +14,7 @@ import { EXCHANGES, NEEDS_PASSPHRASE, ExchangeLogo } from '../lib/exchanges'
 import {
   getProfile, connectExchangeAccount, disconnectExchangeAccount, syncExchangeAccount,
   disconnectDevIdentity, getDevIdentityAuthorizeUrl,
-  type FullProfile, type SupportedExchange, type DevIdentityProvider, type ExchangeConnectionRow, type DevIdentityConnectionRow,
+  type FullProfile, type SupportedExchange, type DevIdentityProvider, type ExchangeConnectionRow, type DevIdentityConnectionRow, type CreditProfile,
 } from '../lib/api'
 
 // Real brand marks (@icons-pack/react-simple-icons, MIT) + each brand's own
@@ -44,7 +44,7 @@ function ScoreGauge({ score }: { score: number }) {
 function ConnectExchangeModal({ exchange, onClose, onConnected }: {
   exchange: SupportedExchange
   onClose: () => void
-  onConnected: () => void
+  onConnected: (profile: CreditProfile) => void
 }) {
   const { address } = useWallet()
   const [apiKey, setApiKey] = useState('')
@@ -66,8 +66,8 @@ function ConnectExchangeModal({ exchange, onClose, onConnected }: {
       // copy-paste (a stray newline/space copied along with the credential) -
       // these fields are password-masked, so the user can't visually catch
       // that themselves, and exchanges match passphrases/keys exactly.
-      await connectExchangeAccount(address, exchange, apiKey.trim(), apiSecret.trim(), needsPass ? apiPass.trim() : undefined)
-      onConnected()
+      const result = await connectExchangeAccount(address, exchange, apiKey.trim(), apiSecret.trim(), needsPass ? apiPass.trim() : undefined)
+      onConnected(result.profile)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')
     } finally {
@@ -329,7 +329,27 @@ export default function Profile() {
   const [tab, setTab] = useState<'credit' | 'card'>('credit')
   const [searchParams, setSearchParams] = useSearchParams()
   const [outstandingBnplUsdc, setOutstandingBnplUsdc] = useState<bigint>(0n)
+  const [scoreMessage, setScoreMessage] = useState<string | null>(null)
   const latestAddressRequested = useRef<string | null>(null)
+
+  // Connecting/syncing an exchange used to give no feedback at all about
+  // whether the score actually moved - this makes the result explicit every
+  // time, including when a freshly-connected account legitimately barely
+  // changes anything (see creditProfileEngine.js's per-exchange caps).
+  function announceScoreChange(oldScore: number | undefined, newScore: number, source: string) {
+    if (oldScore == null) {
+      setScoreMessage(`${source} connected. Your credit score is now ${newScore}.`)
+      return
+    }
+    const delta = newScore - oldScore
+    if (delta > 0) {
+      setScoreMessage(`${source} connected. Your credit score rose from ${oldScore} to ${newScore} (+${delta}).`)
+    } else if (delta < 0) {
+      setScoreMessage(`${source} connected. Your credit score changed from ${oldScore} to ${newScore} (${delta}).`)
+    } else {
+      setScoreMessage(`${source} connected. Your credit score is unchanged for now (${newScore}) - it may take more balance/trade/account history on this account to move it.`)
+    }
+  }
 
   const load = async () => {
     if (!address) return
@@ -350,6 +370,7 @@ export default function Profile() {
 
   useEffect(() => {
     load()
+    setScoreMessage(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address])
 
@@ -369,12 +390,23 @@ export default function Profile() {
   }, [address])
 
   // Surface OAuth callback results (redirected here from the backend with
-  // ?connected=github or ?connect_error=...), then clean the URL.
+  // ?connected=github&score=712 or ?connect_error=...), then clean the URL.
+  // There's no "before" score to diff against here - this is a full-page
+  // OAuth redirect, so anything held in memory pre-redirect is gone by the
+  // time this runs - the backend computes the fresh score and passes it
+  // through the redirect instead (see api/profile/identity.js).
   useEffect(() => {
     const connected = searchParams.get('connected')
     const connectError = searchParams.get('connect_error')
+    const scoreParam = searchParams.get('score')
     if (connected || connectError) {
-      if (connected) load()
+      if (connected) {
+        const label = DEV_PROVIDERS.find(p => p.key === connected)?.label ?? connected
+        if (scoreParam !== null && Number.isFinite(Number(scoreParam))) {
+          announceScoreChange(undefined, Number(scoreParam), label)
+        }
+        load()
+      }
       setSearchParams({}, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -397,7 +429,10 @@ export default function Profile() {
     if (!address) return
     setBusyKey(exchange)
     try {
-      await syncExchangeAccount(address, exchange)
+      const oldScore = profile?.creditProfile.overall_score
+      const result = await syncExchangeAccount(address, exchange)
+      const label = EXCHANGES.find(e => e.key === exchange)?.label ?? exchange
+      announceScoreChange(oldScore, result.profile.overall_score, label)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
@@ -499,6 +534,12 @@ export default function Profile() {
         <CardTab />
       ) : (
         <>
+          {scoreMessage && (
+            <div className="flex items-start justify-between gap-3 bg-primary-subtle border border-primary/20 rounded-sm p-3 mb-6">
+              <p className="text-xs text-primary">{scoreMessage}</p>
+              <button onClick={() => setScoreMessage(null)} className="text-primary/60 hover:text-primary text-xs flex-shrink-0">Dismiss</button>
+            </div>
+          )}
           {/* Credit score summary */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
             <div className="bg-card border border-border rounded-sm p-5 flex flex-col items-center">
@@ -636,7 +677,12 @@ export default function Profile() {
         <ConnectExchangeModal
           exchange={connectModal}
           onClose={() => setConnectModal(null)}
-          onConnected={() => { setConnectModal(null); load() }}
+          onConnected={(newProfile) => {
+            const label = EXCHANGES.find(e => e.key === connectModal)?.label ?? connectModal
+            announceScoreChange(profile?.creditProfile.overall_score, newProfile.overall_score, label)
+            setConnectModal(null)
+            load()
+          }}
         />
       )}
     </div>

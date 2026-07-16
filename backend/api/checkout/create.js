@@ -122,6 +122,7 @@ export async function POST(req) {
   }
 
   let approved, score, explanation;
+  let downPaymentInfo = null; // set only for approved BNPL charges - see below
   try {
     if (chargeType === 0) {
       const totalPriceUSD = Number(amountPerCycle * (totalCycles > 0n ? totalCycles : 1n)) / 1e6;
@@ -131,11 +132,18 @@ export async function POST(req) {
       // base 5-signal calculation, never lower it - getEffectiveCreditLimit()
       // guarantees that. Falls back to the base limit if no profile exists yet.
       const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
-      // evaluateBNPL's own `approved` is score-only and does NOT compare
-      // requestedAmount against `limit` internally - enforce the cap here.
-      approved = result.approved && totalPriceUSD * 1_000_000 <= effectiveLimit;
+      // Settle only ever finances a fraction of the price via BNPL (10-30%,
+      // scaled by score - see computeFinanceableFraction) - the buyer pays
+      // the rest as an upfront down payment before a charge is created (see
+      // checkout/confirm-downpayment.js). The limit check is against the
+      // financed portion only, since that's the only part Settle is
+      // actually fronting exposure on.
+      const financedAmountUSD = totalPriceUSD * result.financeableFraction;
+      const downPaymentUSD = totalPriceUSD - financedAmountUSD;
+      approved = result.approved && financedAmountUSD * 1_000_000 <= effectiveLimit;
       score = result.score;
       explanation = result.explanation || "";
+      if (approved) downPaymentInfo = { downPaymentUSD, financedAmountUSD };
     } else {
       const monthlyAmountUSD = Number(amountPerCycle) / 1e6;
       const result = await evaluateSubscription(buyerAddress, monthlyAmountUSD);
@@ -149,6 +157,23 @@ export async function POST(req) {
 
   if (!approved) {
     return json({ approved: false, score, explanation }, 200);
+  }
+
+  if (downPaymentInfo) {
+    // BNPL: don't create the on-chain charge yet - the buyer must pay the
+    // down payment first. checkout/confirm-downpayment.js independently
+    // re-runs this exact same underwriting/financing math (nothing here is
+    // persisted) and verifies a real on-chain transfer before creating the
+    // charge for the financed remainder.
+    return json({
+      approved: true,
+      requiresDownPayment: true,
+      merchantAddress: item.merchant,
+      downPaymentUSD: downPaymentInfo.downPaymentUSD,
+      financedAmountUSD: downPaymentInfo.financedAmountUSD,
+      score,
+      explanation,
+    }, 200);
   }
 
   let tx, receipt;

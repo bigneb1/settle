@@ -121,6 +121,7 @@ export async function POST(req) {
   }
 
   let approved, score, explanation;
+  let downPaymentInfo = null; // set only for approved BNPL charges - see below
   try {
     if (chargeType === 0) {
       const totalPriceUSD = Number(amountPerCycle * totalCycles) / 1e6;
@@ -128,9 +129,15 @@ export async function POST(req) {
       // See checkout/create.js for the same pattern - only ever raises the
       // limit above the base 5-signal calculation, never lowers it.
       const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
-      approved = result.approved && totalPriceUSD * 1_000_000 <= effectiveLimit;
+      // See checkout/create.js: Settle only ever finances a fraction of the
+      // price via BNPL - the buyer pays the rest as an upfront down payment
+      // to merchantAddress before a charge is created.
+      const financedAmountUSD = totalPriceUSD * result.financeableFraction;
+      const downPaymentUSD = totalPriceUSD - financedAmountUSD;
+      approved = result.approved && financedAmountUSD * 1_000_000 <= effectiveLimit;
       score = result.score;
       explanation = result.explanation || "";
+      if (approved) downPaymentInfo = { downPaymentUSD, financedAmountUSD };
     } else {
       const monthlyAmountUSD = Number(amountPerCycle) / 1e6;
       const result = await evaluateSubscription(buyerAddress, monthlyAmountUSD);
@@ -144,6 +151,20 @@ export async function POST(req) {
 
   if (!approved) {
     return json({ approved: false, score, explanation }, 200);
+  }
+
+  if (downPaymentInfo) {
+    // BNPL: don't create the on-chain charge yet - see
+    // checkout/confirm-downpayment.js, same pattern as checkout/create.js.
+    return json({
+      approved: true,
+      requiresDownPayment: true,
+      merchantAddress,
+      downPaymentUSD: downPaymentInfo.downPaymentUSD,
+      financedAmountUSD: downPaymentInfo.financedAmountUSD,
+      score,
+      explanation,
+    }, 200);
   }
 
   let tx, receipt;

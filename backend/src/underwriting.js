@@ -114,14 +114,33 @@ async function computeCreditScore(buyerAddress) {
   };
 }
 
+// Settle only ever finances a fraction of an item's price via BNPL - the
+// buyer pays the rest as an upfront down payment (see checkout/create.js and
+// checkout/confirm-downpayment.js). The financeable fraction scales linearly
+// with score across the same [580, 850] range the limit formula already
+// uses, so a marginally-approved buyer finances the smallest slice (10%,
+// i.e. a 90% down payment) and a top-scoring buyer finances the largest
+// (30%, a 70% down payment) - this caps Settle's/the merchant's exposure per
+// purchase instead of ever fronting the full price.
+const MIN_FINANCEABLE_FRACTION = 0.10;
+const MAX_FINANCEABLE_FRACTION = 0.30;
+const BNPL_APPROVAL_SCORE = 580;
+const MAX_SCORE = 850;
+
+export function computeFinanceableFraction(score) {
+  const t = Math.min(Math.max((score - BNPL_APPROVAL_SCORE) / (MAX_SCORE - BNPL_APPROVAL_SCORE), 0), 1);
+  return MIN_FINANCEABLE_FRACTION + t * (MAX_FINANCEABLE_FRACTION - MIN_FINANCEABLE_FRACTION);
+}
+
 /**
- * BNPL approval decision. Returns { approved, limit, score, explanation }.
+ * BNPL approval decision. Returns { approved, limit, score, explanation, financeableFraction }.
  */
 export async function evaluateBNPL(buyerAddress, requestedAmount) {
   const { score, signals, txCount } = await computeCreditScore(buyerAddress);
 
   const approved = score >= 580;
   const limit = approved ? Math.round((score - 300) / 550 * 2000) * 1_000_000 : 0; // max $2000 in USDC 6-dec
+  const financeableFraction = approved ? computeFinanceableFraction(score) : 0;
 
   // Use GLM for plain-language explanation of borderline decisions.
   // Approval is score-based; the explanation is frosting - a GLM failure falls
@@ -143,7 +162,7 @@ export async function evaluateBNPL(buyerAddress, requestedAmount) {
     }
   }
 
-  return { approved, limit, score, signals, explanation };
+  return { approved, limit, score, signals, explanation, financeableFraction };
 }
 
 /**

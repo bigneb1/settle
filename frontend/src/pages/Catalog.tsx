@@ -147,7 +147,10 @@ export default function Catalog() {
                       <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning uppercase tracking-widest">Demo</span>
                     )}
                   </p>
-                  <h3 className="text-foreground font-semibold text-sm mb-3 leading-snug">{item.name}</h3>
+                  <h3 className="text-foreground font-semibold text-sm mb-1.5 leading-snug">{item.name}</h3>
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground mb-3 leading-snug line-clamp-2">{item.description}</p>
+                  )}
                   <div className="flex items-baseline gap-1 mb-1">
                     <span className="text-xl font-mono font-bold text-foreground">{formatUSDC(price)}</span>
                     <span className="text-xs text-muted-foreground">/{item.period}</span>
@@ -165,6 +168,7 @@ export default function Catalog() {
                         period: item.period,
                         type: item.charge_type,
                         totalCycles: item.total_cycles,
+                        description: item.description,
                       },
                     },
                   })}

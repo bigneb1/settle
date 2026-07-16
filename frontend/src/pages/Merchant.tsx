@@ -7,6 +7,7 @@ import { useWallet } from '../context/WalletContext'
 import { getMerchantStats, getMerchantSubscriptionCharges, configureMerchantPayout, type MerchantStats, type OnChainCharge } from '../lib/contracts'
 import { supabase, type MerchantPayoutRow } from '../lib/supabase'
 import { submitMerchantOnboarding, type MerchantOnboardingProduct } from '../lib/api'
+import CopyableAddress from '../components/CopyableAddress'
 
 function CustomTooltip({ active, payload, label }: TooltipContentProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null
@@ -51,7 +52,7 @@ const STEPS = [
 ]
 
 function emptyProduct(): MerchantOnboardingProduct {
-  return { name: '', category: '', price: '', period: 'monthly', chargeType: 1, totalCycles: 0, cycleSeconds: 2592000 }
+  return { name: '', category: '', price: '', period: 'monthly', chargeType: 1, totalCycles: 0, cycleSeconds: 2592000, description: '' }
 }
 
 function OnboardingWizard({ address, onRegistered }: { address: string; onRegistered: () => void }) {
@@ -326,6 +327,14 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
                     />
                   )}
                 </div>
+                <textarea
+                  value={p.description}
+                  onChange={e => updateProduct(i, { description: e.target.value.slice(0, 500) })}
+                  placeholder="What does the buyer get? (shown on the catalog listing and at checkout)"
+                  rows={2}
+                  maxLength={500}
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors resize-none"
+                />
                 {productError(p) && <p className="text-[10px] text-destructive">{productError(p)}</p>}
               </div>
             ))}
@@ -507,7 +516,7 @@ export default function Merchant() {
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Merchant</p>
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1 font-mono">{shortAddr(address)}</p>
+          <CopyableAddress address={address} display={shortAddr(address)} className="text-sm text-muted-foreground mt-1 font-mono" />
         </div>
         {stats && (
           <div className="text-right">

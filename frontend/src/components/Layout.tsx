@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import SettleLogo from './SettleLogo'
 import ThemeSwitcher from './ThemeSwitcher'
+import CopyableAddress from './CopyableAddress'
 import { shortAddr } from '../lib/format'
 import { logout } from '../lib/magic'
 import { useWallet } from '../context/WalletContext'
@@ -99,7 +100,7 @@ function Sidebar({ wallet, onConnect, onLogout, onClose, collapsed, onToggleColl
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                <span className="font-mono text-xs text-foreground truncate">{shortAddr(wallet)}</span>
+                <CopyableAddress address={wallet} display={shortAddr(wallet)} className="font-mono text-xs text-foreground" />
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-muted-foreground">Arbitrum</span>
@@ -192,12 +193,13 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
-            <button
-              onClick={openConnect}
-              className="text-xs text-primary flex items-center gap-1"
-            >
-              {wallet ? <span className="font-mono">{shortAddr(wallet)}</span> : <><Wallet size={12} /> Connect</>}
-            </button>
+            {wallet ? (
+              <CopyableAddress address={wallet} display={shortAddr(wallet)} className="text-xs text-primary font-mono" />
+            ) : (
+              <button onClick={openConnect} className="text-xs text-primary flex items-center gap-1">
+                <Wallet size={12} /> Connect
+              </button>
+            )}
           </div>
         </header>
 
