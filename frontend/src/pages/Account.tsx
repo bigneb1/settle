@@ -15,7 +15,7 @@ function formatAmount(n: number): string {
 }
 
 export default function Account() {
-  const { address, balance, balanceLoading, uaConfigured, refreshBalance, openConnect } = useWallet()
+  const { address, balance, balanceLoading, balanceError, uaConfigured, refreshBalance, openConnect } = useWallet()
   const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
 
   const convertTargets = getConvertTargets()
@@ -90,6 +90,12 @@ export default function Account() {
             Particle Network credentials not configured - unified balance and conversion are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
           </p>
         )}
+        {uaConfigured && balanceError && (
+          <p className="text-xs text-destructive mt-2">
+            Couldn't load your Universal Account balance - {balanceError}. This means the fetch itself failed (e.g. a
+            misconfigured Particle project), not that you have no balance.
+          </p>
+        )}
       </div>
 
       {/* Unified balance hero */}
@@ -106,7 +112,7 @@ export default function Account() {
           </button>
         </div>
         <p className="text-3xl font-mono font-bold text-foreground">
-          {balanceLoading ? <Loader2 size={22} className="animate-spin" /> : balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-'}
+          {balanceLoading ? <Loader2 size={22} className="animate-spin" /> : balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : balanceError ? <span className="text-lg text-destructive">Error</span> : '-'}
         </p>
         <p className="text-xs text-muted-foreground mt-1">Across every chain your balance sits on - sourced automatically for payments, DCA, and conversions below.</p>
       </div>
@@ -118,7 +124,7 @@ export default function Account() {
         </p>
         {!balance || balance.assets.length === 0 ? (
           <div className="bg-card border border-border rounded-sm p-6 text-center text-xs text-muted-foreground">
-            {balanceLoading ? 'Loading balances…' : uaConfigured ? 'No balances found on any supported chain.' : 'Connect Particle Network credentials to see your unified balance.'}
+            {balanceLoading ? 'Loading balances…' : balanceError ? `Couldn't load balances - ${balanceError}` : uaConfigured ? 'No balances found on any supported chain.' : 'Connect Particle Network credentials to see your unified balance.'}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -294,16 +294,44 @@ export interface FullProfile {
   devIdentityConnections: DevIdentityConnectionRow[]
 }
 
-export async function getProfile(address: string): Promise<FullProfile> {
-  const { ts, signature } = await signProfileAction(address, 'get_profile')
-  const res = await fetch(`${API_URL}/api/profile/get`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyer: address, ts, signature }),
-  })
-  const data = await parseJsonResponse(res)
-  if (!res.ok) throw new Error(data.error || `Could not load profile (${res.status})`)
-  return data
+// Every profile/get call requires a fresh EIP-191 signature (see
+// signProfileAction above) - without this cache, every page that shows
+// credit-score/limit data (Catalog, Checkout, Dashboard, Profile) triggers a
+// wallet-signing prompt on every single mount, i.e. on every navigation to
+// any of them. Caching the promise (not just the resolved value) also
+// dedupes near-simultaneous calls from multiple components mounting at once
+// into a single signature request. `force: true` bypasses the cache for
+// callers that just changed the profile server-side and need it reflected
+// immediately (see Profile.tsx's post-action refreshes).
+let profileCache: { address: string; cachedAt: number; promise: Promise<FullProfile> } | null = null
+const PROFILE_CACHE_TTL_MS = 120_000
+
+export async function getProfile(address: string, opts?: { force?: boolean }): Promise<FullProfile> {
+  const addrLower = address.toLowerCase()
+  const isFresh = !!profileCache && profileCache.address === addrLower && Date.now() - profileCache.cachedAt < PROFILE_CACHE_TTL_MS
+  if (!opts?.force && isFresh) return profileCache!.promise
+
+  const fetchPromise = (async () => {
+    const { ts, signature } = await signProfileAction(address, 'get_profile')
+    const res = await fetch(`${API_URL}/api/profile/get`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buyer: address, ts, signature }),
+    })
+    const data = await parseJsonResponse(res)
+    if (!res.ok) throw new Error(data.error || `Could not load profile (${res.status})`)
+    return data as FullProfile
+  })()
+
+  profileCache = { address: addrLower, cachedAt: Date.now(), promise: fetchPromise }
+  try {
+    return await fetchPromise
+  } catch (err) {
+    // Don't leave a rejected promise cached - a transient failure shouldn't
+    // poison every call for the rest of the TTL window.
+    if (profileCache?.promise === fetchPromise) profileCache = null
+    throw err
+  }
 }
 
 export async function connectExchangeAccount(

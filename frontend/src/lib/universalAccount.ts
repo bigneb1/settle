@@ -56,15 +56,16 @@ export function getUniversalAccount(ownerAddress: string): UniversalAccount {
   return uaInstance
 }
 
-/** Unified cross-chain balance for the connected buyer. */
-export async function getUnifiedBalance(ownerAddress: string): Promise<IAssetsResponse | null> {
-  try {
-    const ua = getUniversalAccount(ownerAddress)
-    return await ua.getPrimaryAssets()
-  } catch (err) {
-    console.error('[UA] getPrimaryAssets failed', err)
-    return null
-  }
+/**
+ * Unified cross-chain balance for the connected buyer. Lets failures
+ * propagate (rather than swallowing them here) so the caller - WalletContext
+ * - can distinguish "still loading"/"genuinely zero" from "the fetch itself
+ * failed" (e.g. misconfigured Particle credentials) and surface that
+ * distinction in the UI instead of a silent, indistinguishable "-".
+ */
+export async function getUnifiedBalance(ownerAddress: string): Promise<IAssetsResponse> {
+  const ua = getUniversalAccount(ownerAddress)
+  return ua.getPrimaryAssets()
 }
 
 /**

@@ -351,13 +351,18 @@ export default function Profile() {
     }
   }
 
-  const load = async () => {
+  // force=true bypasses getProfile's client-side cache (see lib/api.ts) - used
+  // after any action that actually changes the profile server-side (connect/
+  // sync/disconnect, OAuth return) and by the manual Refresh/Retry buttons.
+  // The plain address-change load below deliberately does NOT force - a
+  // cache hit there is the fix (instant, no re-signing), not a bug.
+  const load = async (opts?: { force?: boolean }) => {
     if (!address) return
     latestAddressRequested.current = address
     setLoading(true)
     setError(null)
     try {
-      const data = await getProfile(address)
+      const data = await getProfile(address, opts)
       if (latestAddressRequested.current !== address) return
       setProfile(data)
     } catch (err) {
@@ -405,7 +410,7 @@ export default function Profile() {
         if (scoreParam !== null && Number.isFinite(Number(scoreParam))) {
           announceScoreChange(undefined, Number(scoreParam), label)
         }
-        load()
+        load({ force: true })
       }
       setSearchParams({}, { replace: true })
     }
@@ -417,7 +422,7 @@ export default function Profile() {
     setBusyKey(exchange)
     try {
       await disconnectExchangeAccount(address, exchange)
-      await load()
+      await load({ force: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Disconnect failed')
     } finally {
@@ -433,7 +438,7 @@ export default function Profile() {
       const result = await syncExchangeAccount(address, exchange)
       const label = EXCHANGES.find(e => e.key === exchange)?.label ?? exchange
       announceScoreChange(oldScore, result.profile.overall_score, label)
-      await load()
+      await load({ force: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
     } finally {
@@ -452,7 +457,7 @@ export default function Profile() {
     setBusyKey(provider)
     try {
       await disconnectDevIdentity(address, provider)
-      await load()
+      await load({ force: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Disconnect failed')
     } finally {
@@ -488,7 +493,7 @@ export default function Profile() {
       <div className="px-6 py-16 text-center">
         <AlertCircle size={32} className="mx-auto mb-3 text-destructive" />
         <p className="text-sm text-destructive mb-4">{error}</p>
-        <button onClick={load} className="bg-card border border-border text-foreground text-sm px-4 py-2 rounded-sm hover:border-primary/40 transition-colors">Retry</button>
+        <button onClick={() => load({ force: true })} className="bg-card border border-border text-foreground text-sm px-4 py-2 rounded-sm hover:border-primary/40 transition-colors">Retry</button>
       </div>
     )
   }
@@ -504,7 +509,7 @@ export default function Profile() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Identity & Credit</p>
           <h1 className="text-2xl font-semibold text-foreground">Profile</h1>
         </div>
-        <button onClick={load} disabled={loading} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors">
+        <button onClick={() => load({ force: true })} disabled={loading} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors">
           {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Refresh
         </button>
       </div>
@@ -681,7 +686,7 @@ export default function Profile() {
             const label = EXCHANGES.find(e => e.key === connectModal)?.label ?? connectModal
             announceScoreChange(profile?.creditProfile.overall_score, newProfile.overall_score, label)
             setConnectModal(null)
-            load()
+            load({ force: true })
           }}
         />
       )}

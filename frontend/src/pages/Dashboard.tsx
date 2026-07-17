@@ -46,7 +46,7 @@ function ScoreGauge({ score }: { score: number | null }) {
 }
 
 export default function Dashboard() {
-  const { address, balance, balanceLoading, uaConfigured, refreshBalance, openConnect } = useWallet()
+  const { address, balance, balanceLoading, balanceError, uaConfigured, refreshBalance, openConnect } = useWallet()
   // UA cross-chain settlement is available when Particle credentials are set and
   // the destination chain is the supported mainnet (Arbitrum One, 42161).
   const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
@@ -214,7 +214,7 @@ export default function Dashboard() {
     { label: 'Total Cycles Paid', value: charges.reduce((a, c) => a + Number(c.cyclesCompleted), 0).toString(), icon: DollarSign },
     { label: 'Credit Score', value: null, icon: null },
     { label: 'Available BNPL Credit', value: availableBnplUsdc !== null ? formatUSDC(availableBnplUsdc) : '-', icon: CreditCard },
-    { label: 'Unified Balance', value: balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : '-', icon: CreditCard },
+    { label: 'Unified Balance', value: balance ? `$${balance.totalAmountInUSD.toFixed(2)}` : balanceError ? 'Error' : '-', icon: CreditCard },
   ]
 
   if (!address) {
@@ -241,6 +241,12 @@ export default function Dashboard() {
         {!uaConfigured && (
           <p className="text-xs text-warning mt-2">
             Particle Network credentials not configured - unified balance and cross-chain payments are disabled. Set VITE_PARTICLE_PROJECT_ID/CLIENT_KEY/APP_ID.
+          </p>
+        )}
+        {uaConfigured && balanceError && (
+          <p className="text-xs text-destructive mt-2">
+            Couldn't load your Universal Account balance - {balanceError}. This means the fetch itself failed (e.g. a
+            misconfigured Particle project), not that you have no balance.
           </p>
         )}
       </div>

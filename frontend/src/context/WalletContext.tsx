@@ -7,6 +7,10 @@ interface WalletContextValue {
   address: string | null
   balance: IAssetsResponse | null
   balanceLoading: boolean
+  /** Set when the Universal Account balance fetch itself failed (e.g. a
+   * misconfigured Particle project) - distinct from balance simply being
+   * null because it hasn't loaded yet or because it's genuinely zero. */
+  balanceError: string | null
   uaConfigured: boolean
   connect: (address: string) => void
   disconnect: () => void
@@ -21,6 +25,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<IAssetsResponse | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
+  const [balanceError, setBalanceError] = useState<string | null>(null)
   const [uaConfigured, setUaConfigured] = useState(false)
   const [showConnect, setShowConnect] = useState(false)
   // lib/universalAccount.ts statically imports the full Particle Universal
@@ -49,8 +54,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const mod = await loadUaModule()
     if (!mod.isUniversalAccountConfigured()) return
     setBalanceLoading(true)
+    setBalanceError(null)
     try {
       setBalance(await mod.getUnifiedBalance(address))
+    } catch (err) {
+      console.error('[WalletContext] Universal Account balance fetch failed', err)
+      setBalance(null)
+      setBalanceError(err instanceof Error ? err.message : 'Could not load Universal Account balance')
     } finally {
       setBalanceLoading(false)
     }
@@ -79,12 +89,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const disconnect = useCallback(() => {
     setAddress(null)
     setBalance(null)
+    setBalanceError(null)
   }, [])
   const openConnect = useCallback(() => setShowConnect(true), [])
 
   return (
     <WalletContext.Provider
-      value={{ address, balance, balanceLoading, uaConfigured, connect, disconnect, refreshBalance, openConnect }}
+      value={{ address, balance, balanceLoading, balanceError, uaConfigured, connect, disconnect, refreshBalance, openConnect }}
     >
       {children}
       {showConnect && !address && (
