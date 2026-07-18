@@ -297,6 +297,41 @@ export function getConvertTargets(): ConvertTarget[] {
   }))
 }
 
+export interface SendResult {
+  transactionId: string
+}
+
+/**
+ * Sends `amount` of the token at (chainId, tokenAddress) directly to an
+ * arbitrary `receiver` - funds are sourced automatically from wherever the
+ * buyer's balance currently sits, same automatic sourcing as convertAsset/
+ * executeDcaBuy. Unlike payAmountCrossChain (always settles to Settle's own
+ * PayoutRouter for a charge) or convertAsset (always lands back in the
+ * buyer's own account), this is a plain peer-to-peer transfer to any wallet.
+ */
+export async function sendAsset(params: {
+  ownerAddress: string
+  chainId: number
+  tokenAddress: string
+  amount: string // human-readable units of the token being sent away
+  receiver: string
+}): Promise<SendResult> {
+  const { ownerAddress, chainId, tokenAddress, amount, receiver } = params
+  const ua = getUniversalAccount(ownerAddress)
+
+  const transaction = await ua.createTransferTransaction({
+    token: { chainId, address: tokenAddress },
+    amount,
+    receiver,
+  })
+
+  if (!transaction) throw new Error('Universal Account could not construct a route for this transfer')
+
+  const result = await submitUaTransaction(ua, transaction)
+  if (import.meta.env.DEV) console.log(`[UA] send submitted: ${result.transactionId}`)
+  return result
+}
+
 export interface ConvertResult {
   transactionId: string
 }

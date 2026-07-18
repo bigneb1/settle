@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { SUPPORTED_TOKEN_TYPE } from '@particle-network/universal-account-sdk'
-import { Loader2, Layers, ArrowLeftRight, RefreshCw, Wallet } from 'lucide-react'
+import { isAddress } from 'ethers'
+import { Loader2, Layers, ArrowLeftRight, RefreshCw, Send, Wallet } from 'lucide-react'
 import { useWallet } from '../context/WalletContext'
 import { shortAddr, shortHash } from '../lib/format'
-import { convertAsset, getConvertTargets, getChainLabel, type ConvertTarget } from '../lib/universalAccount'
+import { convertAsset, sendAsset, getConvertTargets, getChainLabel, type ConvertTarget } from '../lib/universalAccount'
 import CopyableAddress from '../components/CopyableAddress'
 
 const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
@@ -58,6 +59,56 @@ export default function Account() {
       setConvertResult({ error: err instanceof Error ? err.message : 'Conversion failed' })
     } finally {
       setConverting(false)
+    }
+  }
+
+  // Independent form state from Convert above - selecting an asset/chain to
+  // send shouldn't also change what Convert has selected, and vice versa.
+  const [sendType, setSendType] = useState<SUPPORTED_TOKEN_TYPE>(tokenTypes[0])
+  const sendTargetsForType = convertTargets.filter(t => t.type === sendType)
+  const [sendChainId, setSendChainId] = useState<number>(sendTargetsForType[0]?.chainId)
+  const [sendAmount, setSendAmount] = useState('')
+  const [recipient, setRecipient] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendResult, setSendResult] = useState<{ txId: string } | { error: string } | null>(null)
+
+  function selectSendType(type: SUPPORTED_TOKEN_TYPE) {
+    setSendType(type)
+    const first = convertTargets.find(t => t.type === type)
+    setSendChainId(first?.chainId ?? 0)
+  }
+
+  const recipientTrimmed = recipient.trim()
+  const recipientValid = isAddress(recipientTrimmed)
+  const recipientIsSelf = recipientValid && !!address && recipientTrimmed.toLowerCase() === address.toLowerCase()
+  const sendAmountNum = Number(sendAmount)
+  const sendAmountValid = sendAmountNum > 0 && Number.isFinite(sendAmountNum)
+  const canSend = recipientValid && !recipientIsSelf && sendAmountValid && !!sendChainId
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault()
+    if (!address || !canSend) return
+    const sendTarget = sendTargetsForType.find(t => t.chainId === sendChainId)
+    if (!sendTarget) return
+    setSending(true)
+    setSendResult(null)
+    try {
+      const { transactionId } = await sendAsset({
+        ownerAddress: address,
+        chainId: sendChainId,
+        tokenAddress: sendTarget.address,
+        amount: sendAmount,
+        receiver: recipientTrimmed,
+      })
+      setSendResult({ txId: transactionId })
+      setRecipient('')
+      setSendAmount('')
+      await refreshBalance()
+    } catch (err) {
+      console.error('[account] send failed', err)
+      setSendResult({ error: err instanceof Error ? err.message : 'Send failed' })
+    } finally {
+      setSending(false)
     }
   }
 
@@ -149,6 +200,104 @@ export default function Account() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Send */}
+      <div className="mb-8">
+        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+          <Send size={12} /> Send <span className="flex-1 h-px bg-border" />
+        </p>
+        <div className="bg-card border border-border rounded-sm p-5 max-w-xl">
+          <p className="text-xs text-muted-foreground mb-4">
+            Send any asset you hold to another wallet address - funds are sourced automatically from wherever they currently sit, same as Convert.
+          </p>
+          <form onSubmit={handleSend} className="space-y-4">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Asset</label>
+              <div className="flex flex-wrap gap-2">
+                {tokenTypes.map(type => (
+                  <button
+                    type="button"
+                    key={type}
+                    onClick={() => selectSendType(type)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-sm border transition-colors uppercase ${
+                      sendType === type
+                        ? 'bg-primary text-black border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">On chain</label>
+                <select
+                  value={sendChainId}
+                  onChange={e => setSendChainId(Number(e.target.value))}
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                >
+                  {sendTargetsForType.map((t: ConvertTarget) => (
+                    <option key={`${t.type}-${t.chainId}`} value={t.chainId}>{t.chainLabel}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Amount to send</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={sendAmount}
+                  onChange={e => setSendAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Recipient Address</label>
+              <input
+                type="text"
+                value={recipient}
+                onChange={e => setRecipient(e.target.value.trim())}
+                placeholder="0x..."
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm font-mono text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+              />
+              {recipient.length > 0 && !recipientValid && (
+                <p className="text-xs text-destructive mt-1.5">Not a valid wallet address</p>
+              )}
+              {recipientIsSelf && (
+                <p className="text-xs text-destructive mt-1.5">This is your own connected address</p>
+              )}
+            </div>
+
+            {canSend && (
+              <p className="text-xs text-muted-foreground bg-background border border-border rounded-sm p-3">
+                You're about to send <span className="font-mono text-foreground">{sendAmount} {sendType.toUpperCase()}</span> on{' '}
+                {sendTargetsForType.find(t => t.chainId === sendChainId)?.chainLabel} to{' '}
+                <span className="font-mono text-foreground">{shortAddr(recipientTrimmed)}</span>.
+              </p>
+            )}
+
+            {sendResult && 'error' in sendResult && <p className="text-xs text-destructive">{sendResult.error}</p>}
+            {sendResult && 'txId' in sendResult && <p className="text-xs text-primary">Sent - tx {shortHash(sendResult.txId)}</p>}
+
+            <button
+              type="submit"
+              disabled={sending || !canSend || !uaAvailable}
+              className="w-full bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              title={!uaAvailable ? 'Particle Network credentials not configured' : undefined}
+            >
+              {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {sending ? 'Sending…' : 'Send'}
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Convert */}
