@@ -298,18 +298,51 @@ export interface FullProfile {
 // signProfileAction above) - without this cache, every page that shows
 // credit-score/limit data (Catalog, Checkout, Dashboard, Profile) triggers a
 // wallet-signing prompt on every single mount, i.e. on every navigation to
-// any of them. Caching the promise (not just the resolved value) also
-// dedupes near-simultaneous calls from multiple components mounting at once
-// into a single signature request. `force: true` bypasses the cache for
-// callers that just changed the profile server-side and need it reflected
-// immediately (see Profile.tsx's post-action refreshes).
+// any of them. Two layers:
+//  - an in-memory promise cache, for same-tab dedup of near-simultaneous
+//    calls (e.g. Catalog and creditLimit.ts's hook mounting at once) into a
+//    single signature request;
+//  - a localStorage-backed cache, so a SEPARATE browser tab (a plain `let`
+//    is scoped to one JS runtime and can't see another tab's cache) also
+//    benefits instead of independently re-signing.
+// `force: true` bypasses both layers for callers that just changed the
+// profile server-side and need it reflected immediately (see Profile.tsx's
+// post-action refreshes).
 let profileCache: { address: string; cachedAt: number; promise: Promise<FullProfile> } | null = null
 const PROFILE_CACHE_TTL_MS = 120_000
+const PROFILE_CACHE_STORAGE_PREFIX = 'settle:profile:'
+
+function readPersistedProfile(addrLower: string): FullProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_STORAGE_PREFIX + addrLower)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { cachedAt: number; data: FullProfile }
+    if (Date.now() - parsed.cachedAt > PROFILE_CACHE_TTL_MS) return null
+    return parsed.data
+  } catch {
+    return null
+  }
+}
+
+function writePersistedProfile(addrLower: string, data: FullProfile) {
+  try {
+    localStorage.setItem(PROFILE_CACHE_STORAGE_PREFIX + addrLower, JSON.stringify({ cachedAt: Date.now(), data }))
+  } catch {
+    // Private-browsing/quota errors etc. - caching is an optimization, not
+    // required for correctness, so just skip persisting silently.
+  }
+}
 
 export async function getProfile(address: string, opts?: { force?: boolean }): Promise<FullProfile> {
   const addrLower = address.toLowerCase()
-  const isFresh = !!profileCache && profileCache.address === addrLower && Date.now() - profileCache.cachedAt < PROFILE_CACHE_TTL_MS
-  if (!opts?.force && isFresh) return profileCache!.promise
+
+  if (!opts?.force) {
+    const memFresh = !!profileCache && profileCache.address === addrLower && Date.now() - profileCache.cachedAt < PROFILE_CACHE_TTL_MS
+    if (memFresh) return profileCache!.promise
+
+    const persisted = readPersistedProfile(addrLower)
+    if (persisted) return persisted
+  }
 
   const fetchPromise = (async () => {
     const { ts, signature } = await signProfileAction(address, 'get_profile')
@@ -320,6 +353,7 @@ export async function getProfile(address: string, opts?: { force?: boolean }): P
     })
     const data = await parseJsonResponse(res)
     if (!res.ok) throw new Error(data.error || `Could not load profile (${res.status})`)
+    writePersistedProfile(addrLower, data)
     return data as FullProfile
   })()
 

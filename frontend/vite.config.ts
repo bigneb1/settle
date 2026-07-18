@@ -6,6 +6,22 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: {
     global: 'globalThis',
+    // @particle-network/universal-account-sdk's minified browser bundle
+    // references the bare Node global `process` in a couple of spots (a
+    // version default and an RPC-URL fallback), via a computed/obfuscated
+    // property lookup (`process[<runtime-computed-key>]`) rather than a
+    // literal `process.env.X` - a literal `'process.env': {}` replacement
+    // doesn't match that computed form, so `process` itself must be
+    // replaced. `process` doesn't exist in a browser context and Vite
+    // (unlike webpack) doesn't auto-polyfill it, so every Universal Account
+    // call (balance fetch, Pay Now, DCA buy, Convert) threw
+    // "process is not defined" before this. Same mechanism as the
+    // `global: 'globalThis'` line above (a bare-identifier replacement, not
+    // a dotted one) - substituting a real object for every reference to
+    // `process` makes both the dotted and computed-bracket lookups resolve
+    // against a real (empty) `.env`, falling through to their fallback
+    // instead of throwing.
+    process: '({ env: {} })',
   },
   server: {
     // Allows preview via the cloudflared tunnel (random *.trycloudflare.com host each run).
