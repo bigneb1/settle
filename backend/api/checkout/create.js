@@ -25,9 +25,9 @@
  */
 import { ethers } from "ethers";
 import { supabaseAdmin } from "../../src/config.js";
-import { evaluateBNPL, evaluateSubscription } from "../../src/underwriting.js";
-import { getEffectiveCreditLimit } from "../../src/creditProfileEngine.js";
-import { safeError } from "../../src/errors.js";
+import { evaluateBNPL, evaluateSubscription, computeFinanceableFraction } from "../../src/underwriting.js";
+import { getEffectiveCredit } from "../../src/creditProfileEngine.js";
+import { safeError, safeChargeError } from "../../src/errors.js";
 import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreation.js";
 import { json, corsPreflight } from "../../src/http.js";
 
@@ -127,28 +127,23 @@ export async function POST(req) {
     if (chargeType === 0) {
       const totalPriceUSD = Number(amountPerCycle * (totalCycles > 0n ? totalCycles : 1n)) / 1e6;
       const result = await evaluateBNPL(buyerAddress, totalPriceUSD);
-      // If the buyer has a cached, richer credit profile (exchange/dev-identity
-      // signals - see Profile page), it can only RAISE this limit above the
-      // base 5-signal calculation, never lower it - getEffectiveCreditLimit()
-      // guarantees that. Falls back to the base limit if no profile exists yet.
-      const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
+      // Raise BOTH the score and the limit to the buyer's cached credit profile
+      // (exchange/dev-identity signals - see Profile page) where it's higher,
+      // never lower. Because the profile score is floored at the pure on-chain
+      // baseline, this makes the checkout-time score match what the Profile
+      // page shows, and lets connecting accounts actually unlock approval.
+      const { score: effScore, limit: effectiveLimit } = await getEffectiveCredit(buyerAddress, result.score, result.limit);
       // Settle only ever finances a fraction of the price via BNPL (10-30%,
       // scaled by score - see computeFinanceableFraction) - the buyer pays
       // the rest as an upfront down payment before a charge is created (see
       // checkout/confirm-downpayment.js). The limit check is against the
       // financed portion only, since that's the only part Settle is
       // actually fronting exposure on.
-      const financedAmountUSD = totalPriceUSD * result.financeableFraction;
+      const financeableFraction = computeFinanceableFraction(effScore);
+      const financedAmountUSD = totalPriceUSD * financeableFraction;
       const downPaymentUSD = totalPriceUSD - financedAmountUSD;
-      // result.approved reflects only the base 5-signal on-chain score; a
-      // buyer whose credit profile (connected exchanges/GitHub/GitLab) has
-      // separately cleared its own approval bar has a real, non-zero
-      // effectiveLimit even if the base score hasn't - without this OR, that
-      // buyer could raise their displayed limit indefinitely and still never
-      // be approved, since the base-score gate could never be satisfied by
-      // profile data alone.
-      approved = (result.approved || effectiveLimit > 0n) && financedAmountUSD * 1_000_000 <= effectiveLimit;
-      score = result.score;
+      approved = effectiveLimit > 0n && financedAmountUSD * 1_000_000 <= effectiveLimit;
+      score = effScore;
       explanation = result.explanation || "";
       if (approved) downPaymentInfo = { downPaymentUSD, financedAmountUSD };
     } else {
@@ -187,7 +182,7 @@ export async function POST(req) {
   try {
     [tx, receipt] = await sendCreateChargeWithNonce({ buyerAddress, merchant: item.merchant, chargeType, amountPerCycle, totalCycles, cycleSeconds, score });
   } catch (err) {
-    return json(safeError("checkout/create:createCharge", err, "On-chain charge creation failed"), 502);
+    return json(safeChargeError("checkout/create:createCharge", err), 502);
   }
 
   const parsed = receipt.logs

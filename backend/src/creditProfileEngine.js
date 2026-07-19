@@ -10,9 +10,9 @@
  * still work purely from on-chain history with zero setup, so buying
  * something never requires linking an exchange account first. This engine
  * is an additive, richer score: checkout/create.js can optionally read a
- * cached credit_profiles row to raise (never lower) a buyer's limit above
- * the base 5-signal calculation once they've connected more sources - see
- * getEffectiveCreditLimit() below.
+ * cached credit_profiles row to raise (never lower) a buyer's score and limit
+ * above the base 5-signal calculation once they've connected more sources -
+ * see getEffectiveCredit() below.
  *
  * CATEGORY_WEIGHTS sums to 100 and is the one place to retune category
  * importance without touching scoring logic.
@@ -102,7 +102,7 @@ function computeWalletReputationSubscore(rep) {
 async function computeExchangeActivitySubscore(buyerAddress) {
   const { data: connections } = await supabaseAdmin
     .from("exchange_connections")
-    .select("id, exchange")
+    .select("id, exchange, kyc_level")
     .eq("buyer", buyerAddress)
     .eq("status", "connected");
 
@@ -120,13 +120,26 @@ async function computeExchangeActivitySubscore(buyerAddress) {
       .limit(1)
       .maybeSingle();
 
-    if (!snapshot) continue;
-    let sub = 0;
-    sub += Math.min((snapshot.total_balance_usd ?? 0) / 5000, 1) * 40;
-    sub += Math.min((snapshot.trade_count_90d ?? 0) / 50, 1) * 25;
-    sub += Math.min((snapshot.account_age_days ?? 0) / 365, 1) * 25;
-    if (snapshot.risk_indicator === "high") sub *= 0.5;
-    total += sub;
+    // A connected account is one whose read-only key actually authenticated at
+    // connect time (status='connected'), so account ownership is proven - that
+    // verification is itself a strong trust signal and earns a flat base,
+    // independent of how much balance/history sits on it. KYC level (where the
+    // exchange exposes it - Bybit "LEVEL_2", OKX "2"; Binance/Gate/Bitget
+    // expose none) adds more. Balance/trades/age are additive on top, but no
+    // longer the only thing that counts - a real, KYC'd, low-balance account
+    // now scores meaningfully instead of ~0.
+    let sub = 40; // verified, authenticated read-only connection
+    const kycDigit = Number((String(conn.kyc_level ?? "").match(/(\d+)/) || [])[1] ?? 0);
+    if (kycDigit >= 2) sub += 25;
+    else if (kycDigit === 1) sub += 12;
+
+    if (snapshot) {
+      sub += Math.min((snapshot.total_balance_usd ?? 0) / 2000, 1) * 20;
+      sub += Math.min((snapshot.trade_count_90d ?? 0) / 50, 1) * 10;
+      sub += Math.min((snapshot.account_age_days ?? 0) / 365, 1) * 5;
+      if (snapshot.risk_indicator === "high") sub *= 0.5;
+    }
+    total += Math.min(sub, 100);
   }
 
   // Diminishing returns per additional exchange rather than a flat sum, so
@@ -196,12 +209,22 @@ export async function computeCreditProfile(buyerAddress) {
     (sum, c) => sum + (c.subscore0to100 / 100) * c.weight,
     0,
   );
-  const overallScore = Math.round(SCORE_MIN + (weightedRaw / 100) * SCORE_RANGE);
+  // Floor the blended score at the pure on-chain baseline (the same number
+  // evaluateBNPL computes with zero setup, since computeOnChainHistorySubscore
+  // mirrors its signals). This guarantees connecting more accounts can only
+  // ever RAISE the score, never lower it below what the wallet would get with
+  // no connections - and it makes this score reconcile with the checkout
+  // score instead of diverging from it.
+  const pureOnChainScore = SCORE_MIN + (onChain.subscore0to100 / 100) * SCORE_RANGE;
+  const blendedScore = SCORE_MIN + (weightedRaw / 100) * SCORE_RANGE;
+  const overallScore = Math.round(Math.max(pureOnChainScore, blendedScore));
   const creditTier = tierForScore(overallScore);
 
   // Credit line: same linear mapping as evaluateBNPL's base formula, capped
   // higher ($5000 vs $2000) since a fuller profile justifies more headroom.
-  const creditLineUsdc = overallScore >= 580
+  // Threshold aligned with evaluateBNPL's BNPL_APPROVAL_SCORE (500) - the old
+  // 580 bar was unreachable for real test wallets even with verified accounts.
+  const creditLineUsdc = overallScore >= 500
     ? BigInt(Math.round((overallScore - SCORE_MIN) / SCORE_RANGE * 5000)) * 1_000_000n
     : 0n;
 
@@ -258,21 +281,29 @@ export async function computeCreditProfile(buyerAddress) {
 }
 
 /**
- * Used by checkout/create.js: if the buyer has a cached, richer credit
- * profile, use its credit line where it's HIGHER than the base 5-signal
- * limit (never lower - connecting more accounts should never hurt a buyer
- * relative to the zero-setup baseline). Returns null if no profile exists,
- * in which case the caller should fall back to its own base calculation
- * unchanged.
+ * Used by the checkout endpoints: if the buyer has a cached, richer credit
+ * profile, use its score AND credit line where each is HIGHER than the base
+ * 5-signal values (never lower - connecting more accounts should never hurt a
+ * buyer relative to the zero-setup baseline). Returns `{ score, limit }` with
+ * the raised values; if no profile exists yet, returns the base values
+ * unchanged so the caller can proceed on its own calculation.
+ *
+ * Because computeCreditProfile floors overall_score at the pure on-chain
+ * baseline (== evaluateBNPL's score), the profile score is always >= the base
+ * score, so checkout ends up displaying the SAME number the Profile page does.
  */
-export async function getEffectiveCreditLimit(buyerAddress, baseLimit) {
+export async function getEffectiveCredit(buyerAddress, baseScore, baseLimit) {
   const { data: profile } = await supabaseAdmin
     .from("credit_profiles")
-    .select("credit_line_usdc")
+    .select("overall_score, credit_line_usdc")
     .eq("buyer", buyerAddress.toLowerCase())
     .maybeSingle();
 
-  if (!profile) return null;
+  if (!profile) return { score: baseScore, limit: BigInt(baseLimit) };
+
   const profileLimit = BigInt(profile.credit_line_usdc);
-  return profileLimit > BigInt(baseLimit) ? profileLimit : BigInt(baseLimit);
+  return {
+    score: Math.max(baseScore, Number(profile.overall_score)),
+    limit: profileLimit > BigInt(baseLimit) ? profileLimit : BigInt(baseLimit),
+  };
 }

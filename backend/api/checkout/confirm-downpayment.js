@@ -29,9 +29,9 @@
  */
 import { ethers } from "ethers";
 import { provider, ADDRESSES, supabaseAdmin } from "../../src/config.js";
-import { evaluateBNPL } from "../../src/underwriting.js";
-import { getEffectiveCreditLimit } from "../../src/creditProfileEngine.js";
-import { safeError } from "../../src/errors.js";
+import { evaluateBNPL, computeFinanceableFraction } from "../../src/underwriting.js";
+import { getEffectiveCredit } from "../../src/creditProfileEngine.js";
+import { safeError, safeChargeError } from "../../src/errors.js";
 import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreation.js";
 import { checkIpRateLimit } from "../../src/rateLimit.js";
 import { json, corsPreflight } from "../../src/http.js";
@@ -126,15 +126,18 @@ export async function POST(req) {
   // already ran as a quote - nothing from that call was persisted, so this is
   // re-derived fresh against the buyer's CURRENT score/limit.
   const totalPriceUSD = Number(amountPerCycle * totalCycles) / 1e6;
-  let result, financedAmountUSD, downPaymentUSD, approved;
+  let result, financedAmountUSD, downPaymentUSD, approved, effScore;
   try {
     result = await evaluateBNPL(buyerAddress, totalPriceUSD);
-    const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
-    financedAmountUSD = totalPriceUSD * result.financeableFraction;
+    // Match checkout/create(-direct).js exactly: raise score+limit to the
+    // cached credit profile where higher, base approval + financeable fraction
+    // on the raised score.
+    const eff = await getEffectiveCredit(buyerAddress, result.score, result.limit);
+    effScore = eff.score;
+    const financeableFraction = computeFinanceableFraction(effScore);
+    financedAmountUSD = totalPriceUSD * financeableFraction;
     downPaymentUSD = totalPriceUSD - financedAmountUSD;
-    // See checkout/create.js for why this OR is needed - must match that
-    // endpoint's approval logic exactly, since this re-derives the same quote.
-    approved = (result.approved || effectiveLimit > 0n) && financedAmountUSD * 1_000_000 <= effectiveLimit;
+    approved = eff.limit > 0n && financedAmountUSD * 1_000_000 <= eff.limit;
   } catch (err) {
     return json(safeError("checkout/confirm-downpayment:underwriting", err, "Underwriting could not be completed"), 502);
   }
@@ -188,10 +191,10 @@ export async function POST(req) {
   let tx, receiptCreate;
   try {
     [tx, receiptCreate] = await sendCreateChargeWithNonce({
-      buyerAddress, merchant, chargeType: 0, amountPerCycle: perCycleAmount, totalCycles, cycleSeconds, score: result.score,
+      buyerAddress, merchant, chargeType: 0, amountPerCycle: perCycleAmount, totalCycles, cycleSeconds, score: effScore,
     });
   } catch (err) {
-    return json(safeError("checkout/confirm-downpayment:createCharge", err, "On-chain charge creation failed"), 502);
+    return json(safeChargeError("checkout/confirm-downpayment:createCharge", err), 502);
   }
 
   const parsed = receiptCreate.logs
@@ -218,7 +221,7 @@ export async function POST(req) {
     cycles_completed: 0,
     cycle_seconds: Number(cycleSeconds),
     next_due_at: Math.floor(Date.now() / 1000) + Number(cycleSeconds),
-    score_at_issuance: result.score,
+    score_at_issuance: effScore,
     status: 0,
     tx_hash: tx.hash,
     catalog_item_id: catalogItemId,
@@ -229,5 +232,5 @@ export async function POST(req) {
     console.error(`[checkout/confirm-downpayment] Off-chain charges upsert failed for chargeId=${chargeId}:`, chargeUpsertErr.message);
   }
 
-  return json({ approved: true, chargeId, score: result.score, txHash: tx.hash, downPaymentTxHash }, 200);
+  return json({ approved: true, chargeId, score: effScore, txHash: tx.hash, downPaymentTxHash }, 200);
 }

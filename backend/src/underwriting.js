@@ -124,7 +124,11 @@ async function computeCreditScore(buyerAddress) {
 // purchase instead of ever fronting the full price.
 const MIN_FINANCEABLE_FRACTION = 0.10;
 const MAX_FINANCEABLE_FRACTION = 0.30;
-const BNPL_APPROVAL_SCORE = 580;
+// Lowered from 580: real test wallets (thin on-chain history + a few verified,
+// modest-balance exchange accounts) top out well below 580 even after the
+// credit-profile recalibration, so 580 made BNPL effectively unreachable.
+// creditProfileEngine's credit-line threshold is aligned to this same value.
+const BNPL_APPROVAL_SCORE = 500;
 const MAX_SCORE = 850;
 
 export function computeFinanceableFraction(score) {
@@ -138,15 +142,16 @@ export function computeFinanceableFraction(score) {
 export async function evaluateBNPL(buyerAddress, requestedAmount) {
   const { score, signals, txCount } = await computeCreditScore(buyerAddress);
 
-  const approved = score >= 580;
+  const approved = score >= BNPL_APPROVAL_SCORE;
   const limit = approved ? Math.round((score - 300) / 550 * 2000) * 1_000_000 : 0; // max $2000 in USDC 6-dec
   const financeableFraction = approved ? computeFinanceableFraction(score) : 0;
 
   // Use GLM for plain-language explanation of borderline decisions.
   // Approval is score-based; the explanation is frosting - a GLM failure falls
-  // back to empty string rather than blocking checkout.
+  // back to empty string rather than blocking checkout. Band centered on the
+  // 500 approval threshold.
   let explanation = "";
-  if (score >= 540 && score < 640) {
+  if (score >= 440 && score < 600) {
     try {
       const msg = await getGlmClient().chat.completions.create({
         model: process.env.GLM_MODEL || "glm-4.6",

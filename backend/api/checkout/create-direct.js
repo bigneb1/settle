@@ -18,9 +18,9 @@
  */
 import { ethers } from "ethers";
 import { supabaseAdmin } from "../../src/config.js";
-import { evaluateBNPL, evaluateSubscription } from "../../src/underwriting.js";
-import { getEffectiveCreditLimit } from "../../src/creditProfileEngine.js";
-import { safeError } from "../../src/errors.js";
+import { evaluateBNPL, evaluateSubscription, computeFinanceableFraction } from "../../src/underwriting.js";
+import { getEffectiveCredit } from "../../src/creditProfileEngine.js";
+import { safeError, safeChargeError } from "../../src/errors.js";
 import { sendCreateChargeWithNonce, chargeRegistry } from "../../src/chargeCreation.js";
 import { json, corsPreflight } from "../../src/http.js";
 
@@ -126,20 +126,15 @@ export async function POST(req) {
     if (chargeType === 0) {
       const totalPriceUSD = Number(amountPerCycle * totalCycles) / 1e6;
       const result = await evaluateBNPL(buyerAddress, totalPriceUSD);
-      // See checkout/create.js for the same pattern - only ever raises the
-      // limit above the base 5-signal calculation, never lowers it.
-      const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
-      // See checkout/create.js: Settle only ever finances a fraction of the
-      // price via BNPL - the buyer pays the rest as an upfront down payment
-      // to merchantAddress before a charge is created.
-      const financedAmountUSD = totalPriceUSD * result.financeableFraction;
+      // See checkout/create.js: raise BOTH score and limit to the buyer's
+      // cached credit profile where higher (never lower), so connecting
+      // accounts unlocks approval and the checkout score matches the Profile page.
+      const { score: effScore, limit: effectiveLimit } = await getEffectiveCredit(buyerAddress, result.score, result.limit);
+      const financeableFraction = computeFinanceableFraction(effScore);
+      const financedAmountUSD = totalPriceUSD * financeableFraction;
       const downPaymentUSD = totalPriceUSD - financedAmountUSD;
-      // See checkout/create.js for why this OR is needed: result.approved
-      // reflects only the base 5-signal on-chain score, so without it a
-      // buyer whose credit profile alone has cleared its own approval bar
-      // (a real, non-zero effectiveLimit) could never actually be approved.
-      approved = (result.approved || effectiveLimit > 0n) && financedAmountUSD * 1_000_000 <= effectiveLimit;
-      score = result.score;
+      approved = effectiveLimit > 0n && financedAmountUSD * 1_000_000 <= effectiveLimit;
+      score = effScore;
       explanation = result.explanation || "";
       if (approved) downPaymentInfo = { downPaymentUSD, financedAmountUSD };
     } else {
@@ -175,7 +170,7 @@ export async function POST(req) {
   try {
     [tx, receipt] = await sendCreateChargeWithNonce({ buyerAddress, merchant: merchantAddress, chargeType, amountPerCycle, totalCycles, cycleSeconds, score });
   } catch (err) {
-    return json(safeError("checkout/create-direct:createCharge", err, "On-chain charge creation failed"), 502);
+    return json(safeChargeError("checkout/create-direct:createCharge", err), 502);
   }
 
   const parsed = receipt.logs

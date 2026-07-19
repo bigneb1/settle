@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   Loader2, RefreshCw, Unlink, Wallet as WalletIcon,
   TrendingUp, TrendingDown, Lightbulb, AlertCircle, CheckCircle2, ExternalLink,
-  CreditCard, Globe, ShieldCheck, Zap,
+  Globe, ShieldCheck, Zap,
 } from 'lucide-react'
 import { SiGithub, SiGitlab } from '@icons-pack/react-simple-icons'
 import { useWallet } from '../context/WalletContext'
@@ -292,10 +292,33 @@ const CARD_FEATURES = [
 function CardTab() {
   return (
     <div className="max-w-2xl mx-auto text-center py-10">
-      <div className="w-16 h-16 rounded-sm bg-primary-subtle flex items-center justify-center mx-auto mb-6">
-        <CreditCard size={28} className="text-primary" />
+      {/* Visa card mockup */}
+      <div className="mx-auto mb-8 w-full max-w-sm">
+        <div className="relative aspect-[1.586/1] w-full rounded-2xl p-5 text-left shadow-xl overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-emerald-700">
+          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.6), transparent 40%)' }} />
+          <div className="relative flex items-center justify-between">
+            <span className="text-black/90 font-semibold tracking-tight text-lg">Settle</span>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/20 text-black/80 uppercase tracking-widest">Virtual</span>
+          </div>
+          {/* Chip */}
+          <div className="relative mt-6 w-11 h-8 rounded-md bg-gradient-to-br from-yellow-200 to-yellow-500 border border-yellow-600/40" />
+          <div className="relative mt-5 font-mono text-black/85 text-lg tracking-[0.15em]">
+            •••• &nbsp;•••• &nbsp;•••• &nbsp;0000
+          </div>
+          <div className="relative mt-4 flex items-end justify-between">
+            <div className="leading-tight">
+              <p className="text-[8px] text-black/60 uppercase tracking-widest">Card Holder</p>
+              <p className="text-xs text-black/85 font-medium">Your Name</p>
+            </div>
+            {/* Visa wordmark */}
+            <span className="text-white font-bold italic text-2xl tracking-tight drop-shadow-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+              VISA
+            </span>
+          </div>
+        </div>
       </div>
-      <span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-sm bg-warning/10 text-warning uppercase tracking-widest mb-3">
+
+      <span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning uppercase tracking-widest mb-3">
         Coming Soon
       </span>
       <h2 className="text-2xl font-semibold text-foreground mb-3">Settle Card</h2>
