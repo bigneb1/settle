@@ -9,7 +9,7 @@ import { createCheckoutCharge, confirmDownPayment, type CheckoutResult } from '.
 import { supabase, type CatalogItemRow } from '../lib/supabase'
 import { shortAddr } from '../lib/format'
 import { useAvailableBnplCredit } from '../lib/creditLimit'
-import { payDirectArbitrumUSDC } from '../lib/contracts'
+import { payDownPayment } from '../lib/universalAccount'
 import CopyableAddress from '../components/CopyableAddress'
 
 interface CheckoutItem {
@@ -163,14 +163,13 @@ export default function Checkout() {
     setDownPaymentError(null)
     try {
       const downPaymentRaw = BigInt(Math.round(result.downPaymentUSD * 1_000_000))
-      // Direct Arbitrum USDC transfer from the connected wallet to the merchant
-      // (no Particle Universal Account) - the down payment is a same-chain
-      // transfer, so it doesn't need chain abstraction, and this keeps "Pay Now"
-      // working even while Particle's UniversalX is in maintenance. The backend
-      // verifies this exact buyer→merchant USDC Transfer log.
-      const downPaymentTxHash = await payDirectArbitrumUSDC({
-        to: result.merchantAddress as `0x${string}`,
-        amountRaw: downPaymentRaw,
+      // Chain-abstracted when Particle's Universal Account is available, direct
+      // Arbitrum transfer as fallback otherwise - either way a buyer→merchant
+      // USDC transfer the backend verifies identically. See payDownPayment.
+      const { txHash: downPaymentTxHash } = await payDownPayment({
+        ownerAddress: address,
+        merchant: result.merchantAddress as `0x${string}`,
+        amountUSDC: downPaymentRaw,
       })
       // Independently verified server-side (never trusts this client) before
       // the on-chain charge for the financed remainder is created.
@@ -245,7 +244,7 @@ export default function Checkout() {
           {payingDownPayment ? 'Paying…' : `Pay ${formatUSDCPrecise(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
         </button>
         <p className="text-[10px] text-muted-foreground text-center mt-3">
-          Paid directly from your connected wallet on Arbitrum
+          Sourced from your balance and settled to the merchant on Arbitrum
         </p>
       </div>
     )

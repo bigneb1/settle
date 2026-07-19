@@ -22,6 +22,9 @@ import {
 } from '@particle-network/universal-account-sdk'
 import { BrowserProvider, Interface, Signature, getBytes, parseUnits } from 'ethers'
 import { getMagic } from './magic'
+import { payDirectArbitrumUSDC, ADDRESSES } from './contracts'
+
+const DOWN_PAYMENT_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
 
 const PARTICLE_PROJECT_ID = import.meta.env.VITE_PARTICLE_PROJECT_ID
 const PARTICLE_CLIENT_KEY = import.meta.env.VITE_PARTICLE_CLIENT_KEY
@@ -222,6 +225,48 @@ export async function payAmountCrossChain(params: {
   const destinationTxHash = destinationUserOp?.userOpHash ?? null
 
   return { transactionId: result.transactionId, destinationTxHash }
+}
+
+/**
+ * Pays a BNPL down payment to the merchant, chain-abstracted when possible and
+ * direct otherwise. The down payment is a plain buyer→merchant USDC transfer
+ * on Arbitrum either way, and the backend (checkout/confirm-downpayment.js)
+ * verifies the same Transfer log for both, so the two paths are
+ * interchangeable from its perspective:
+ *  1. Universal Account (Particle) - sources funds from whatever chain the
+ *     buyer's balance sits on and settles on Arbitrum. Preferred.
+ *  2. If Particle's Universal Account service is unavailable (e.g. its periodic
+ *     "system maintenance - use SEND/TRANSFER/SELL" notice) or returns no
+ *     usable destination hash, fall back to a direct same-chain USDC transfer
+ *     from the connected wallet - so "Pay Now" is never hard-blocked by an
+ *     upstream outage.
+ * Returns the on-chain tx hash to confirm plus which path was used.
+ */
+export async function payDownPayment(params: {
+  ownerAddress: string
+  merchant: `0x${string}`
+  amountUSDC: bigint // 6 decimals
+}): Promise<{ txHash: string; via: 'universal-account' | 'direct' }> {
+  const { ownerAddress, merchant, amountUSDC } = params
+
+  if (isUniversalAccountConfigured()) {
+    try {
+      const { destinationTxHash } = await payAmountCrossChain({
+        ownerAddress,
+        amountUSDC,
+        settlementAddress: merchant,
+        destinationChainId: DOWN_PAYMENT_CHAIN_ID,
+        destinationUsdcAddress: ADDRESSES.usdc,
+      })
+      if (destinationTxHash) return { txHash: destinationTxHash, via: 'universal-account' }
+      if (import.meta.env.DEV) console.warn('[UA] down payment returned no destination hash - falling back to direct transfer')
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('[UA] down payment via Universal Account failed - falling back to direct transfer:', err)
+    }
+  }
+
+  const txHash = await payDirectArbitrumUSDC({ to: merchant, amountRaw: amountUSDC })
+  return { txHash, via: 'direct' }
 }
 
 /**

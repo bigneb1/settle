@@ -6,7 +6,7 @@ import { useWallet } from '../context/WalletContext'
 import { getMagic } from '../lib/magic'
 import { createDirectCharge, confirmDownPayment, type CheckoutResult } from '../lib/api'
 import { formatUSDCPrecise } from '../lib/format'
-import { payDirectArbitrumUSDC } from '../lib/contracts'
+import { payDownPayment } from '../lib/universalAccount'
 
 const CYCLE_OPTIONS = [
   { label: 'Weekly', seconds: 604800 },
@@ -76,10 +76,11 @@ export default function PayAnyAddress() {
     setDownPaymentError(null)
     try {
       const downPaymentRaw = BigInt(Math.round(result.downPaymentUSD * 1_000_000))
-      // Direct Arbitrum USDC transfer (no Particle UA) - see Checkout.tsx.
-      const downPaymentTxHash = await payDirectArbitrumUSDC({
-        to: result.merchantAddress as `0x${string}`,
-        amountRaw: downPaymentRaw,
+      // Chain-abstracted when available, direct Arbitrum transfer as fallback.
+      const { txHash: downPaymentTxHash } = await payDownPayment({
+        ownerAddress: address,
+        merchant: result.merchantAddress as `0x${string}`,
+        amountUSDC: downPaymentRaw,
       })
       const confirmResult = await confirmDownPayment({
         buyerAddress: address,
@@ -154,7 +155,7 @@ export default function PayAnyAddress() {
           {payingDownPayment ? 'Paying…' : `Pay ${formatUSDCPrecise(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
         </button>
         <p className="text-[10px] text-muted-foreground text-center mt-3">
-          Paid directly from your connected wallet on Arbitrum
+          Sourced from your balance and settled to the merchant on Arbitrum
         </p>
       </div>
     )
