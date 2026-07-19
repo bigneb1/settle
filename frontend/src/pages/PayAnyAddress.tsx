@@ -5,16 +5,13 @@ import { BrowserProvider, isAddress } from 'ethers'
 import { useWallet } from '../context/WalletContext'
 import { getMagic } from '../lib/magic'
 import { createDirectCharge, confirmDownPayment, type CheckoutResult } from '../lib/api'
-import { formatUSDC } from '../lib/format'
-import { payAmountCrossChain } from '../lib/universalAccount'
-import { ADDRESSES } from '../lib/contracts'
+import { formatUSDCPrecise } from '../lib/format'
+import { payDirectArbitrumUSDC } from '../lib/contracts'
 
 const CYCLE_OPTIONS = [
   { label: 'Weekly', seconds: 604800 },
   { label: 'Monthly', seconds: 2592000 },
 ]
-
-const UA_DESTINATION_CHAIN_ID = Number(import.meta.env.VITE_UA_DESTINATION_CHAIN_ID || 42161)
 
 export default function PayAnyAddress() {
   const { address, openConnect } = useWallet()
@@ -79,16 +76,11 @@ export default function PayAnyAddress() {
     setDownPaymentError(null)
     try {
       const downPaymentRaw = BigInt(Math.round(result.downPaymentUSD * 1_000_000))
-      const { destinationTxHash } = await payAmountCrossChain({
-        ownerAddress: address,
-        amountUSDC: downPaymentRaw,
-        settlementAddress: result.merchantAddress as `0x${string}`,
-        destinationChainId: UA_DESTINATION_CHAIN_ID,
-        destinationUsdcAddress: ADDRESSES.usdc,
+      // Direct Arbitrum USDC transfer (no Particle UA) - see Checkout.tsx.
+      const downPaymentTxHash = await payDirectArbitrumUSDC({
+        to: result.merchantAddress as `0x${string}`,
+        amountRaw: downPaymentRaw,
       })
-      if (!destinationTxHash) {
-        throw new Error('Universal Account transaction submitted, but no Arbitrum settlement hash was returned to confirm on-chain')
-      }
       const confirmResult = await confirmDownPayment({
         buyerAddress: address,
         merchantAddress: result.merchantAddress,
@@ -96,7 +88,7 @@ export default function PayAnyAddress() {
         totalCycles: cyclesNum,
         amountPerCycle: String(Math.round(amountNum * 1_000_000)),
         cycleSeconds,
-        downPaymentTxHash: destinationTxHash,
+        downPaymentTxHash,
       })
       setDownPaymentResult({ chargeId: confirmResult.chargeId, txHash: confirmResult.txHash })
     } catch (err) {
@@ -144,8 +136,8 @@ export default function PayAnyAddress() {
         <CreditCard size={48} className="text-primary mb-4" />
         <h2 className="text-xl font-semibold text-foreground mb-2">Down Payment Required</h2>
         <p className="text-sm text-muted-foreground mb-6">
-          Settle finances {formatUSDC(BigInt(Math.round(result.financedAmountUSD * 1_000_000)))} of this payment via BNPL installments.
-          Pay the remaining <span className="font-mono text-foreground">{formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))}</span> now,
+          Settle finances {formatUSDCPrecise(BigInt(Math.round(result.financedAmountUSD * 1_000_000)))} of this payment via BNPL installments.
+          Pay the remaining <span className="font-mono text-foreground">{formatUSDCPrecise(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))}</span> now,
           directly to {merchantAddress.slice(0, 6)}...{merchantAddress.slice(-4)}, to create your charge.
         </p>
         {downPaymentError && (
@@ -159,10 +151,10 @@ export default function PayAnyAddress() {
           disabled={payingDownPayment}
           className="btn-primary font-semibold"
         >
-          {payingDownPayment ? 'Paying…' : `Pay ${formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
+          {payingDownPayment ? 'Paying…' : `Pay ${formatUSDCPrecise(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
         </button>
         <p className="text-[10px] text-muted-foreground text-center mt-3">
-          Transaction will be signed via your Universal Account on Arbitrum
+          Paid directly from your connected wallet on Arbitrum
         </p>
       </div>
     )

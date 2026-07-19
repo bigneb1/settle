@@ -187,6 +187,12 @@ export async function POST(req) {
   // dollar-to-USDC-6-decimal conversions (e.g. merchant onboarding).
   const financedAmountRaw = BigInt(Math.round(financedAmountUSD * 1_000_000));
   const perCycleAmount = financedAmountRaw / totalCycles;
+  // For a cents-priced item the financed fraction can round below 1 micro-USDC
+  // per cycle; createCharge reverts on a zero amount, so fail with a clear
+  // message instead of an opaque on-chain revert.
+  if (perCycleAmount <= 0n) {
+    return json({ error: "This item is too small to finance via BNPL - the financed portion rounds to zero. Pay it in full or pick a larger item." }, 400);
+  }
 
   let tx, receiptCreate;
   try {

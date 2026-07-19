@@ -6,6 +6,22 @@ export function formatUSDC(raw: bigint | string | number): string {
   return `$${whole.toLocaleString()}.${fracStr}`
 }
 
+/**
+ * Like formatUSDC but keeps sub-cent precision for tiny amounts, so a
+ * financed portion of a cents-priced item reads as e.g. "$0.004" instead of
+ * rounding to a misleading "$0.00". Always shows at least 2 fractional digits;
+ * trims trailing zeros beyond that.
+ */
+export function formatUSDCPrecise(raw: bigint | string | number): string {
+  const n = typeof raw === 'bigint' ? raw : BigInt(Math.round(Number(raw)))
+  const neg = n < 0n
+  const v = neg ? -n : n
+  const whole = v / 1_000_000n
+  let frac = (v % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '')
+  if (frac.length < 2) frac = frac.padEnd(2, '0')
+  return `${neg ? '-' : ''}$${whole.toLocaleString()}.${frac}`
+}
+
 export function shortAddr(addr: string): string {
   if (!addr || addr.length < 12) return addr
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`

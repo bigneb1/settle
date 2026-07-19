@@ -27,6 +27,54 @@ export const ADDRESSES = {
   usdc: (import.meta.env.VITE_USDC_ADDRESS || '0xaf88d065e77c8cC2239327C5EDb3A432268e5831') as `0x${string}`,
 }
 
+const USDC_ABI = parseAbi([
+  'function transfer(address to, uint256 amount) returns (bool)',
+  'function balanceOf(address owner) view returns (uint256)',
+] as const)
+
+/**
+ * Sends `amountRaw` (6-dec USDC) directly from the connected Magic wallet to
+ * `to` on Arbitrum, via a plain ERC-20 transfer - no Particle Universal
+ * Account involved. Used for the BNPL down payment: it's a same-chain transfer
+ * to the merchant, so it doesn't need chain abstraction, and routing it
+ * directly keeps the "Pay Now" button working even when Particle's UniversalX
+ * service is unavailable (it periodically shows a "system maintenance - use
+ * SEND/TRANSFER/SELL" notice that otherwise blocks the UA path). The backend
+ * (checkout/confirm-downpayment.js) verifies exactly this kind of buyer→merchant
+ * USDC Transfer log, so a direct transfer confirms identically to a UA one.
+ * Returns the on-chain transaction hash.
+ */
+export async function payDirectArbitrumUSDC(params: {
+  to: `0x${string}`
+  amountRaw: bigint
+}): Promise<string> {
+  const magic = getMagic()
+  const provider = new BrowserProvider(magic.rpcProvider as never)
+  const signer = await provider.getSigner()
+  const from = await signer.getAddress()
+  const usdc = new Contract(ADDRESSES.usdc, USDC_ABI, signer)
+
+  const balance: bigint = await usdc.balanceOf(from)
+  if (balance < params.amountRaw) {
+    throw new Error(
+      `Not enough USDC on Arbitrum to pay directly (need ${formatUSDCLocal(params.amountRaw)}, have ${formatUSDCLocal(balance)}). ` +
+      `Fund this wallet with USDC on Arbitrum, or use Convert/Send once Universal Account service is back.`,
+    )
+  }
+
+  const tx = await usdc.transfer(params.to, params.amountRaw)
+  const receipt = await tx.wait()
+  return receipt.hash
+}
+
+// Local, dependency-free USDC formatter for the error message above (keeps this
+// module from importing format.ts, which isn't otherwise needed here).
+function formatUSDCLocal(raw: bigint): string {
+  const whole = raw / 1_000_000n;
+  const frac = (raw % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '') || '0'
+  return `$${whole}.${frac}`
+}
+
 export const CHARGE_REGISTRY_ABI = parseAbi([
   'function chargeCount() view returns (uint256)',
   'function getBuyerCharges(address buyer) view returns (uint256[])',
