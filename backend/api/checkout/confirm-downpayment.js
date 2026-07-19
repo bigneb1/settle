@@ -132,7 +132,9 @@ export async function POST(req) {
     const effectiveLimit = (await getEffectiveCreditLimit(buyerAddress, result.limit)) ?? result.limit;
     financedAmountUSD = totalPriceUSD * result.financeableFraction;
     downPaymentUSD = totalPriceUSD - financedAmountUSD;
-    approved = result.approved && financedAmountUSD * 1_000_000 <= effectiveLimit;
+    // See checkout/create.js for why this OR is needed - must match that
+    // endpoint's approval logic exactly, since this re-derives the same quote.
+    approved = (result.approved || effectiveLimit > 0n) && financedAmountUSD * 1_000_000 <= effectiveLimit;
   } catch (err) {
     return json(safeError("checkout/confirm-downpayment:underwriting", err, "Underwriting could not be completed"), 502);
   }

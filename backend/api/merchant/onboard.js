@@ -55,7 +55,7 @@ export async function POST(req) {
 
   let merchantAddress;
   try {
-    merchantAddress = verifyBuyerSignature({
+    merchantAddress = await verifyBuyerSignature({
       buyer: body.merchantAddress,
       action: "merchant_onboard",
       ts: Number(body.ts),

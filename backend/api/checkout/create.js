@@ -140,7 +140,14 @@ export async function POST(req) {
       // actually fronting exposure on.
       const financedAmountUSD = totalPriceUSD * result.financeableFraction;
       const downPaymentUSD = totalPriceUSD - financedAmountUSD;
-      approved = result.approved && financedAmountUSD * 1_000_000 <= effectiveLimit;
+      // result.approved reflects only the base 5-signal on-chain score; a
+      // buyer whose credit profile (connected exchanges/GitHub/GitLab) has
+      // separately cleared its own approval bar has a real, non-zero
+      // effectiveLimit even if the base score hasn't - without this OR, that
+      // buyer could raise their displayed limit indefinitely and still never
+      // be approved, since the base-score gate could never be satisfied by
+      // profile data alone.
+      approved = (result.approved || effectiveLimit > 0n) && financedAmountUSD * 1_000_000 <= effectiveLimit;
       score = result.score;
       explanation = result.explanation || "";
       if (approved) downPaymentInfo = { downPaymentUSD, financedAmountUSD };

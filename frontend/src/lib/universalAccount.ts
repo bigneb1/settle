@@ -14,6 +14,7 @@ import {
   SUPPORTED_TOKEN_TYPE,
   SUPPORTED_TARGET_TOKENS,
   UNIVERSAL_ACCOUNT_VERSION,
+  UA_TRANSACTION_STATUS,
   CHAIN_ID,
   type IAssetsResponse,
   type ITransaction,
@@ -127,6 +128,45 @@ async function submitUaTransaction(ua: UniversalAccount, transaction: ITransacti
 
   if (!result?.transactionId) throw new Error('Universal Account transaction failed to submit')
   return { transactionId: result.transactionId }
+}
+
+/**
+ * submitUaTransaction only confirms the transaction was SUBMITTED - Particle
+ * still has to source liquidity (deposit/EIP-7702-delegate on one or more
+ * source chains), then execute delivery on the destination chain, before the
+ * operation is actually complete (see UA_TRANSACTION_STATUS: DEPOSIT_LOCAL/
+ * DEPOSIT_PENDING -> EXECUTION_LOCAL/EXECUTION_PENDING -> FINISHED, with
+ * EXECUTION_FAILED/REFUND_* as failure paths). Reporting success right after
+ * submission - what sendAsset/convertAsset used to do - can show "Sent" while
+ * the deposit/delegation step is the only thing that's actually happened yet,
+ * or even after the whole thing failed and any deposited funds are being
+ * refunded. Polls until a terminal status instead, mirroring the same
+ * UA_TRANSACTION_STATUS.FINISHED gate backend/api/dca/confirm.js already
+ * enforces server-side for DCA buys.
+ */
+async function waitForFinished(
+  ua: UniversalAccount,
+  transactionId: string,
+  opts?: { timeoutMs?: number; intervalMs?: number },
+): Promise<unknown> {
+  const timeoutMs = opts?.timeoutMs ?? 90_000
+  const intervalMs = opts?.intervalMs ?? 3_000
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    const tx = await ua.getTransaction(transactionId)
+    const status = Number(tx?.status)
+    if (status === UA_TRANSACTION_STATUS.FINISHED) return tx
+    if (
+      status === UA_TRANSACTION_STATUS.EXECUTION_FAILED ||
+      status === UA_TRANSACTION_STATUS.REFUND_FINISHED ||
+      status === UA_TRANSACTION_STATUS.REFUND_FAILED
+    ) {
+      throw new Error('Transaction failed - any deposited funds should be refunded automatically')
+    }
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
+  }
+  throw new Error('Timed out waiting for the transaction to finish - check your Universal Account activity or the destination address directly before retrying')
 }
 
 export interface CrossChainPaymentResult {
@@ -299,6 +339,8 @@ export function getConvertTargets(): ConvertTarget[] {
 
 export interface SendResult {
   transactionId: string
+  /** Best-effort destination-chain tx hash - see CrossChainPaymentResult. */
+  destinationTxHash: string | null
 }
 
 /**
@@ -308,6 +350,9 @@ export interface SendResult {
  * executeDcaBuy. Unlike payAmountCrossChain (always settles to Settle's own
  * PayoutRouter for a charge) or convertAsset (always lands back in the
  * buyer's own account), this is a plain peer-to-peer transfer to any wallet.
+ *
+ * Waits for UA_TRANSACTION_STATUS.FINISHED (see waitForFinished) before
+ * returning - submission alone doesn't mean the receiver has been paid yet.
  */
 export async function sendAsset(params: {
   ownerAddress: string
@@ -328,12 +373,19 @@ export async function sendAsset(params: {
   if (!transaction) throw new Error('Universal Account could not construct a route for this transfer')
 
   const result = await submitUaTransaction(ua, transaction)
-  if (import.meta.env.DEV) console.log(`[UA] send submitted: ${result.transactionId}`)
-  return result
+  await waitForFinished(ua, result.transactionId)
+
+  const destinationUserOp = transaction.userOps.find(op => op.chainId === chainId)
+  const destinationTxHash = destinationUserOp?.userOpHash ?? null
+
+  if (import.meta.env.DEV) console.log(`[UA] send finished: ${result.transactionId} (destination hash: ${destinationTxHash ?? 'unknown'})`)
+  return { transactionId: result.transactionId, destinationTxHash }
 }
 
 export interface ConvertResult {
   transactionId: string
+  /** Best-effort destination-chain tx hash - see CrossChainPaymentResult. */
+  destinationTxHash: string | null
 }
 
 /**
@@ -341,6 +393,10 @@ export interface ConvertResult {
  * on `destinationChainId` - the SDK sources funds from wherever the balance
  * currently sits, same automatic sourcing as payChargeCycleCrossChain/executeDcaBuy.
  * `amount` is how much of the destination token to receive (human-readable units).
+ *
+ * Waits for UA_TRANSACTION_STATUS.FINISHED (see waitForFinished) before
+ * returning, same as sendAsset - this had the identical unverified-completion
+ * gap (reported success right after submission, not actual delivery).
  */
 export async function convertAsset(params: {
   ownerAddress: string
@@ -359,6 +415,11 @@ export async function convertAsset(params: {
   if (!transaction) throw new Error('Universal Account could not construct a route for this conversion')
 
   const result = await submitUaTransaction(ua, transaction)
-  if (import.meta.env.DEV) console.log(`[UA] convert submitted: ${result.transactionId}`)
-  return result
+  await waitForFinished(ua, result.transactionId)
+
+  const destinationUserOp = transaction.userOps.find(op => op.chainId === destinationChainId)
+  const destinationTxHash = destinationUserOp?.userOpHash ?? null
+
+  if (import.meta.env.DEV) console.log(`[UA] convert finished: ${result.transactionId} (destination hash: ${destinationTxHash ?? 'unknown'})`)
+  return { transactionId: result.transactionId, destinationTxHash }
 }

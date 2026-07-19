@@ -22,7 +22,7 @@ export function encodeConnectState({ buyer, provider, ts, signature }) {
 // (see src/buyerAuth.js), which also covers the OAuth-redirect round trip -
 // a user reviewing GitHub/GitLab's consent screen within 5 minutes is the
 // normal case; a stale state simply asks them to retry the connect flow.
-export function verifyAndDecodeState(stateParam, expectedProvider) {
+export async function verifyAndDecodeState(stateParam, expectedProvider) {
   let decoded;
   try {
     decoded = JSON.parse(Buffer.from(stateParam, "base64url").toString("utf8"));
@@ -31,7 +31,7 @@ export function verifyAndDecodeState(stateParam, expectedProvider) {
   }
   const { buyer, provider, ts, signature } = decoded;
   if (provider !== expectedProvider) throw new Error("State provider mismatch");
-  const verifiedBuyer = verifyBuyerSignature({ buyer, action: `connect_${provider}`, ts, signature });
+  const verifiedBuyer = await verifyBuyerSignature({ buyer, action: `connect_${provider}`, ts, signature });
   return { buyer: verifiedBuyer };
 }
 

@@ -9,8 +9,16 @@ import { sumStablecoinBalances, emptySignals } from "./common.js";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
+// Bybit's V5 API rejects requests outright if the client's clock has drifted
+// from Bybit's server time beyond a tight window (recv_window) - a common
+// failure on serverless deployments with no local NTP guarantee, and
+// otherwise indistinguishable from a bad API key/secret. enable_time_sync
+// has bybit-api fetch Bybit's server time once and compensate; recv_window
+// is widened a bit past the 5s default as extra headroom.
+const BYBIT_CLIENT_OPTS = { enable_time_sync: true, recv_window: 10000 };
+
 export async function testConnection({ apiKey, apiSecret }) {
-  const client = new RestClientV5({ key: apiKey, secret: apiSecret });
+  const client = new RestClientV5({ key: apiKey, secret: apiSecret, ...BYBIT_CLIENT_OPTS });
   const res = await client.getWalletBalance({ accountType: "UNIFIED" });
   if (res.retCode !== 0) throw new Error(res.retMsg || "Bybit auth check failed");
   return true;
@@ -32,7 +40,7 @@ async function getRegisterTime(client) {
 
 export async function fetchSignals({ apiKey, apiSecret }) {
   try {
-    const client = new RestClientV5({ key: apiKey, secret: apiSecret });
+    const client = new RestClientV5({ key: apiKey, secret: apiSecret, ...BYBIT_CLIENT_OPTS });
     const [balanceRes, ordersRes, accountAgeDays, apiKeyInfoRes] = await Promise.all([
       client.getWalletBalance({ accountType: "UNIFIED" }),
       client.getHistoricOrders({ category: "spot", startTime: Date.now() - NINETY_DAYS_MS, limit: 50 }),

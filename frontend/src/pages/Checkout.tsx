@@ -199,7 +199,7 @@ export default function Checkout() {
         <p className="text-sm text-muted-foreground mb-4">Log in to check out.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In
@@ -217,7 +217,7 @@ export default function Checkout() {
         <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{downPaymentResult.chargeId}</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           View Dashboard
         </button>
@@ -244,7 +244,7 @@ export default function Checkout() {
         <button
           onClick={handlePayDownPayment}
           disabled={payingDownPayment}
-          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+          className="btn-primary font-semibold"
         >
           {payingDownPayment ? 'Paying…' : `Pay ${formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
         </button>
@@ -264,7 +264,7 @@ export default function Checkout() {
         <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{result.chargeId}</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           View Dashboard
         </button>
@@ -284,7 +284,7 @@ export default function Checkout() {
         )}
         <button
           onClick={() => navigate('/catalog')}
-          className="bg-card border border-border text-foreground font-semibold text-sm px-6 py-2.5 rounded-sm hover:border-muted-foreground/30 transition-colors"
+          className="btn-secondary font-semibold"
         >
           Back to Catalog
         </button>
@@ -332,13 +332,13 @@ export default function Checkout() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setPayVia('default')}
-                    className={`text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors ${payVia === 'default' ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                    className={`text-xs font-medium px-3 py-2 rounded-full border transition-colors ${payVia === 'default' ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
                   >
                     Subscribe (indefinite)
                   </button>
                   <button
                     onClick={() => setPayVia('bnpl')}
-                    className={`text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors ${payVia === 'bnpl' ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                    className={`text-xs font-medium px-3 py-2 rounded-full border transition-colors ${payVia === 'bnpl' ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
                   >
                     Pay via BNPL instead
                   </button>
@@ -447,7 +447,7 @@ export default function Checkout() {
             <button
               onClick={handleConfirm}
               disabled={confirming || (bnplOverride && !validBnplCycles)}
-              className="w-full bg-primary text-black font-semibold text-sm py-3 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+              className="btn-primary w-full font-semibold"
             >
               {confirming ? 'Broadcasting…' : `Confirm ${effectiveType === 0 ? 'BNPL Charge' : 'Subscription'}`}
             </button>

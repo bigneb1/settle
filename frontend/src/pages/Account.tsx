@@ -18,6 +18,7 @@ function formatAmount(n: number): string {
 export default function Account() {
   const { address, balance, balanceLoading, balanceError, uaConfigured, refreshBalance, openConnect } = useWallet()
   const uaAvailable = uaConfigured && UA_DESTINATION_CHAIN_ID === 42161
+  const [tab, setTab] = useState<'send' | 'convert'>('send')
 
   const convertTargets = getConvertTargets()
   const tokenTypes = Array.from(new Set(convertTargets.map(t => t.type)))
@@ -46,13 +47,13 @@ export default function Account() {
     setConverting(true)
     setConvertResult(null)
     try {
-      const { transactionId } = await convertAsset({
+      const { transactionId, destinationTxHash } = await convertAsset({
         ownerAddress: address,
         destinationChainId: selectedChainId,
         destinationTokenType: selectedType,
         amount,
       })
-      setConvertResult({ txId: transactionId })
+      setConvertResult({ txId: destinationTxHash ?? transactionId })
       await refreshBalance()
     } catch (err) {
       console.error('[account] convert failed', err)
@@ -93,14 +94,14 @@ export default function Account() {
     setSending(true)
     setSendResult(null)
     try {
-      const { transactionId } = await sendAsset({
+      const { transactionId, destinationTxHash } = await sendAsset({
         ownerAddress: address,
         chainId: sendChainId,
         tokenAddress: sendTarget.address,
         amount: sendAmount,
         receiver: recipientTrimmed,
       })
-      setSendResult({ txId: transactionId })
+      setSendResult({ txId: destinationTxHash ?? transactionId })
       setRecipient('')
       setSendAmount('')
       await refreshBalance()
@@ -118,7 +119,7 @@ export default function Account() {
         <p className="text-sm text-muted-foreground mb-4">Log in to view your Universal Account.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In
@@ -202,174 +203,170 @@ export default function Account() {
         )}
       </div>
 
-      {/* Send */}
-      <div className="mb-8">
-        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Send size={12} /> Send <span className="flex-1 h-px bg-border" />
-        </p>
-        <div className="bg-card border border-border rounded-sm p-5 max-w-xl">
-          <p className="text-xs text-muted-foreground mb-4">
-            Send any asset you hold to another wallet address - funds are sourced automatically from wherever they currently sit, same as Convert.
-          </p>
-          <form onSubmit={handleSend} className="space-y-4">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Asset</label>
-              <div className="flex flex-wrap gap-2">
-                {tokenTypes.map(type => (
-                  <button
-                    type="button"
-                    key={type}
-                    onClick={() => selectSendType(type)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-sm border transition-colors uppercase ${
-                      sendType === type
-                        ? 'bg-primary text-black border-primary'
-                        : 'bg-background text-muted-foreground border-border hover:text-foreground'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">On chain</label>
-                <select
-                  value={sendChainId}
-                  onChange={e => setSendChainId(Number(e.target.value))}
-                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
-                >
-                  {sendTargetsForType.map((t: ConvertTarget) => (
-                    <option key={`${t.type}-${t.chainId}`} value={t.chainId}>{t.chainLabel}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Amount to send</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={sendAmount}
-                  onChange={e => setSendAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Recipient Address</label>
-              <input
-                type="text"
-                value={recipient}
-                onChange={e => setRecipient(e.target.value.trim())}
-                placeholder="0x..."
-                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm font-mono text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
-              />
-              {recipient.length > 0 && !recipientValid && (
-                <p className="text-xs text-destructive mt-1.5">Not a valid wallet address</p>
-              )}
-              {recipientIsSelf && (
-                <p className="text-xs text-destructive mt-1.5">This is your own connected address</p>
-              )}
-            </div>
-
-            {canSend && (
-              <p className="text-xs text-muted-foreground bg-background border border-border rounded-sm p-3">
-                You're about to send <span className="font-mono text-foreground">{sendAmount} {sendType.toUpperCase()}</span> on{' '}
-                {sendTargetsForType.find(t => t.chainId === sendChainId)?.chainLabel} to{' '}
-                <span className="font-mono text-foreground">{shortAddr(recipientTrimmed)}</span>.
-              </p>
-            )}
-
-            {sendResult && 'error' in sendResult && <p className="text-xs text-destructive">{sendResult.error}</p>}
-            {sendResult && 'txId' in sendResult && <p className="text-xs text-primary">Sent - tx {shortHash(sendResult.txId)}</p>}
-
-            <button
-              type="submit"
-              disabled={sending || !canSend || !uaAvailable}
-              className="w-full bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              title={!uaAvailable ? 'Particle Network credentials not configured' : undefined}
-            >
-              {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              {sending ? 'Sending…' : 'Send'}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Convert */}
+      {/* Send / Convert tabs */}
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-          <ArrowLeftRight size={12} /> Convert <span className="flex-1 h-px bg-border" />
-        </p>
-        <div className="bg-card border border-border rounded-sm p-5 max-w-xl">
-          <p className="text-xs text-muted-foreground mb-4">
-            Convert part of your unified balance into any supported asset on any supported chain - funds are sourced automatically from wherever they currently sit.
-          </p>
-          <form onSubmit={handleConvert} className="space-y-4">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Receive</label>
-              <div className="flex flex-wrap gap-2">
-                {tokenTypes.map(type => (
-                  <button
-                    type="button"
-                    key={type}
-                    onClick={() => selectType(type)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-sm border transition-colors uppercase ${
-                      selectedType === type
-                        ? 'bg-primary text-black border-primary'
-                        : 'bg-background text-muted-foreground border-border hover:text-foreground'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="flex items-center gap-1 mb-5 border-b border-border">
+          {([
+            { key: 'send' as const, label: 'Send', icon: Send },
+            { key: 'convert' as const, label: 'Convert', icon: ArrowLeftRight },
+          ]).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 border-b-2 transition-colors ${
+                tab === t.key ? 'text-primary border-primary' : 'text-muted-foreground border-transparent hover:text-foreground'
+              }`}
+            >
+              <t.icon size={13} /> {t.label}
+            </button>
+          ))}
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
+        {tab === 'send' ? (
+          <div className="bg-card border border-border rounded-sm p-5 max-w-xl">
+            <p className="text-xs text-muted-foreground mb-4">
+              Send any asset you hold to another wallet address - funds are sourced automatically from wherever they currently sit, same as Convert.
+            </p>
+            <form onSubmit={handleSend} className="space-y-4">
               <div>
-                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">On chain</label>
+                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Asset</label>
                 <select
-                  value={selectedChainId}
-                  onChange={e => setSelectedChainId(Number(e.target.value))}
-                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                  value={sendType}
+                  onChange={e => selectSendType(e.target.value as SUPPORTED_TOKEN_TYPE)}
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors uppercase"
                 >
-                  {targetsForType.map((t: ConvertTarget) => (
-                    <option key={`${t.type}-${t.chainId}`} value={t.chainId}>{t.chainLabel}</option>
+                  {tokenTypes.map(type => (
+                    <option key={type} value={type}>{type.toUpperCase()}</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Amount to receive</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">On chain</label>
+                  <select
+                    value={sendChainId}
+                    onChange={e => setSendChainId(Number(e.target.value))}
+                    className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                  >
+                    {sendTargetsForType.map((t: ConvertTarget) => (
+                      <option key={`${t.type}-${t.chainId}`} value={t.chainId}>{t.chainLabel}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Amount to send</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={sendAmount}
+                    onChange={e => setSendAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                  />
+                </div>
               </div>
-            </div>
 
-            {convertResult && 'error' in convertResult && <p className="text-xs text-destructive">{convertResult.error}</p>}
-            {convertResult && 'txId' in convertResult && <p className="text-xs text-primary">Converted - tx {shortHash(convertResult.txId)}</p>}
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Recipient Address</label>
+                <input
+                  type="text"
+                  value={recipient}
+                  onChange={e => setRecipient(e.target.value.trim())}
+                  placeholder="0x..."
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm font-mono text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
+                />
+                {recipient.length > 0 && !recipientValid && (
+                  <p className="text-xs text-destructive mt-1.5">Not a valid wallet address</p>
+                )}
+                {recipientIsSelf && (
+                  <p className="text-xs text-destructive mt-1.5">This is your own connected address</p>
+                )}
+              </div>
 
-            <button
-              type="submit"
-              disabled={converting || !uaAvailable}
-              className="w-full bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              title={!uaAvailable ? 'Particle Network credentials not configured' : undefined}
-            >
-              {converting ? <Loader2 size={14} className="animate-spin" /> : <ArrowLeftRight size={14} />}
-              {converting ? 'Converting…' : 'Convert'}
-            </button>
-          </form>
-        </div>
+              {canSend && (
+                <p className="text-xs text-muted-foreground bg-background border border-border rounded-sm p-3">
+                  You're about to send <span className="font-mono text-foreground">{sendAmount} {sendType.toUpperCase()}</span> on{' '}
+                  {sendTargetsForType.find(t => t.chainId === sendChainId)?.chainLabel} to{' '}
+                  <span className="font-mono text-foreground">{shortAddr(recipientTrimmed)}</span>.
+                </p>
+              )}
+
+              {sendResult && 'error' in sendResult && <p className="text-xs text-destructive">{sendResult.error}</p>}
+              {sendResult && 'txId' in sendResult && <p className="text-xs text-primary">Sent - tx {shortHash(sendResult.txId)}</p>}
+
+              <button
+                type="submit"
+                disabled={sending || !canSend || !uaAvailable}
+                className="btn-primary w-full font-semibold"
+                title={!uaAvailable ? 'Particle Network credentials not configured' : undefined}
+              >
+                {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {sending ? 'Sending…' : 'Send'}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="bg-card border border-border rounded-sm p-5 max-w-xl">
+            <p className="text-xs text-muted-foreground mb-4">
+              Convert part of your unified balance into any supported asset on any supported chain - funds are sourced automatically from wherever they currently sit.
+            </p>
+            <form onSubmit={handleConvert} className="space-y-4">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Receive</label>
+                <select
+                  value={selectedType}
+                  onChange={e => selectType(e.target.value as SUPPORTED_TOKEN_TYPE)}
+                  className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors uppercase"
+                >
+                  {tokenTypes.map(type => (
+                    <option key={type} value={type}>{type.toUpperCase()}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">On chain</label>
+                  <select
+                    value={selectedChainId}
+                    onChange={e => setSelectedChainId(Number(e.target.value))}
+                    className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                  >
+                    {targetsForType.map((t: ConvertTarget) => (
+                      <option key={`${t.type}-${t.chainId}`} value={t.chainId}>{t.chainLabel}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Amount to receive</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+              </div>
+
+              {convertResult && 'error' in convertResult && <p className="text-xs text-destructive">{convertResult.error}</p>}
+              {convertResult && 'txId' in convertResult && <p className="text-xs text-primary">Converted - tx {shortHash(convertResult.txId)}</p>}
+
+              <button
+                type="submit"
+                disabled={converting || !uaAvailable}
+                className="btn-primary w-full font-semibold"
+                title={!uaAvailable ? 'Particle Network credentials not configured' : undefined}
+              >
+                {converting ? <Loader2 size={14} className="animate-spin" /> : <ArrowLeftRight size={14} />}
+                {converting ? 'Converting…' : 'Convert'}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   )

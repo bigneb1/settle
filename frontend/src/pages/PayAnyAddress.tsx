@@ -112,7 +112,7 @@ export default function PayAnyAddress() {
         <p className="text-sm text-muted-foreground mb-4">Log in to pay any address.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In
@@ -130,7 +130,7 @@ export default function PayAnyAddress() {
         <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{downPaymentResult.chargeId}</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           View Dashboard
         </button>
@@ -157,7 +157,7 @@ export default function PayAnyAddress() {
         <button
           onClick={handlePayDownPayment}
           disabled={payingDownPayment}
-          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+          className="btn-primary font-semibold"
         >
           {payingDownPayment ? 'Paying…' : `Pay ${formatUSDC(BigInt(Math.round(result.downPaymentUSD * 1_000_000)))} Now`}
         </button>
@@ -177,7 +177,7 @@ export default function PayAnyAddress() {
         <p className="text-xs text-muted-foreground font-mono mb-6">Charge #{result.chargeId}</p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           View Dashboard
         </button>
@@ -197,7 +197,7 @@ export default function PayAnyAddress() {
         )}
         <button
           onClick={() => setResult(null)}
-          className="bg-card border border-border text-foreground font-semibold text-sm px-6 py-2.5 rounded-sm hover:border-muted-foreground/30 transition-colors"
+          className="btn-secondary font-semibold"
         >
           Try Again
         </button>
@@ -237,14 +237,14 @@ export default function PayAnyAddress() {
             <button
               type="button"
               onClick={() => setChargeType(0)}
-              className={`text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors ${chargeType === 0 ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+              className={`text-xs font-medium px-3 py-2 rounded-full border transition-colors ${chargeType === 0 ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
             >
               BNPL (installments)
             </button>
             <button
               type="button"
               onClick={() => setChargeType(1)}
-              className={`text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors ${chargeType === 1 ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+              className={`text-xs font-medium px-3 py-2 rounded-full border transition-colors ${chargeType === 1 ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
             >
               Subscription (indefinite)
             </button>
@@ -313,7 +313,7 @@ export default function PayAnyAddress() {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-black font-semibold text-sm py-3 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+          className="btn-primary w-full font-semibold"
         >
           <Send size={14} />
           {submitting ? 'Broadcasting…' : `Confirm ${chargeType === 0 ? 'BNPL Charge' : 'Subscription'}`}

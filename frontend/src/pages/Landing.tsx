@@ -525,7 +525,7 @@ export default function Landing() {
 
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
-            <Link to="/catalog" className="hidden md:inline-flex items-center gap-1.5 bg-primary text-black text-[13px] font-bold px-5 py-2 rounded-sm hover:bg-primary-hover transition-colors">
+            <Link to="/catalog" className="hidden md:inline-flex items-center gap-1.5 bg-primary text-black text-[13px] font-bold px-4 py-1.5 rounded-full hover:bg-primary-hover transition-colors">
               Launch App <ArrowRight className="h-3.5 w-3.5" />
             </Link>
             <button className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Toggle menu">
@@ -541,7 +541,7 @@ export default function Landing() {
                 {label}
               </Link>
             ))}
-            <Link to="/catalog" className="inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-5 py-2.5 mt-2 w-fit rounded-sm" onClick={() => setMobileMenuOpen(false)}>
+            <Link to="/catalog" className="inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-4 py-2 mt-2 w-fit rounded-full" onClick={() => setMobileMenuOpen(false)}>
               Launch App <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -595,10 +595,10 @@ export default function Landing() {
                 transition={{ duration: 0.6, delay: 0.54, ease: EASE }}
                 className="flex flex-wrap items-center gap-3 mb-10"
               >
-                <Link to="/catalog" className="group inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-7 py-3.5 rounded-sm hover:bg-primary-hover transition-all">
+                <Link to="/catalog" className="group inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-6 py-3 rounded-full hover:bg-primary-hover transition-all">
                   Browse Catalog <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link to="/merchant" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-7 py-3.5 rounded-sm hover:border-primary/40 hover:text-primary transition-all">
+                <Link to="/merchant" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-6 py-3 rounded-full hover:border-primary/40 hover:text-primary transition-all">
                   Merchant Setup
                 </Link>
               </motion.div>
@@ -806,10 +806,10 @@ export default function Landing() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-start gap-4">
-                <Link to="/catalog" className="group inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-8 py-4 rounded-sm hover:bg-primary-hover transition-all">
+                <Link to="/catalog" className="group inline-flex items-center gap-2 bg-primary text-black text-sm font-bold px-6 py-3 rounded-full hover:bg-primary-hover transition-all">
                   Launch Settle <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-                <Link to="/merchant" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-8 py-4 rounded-sm hover:border-primary/40 hover:text-primary transition-all">
+                <Link to="/merchant" className="inline-flex items-center gap-2 border border-border text-muted-foreground text-sm font-semibold px-6 py-3 rounded-full hover:border-primary/40 hover:text-primary transition-all">
                   Become a merchant
                 </Link>
               </div>

@@ -85,12 +85,12 @@ export default function Catalog() {
             className="w-full bg-card border border-border rounded-sm pl-9 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-colors"
           />
         </div>
-        <div className="flex gap-1 bg-card border border-border rounded-sm p-1">
+        <div className="flex gap-1 bg-card border border-border rounded-full p-1">
           {FILTERS.map(f => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`px-4 py-1.5 text-xs font-medium rounded-sm transition-colors ${
+              className={`px-3.5 py-1.5 text-xs font-medium rounded-full transition-colors ${
                 filter === f.key
                   ? 'bg-primary text-black'
                   : 'text-muted-foreground hover:text-foreground'
@@ -172,7 +172,7 @@ export default function Catalog() {
                       },
                     },
                   })}
-                  className="mt-4 w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-black font-semibold text-xs py-2.5 rounded-sm transition-colors"
+                  className="btn-primary w-full mt-4 font-semibold"
                 >
                   {item.charge_type === 0 ? <ShoppingCart size={13} /> : <RefreshCw size={13} />}
                   {item.charge_type === 0 ? 'Buy Now (BNPL)' : 'Subscribe'}

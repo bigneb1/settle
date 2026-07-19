@@ -35,6 +35,95 @@ async function signProfileAction(address: string, action: string): Promise<{ ts:
   return { ts, signature }
 }
 
+// ── Session-token auth for non-transaction profile actions ────────────────
+// Magic's embedded wallet shows a real, visible "Confirm Request" popup for
+// every personal_sign call - signing on every profile/get, exchange
+// connect/sync/disconnect/details, or dev-identity disconnect call means a
+// popup on every page navigation. Endpoints that accept it mint a
+// `sessionToken` (24h server-side TTL - see backend/src/session.js) after
+// the first real signature; every subsequent call for the same address
+// reuses that token instead of signing again. Deliberately NOT used for
+// anything that moves funds or creates an on-chain charge (checkout,
+// down-payment confirmation, Pay Now, DCA buy, Convert, Send, merchant
+// onboarding, GitHub/GitLab OAuth connect) - those keep requiring a real
+// signature or on-chain proof every time.
+const SESSION_STORAGE_PREFIX = 'settle:session:'
+// Slightly under the server's 24h TTL so a normal page load proactively
+// re-signs instead of racing a server-side expiry rejection.
+const SESSION_CLIENT_TTL_MS = 23 * 60 * 60 * 1000
+
+function readSessionToken(addrLower: string): string | null {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_PREFIX + addrLower)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { token: string; obtainedAt: number }
+    if (Date.now() - parsed.obtainedAt > SESSION_CLIENT_TTL_MS) return null
+    return parsed.token
+  } catch {
+    return null
+  }
+}
+
+function writeSessionToken(addrLower: string, token: string) {
+  try {
+    localStorage.setItem(SESSION_STORAGE_PREFIX + addrLower, JSON.stringify({ token, obtainedAt: Date.now() }))
+  } catch {
+    // Private-browsing/quota errors etc. - caching is an optimization, not
+    // required for correctness, so just skip persisting silently.
+  }
+}
+
+function clearSessionToken(addrLower: string) {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_PREFIX + addrLower)
+  } catch {
+    // ignore
+  }
+}
+
+async function authForAction(address: string, action: string): Promise<{ ts?: number; signature?: string; sessionToken?: string }> {
+  const sessionToken = readSessionToken(address.toLowerCase())
+  if (sessionToken) return { sessionToken }
+  return signProfileAction(address, action)
+}
+
+/**
+ * POSTs `{ buyer: address, ...extraBody, ...auth }` to `url`, authenticating
+ * via a cached session token when available (no popup) or a real signature
+ * otherwise (the only time this specific call pops up Magic). If a cached
+ * session token turns out to be invalid/expired (401), clears it and retries
+ * once with a real signature rather than failing outright. Persists any
+ * `sessionToken` the response includes for next time.
+ */
+async function postWithSessionAuth<T>(
+  url: string,
+  address: string,
+  action: string,
+  extraBody: Record<string, unknown>,
+  errorPrefix: string,
+): Promise<T> {
+  const addrLower = address.toLowerCase()
+  let auth = await authForAction(address, action)
+
+  const send = () => fetch(`${API_URL}${url}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ buyer: address, ...extraBody, ...auth }),
+  })
+
+  let res = await send()
+  if (res.status === 401 && auth.sessionToken) {
+    clearSessionToken(addrLower)
+    auth = await signProfileAction(address, action)
+    res = await send()
+  }
+
+  const data = await parseJsonResponse(res)
+  if (!res.ok) throw new Error(data.error || `${errorPrefix} (${res.status})`)
+  if (data.sessionToken) writeSessionToken(addrLower, data.sessionToken)
+  return data as T
+}
+
 export async function confirmChargePayment(chargeId: number, txHash: string): Promise<{ ok: true; recordTxHash: string }> {
   const res = await fetch(`${API_URL}/api/payments/confirm`, {
     method: 'POST',
@@ -345,16 +434,9 @@ export async function getProfile(address: string, opts?: { force?: boolean }): P
   }
 
   const fetchPromise = (async () => {
-    const { ts, signature } = await signProfileAction(address, 'get_profile')
-    const res = await fetch(`${API_URL}/api/profile/get`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ buyer: address, ts, signature }),
-    })
-    const data = await parseJsonResponse(res)
-    if (!res.ok) throw new Error(data.error || `Could not load profile (${res.status})`)
+    const data = await postWithSessionAuth<FullProfile>('/api/profile/get', address, 'get_profile', {}, 'Could not load profile')
     writePersistedProfile(addrLower, data)
-    return data as FullProfile
+    return data
   })()
 
   profileCache = { address: addrLower, cachedAt: Date.now(), promise: fetchPromise }
@@ -375,63 +457,54 @@ export async function connectExchangeAccount(
   apiSecret: string,
   apiPass?: string,
 ): Promise<{ ok: true; profile: CreditProfile }> {
-  const { ts, signature } = await signProfileAction(address, 'connect_exchange')
-  const res = await fetch(`${API_URL}/api/profile/exchange/connect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyer: address, exchange, apiKey, apiSecret, apiPass, ts, signature }),
-  })
-  const data = await parseJsonResponse(res)
-  if (!res.ok) throw new Error(data.error || `Could not connect ${exchange} (${res.status})`)
-  return data
+  return postWithSessionAuth(
+    '/api/profile/exchange/connect',
+    address,
+    'connect_exchange',
+    { exchange, apiKey, apiSecret, apiPass },
+    `Could not connect ${exchange}`,
+  )
 }
 
 export async function disconnectExchangeAccount(address: string, exchange: SupportedExchange): Promise<{ ok: true }> {
-  const { ts, signature } = await signProfileAction(address, 'disconnect_exchange')
-  const res = await fetch(`${API_URL}/api/profile/exchange/disconnect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyer: address, exchange, ts, signature }),
-  })
-  const data = await parseJsonResponse(res)
-  if (!res.ok) throw new Error(data.error || `Could not disconnect ${exchange} (${res.status})`)
-  return data
+  return postWithSessionAuth(
+    '/api/profile/exchange/disconnect',
+    address,
+    'disconnect_exchange',
+    { exchange },
+    `Could not disconnect ${exchange}`,
+  )
 }
 
 export async function syncExchangeAccount(address: string, exchange: SupportedExchange): Promise<{ ok: true; profile: CreditProfile }> {
-  const { ts, signature } = await signProfileAction(address, 'sync_exchange')
-  const res = await fetch(`${API_URL}/api/profile/exchange/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyer: address, exchange, ts, signature }),
-  })
-  const data = await parseJsonResponse(res)
-  if (!res.ok) throw new Error(data.error || `Sync failed (${res.status})`)
-  return data
+  return postWithSessionAuth(
+    '/api/profile/exchange/sync',
+    address,
+    'sync_exchange',
+    { exchange },
+    'Sync failed',
+  )
 }
 
 export async function getExchangeAccountDetails(address: string, exchange: SupportedExchange): Promise<ExchangeAccountDetails> {
-  const { ts, signature } = await signProfileAction(address, 'exchange_account_details')
-  const res = await fetch(`${API_URL}/api/profile/exchange/details`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyer: address, exchange, ts, signature }),
-  })
-  const data = await parseJsonResponse(res)
-  if (!res.ok) throw new Error(data.error || `Could not fetch ${exchange} account details (${res.status})`)
+  const data = await postWithSessionAuth<{ details: ExchangeAccountDetails }>(
+    '/api/profile/exchange/details',
+    address,
+    'exchange_account_details',
+    { exchange },
+    `Could not fetch ${exchange} account details`,
+  )
   return data.details
 }
 
 export async function disconnectDevIdentity(address: string, provider: DevIdentityProvider): Promise<{ ok: true }> {
-  const { ts, signature } = await signProfileAction(address, 'disconnect_dev_identity')
-  const res = await fetch(`${API_URL}/api/profile/dev-identity/disconnect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ buyer: address, provider, ts, signature }),
-  })
-  const data = await parseJsonResponse(res)
-  if (!res.ok) throw new Error(data.error || `Could not disconnect ${provider} (${res.status})`)
-  return data
+  return postWithSessionAuth(
+    '/api/profile/dev-identity/disconnect',
+    address,
+    'disconnect_dev_identity',
+    { provider },
+    `Could not disconnect ${provider}`,
+  )
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
-  Home, ShoppingBag, LayoutDashboard, Store, Menu, X, Wallet, LogOut, TrendingUp, BookOpen, UserCircle, Layers, Send, ChevronLeft, ChevronRight
+  ShoppingBag, LayoutDashboard, Store, Menu, X, Wallet, LogOut, TrendingUp, BookOpen, UserCircle, Layers, Send, ChevronLeft, ChevronRight
 } from 'lucide-react'
 import SettleLogo from './SettleLogo'
 import ThemeSwitcher from './ThemeSwitcher'
@@ -11,7 +11,6 @@ import { logout } from '../lib/magic'
 import { useWallet } from '../context/WalletContext'
 
 const NAV = [
-  { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/catalog', label: 'Catalog', icon: ShoppingBag, end: false },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: false },
   { to: '/account', label: 'Account', icon: Layers, end: false },
@@ -119,14 +118,14 @@ function Sidebar({ wallet, onConnect, onLogout, onClose, collapsed, onToggleColl
             onClick={onConnect}
             title="Connect Wallet"
             aria-label="Connect Wallet"
-            className="w-full flex items-center justify-center bg-card hover:bg-primary/10 border border-border hover:border-primary/40 text-primary p-2.5 rounded-sm transition-colors"
+            className="w-full flex items-center justify-center bg-card hover:bg-primary/10 border border-border hover:border-primary/40 text-primary p-2 rounded-full transition-colors"
           >
             <Wallet size={13} />
           </button>
         ) : (
           <button
             onClick={onConnect}
-            className="w-full flex items-center justify-center gap-2 bg-card hover:bg-primary/10 border border-border hover:border-primary/40 text-primary text-xs font-medium px-3 py-2.5 rounded-sm transition-colors"
+            className="btn-secondary w-full bg-card hover:bg-primary/10 border-border hover:border-primary/40 text-primary"
           >
             <Wallet size={13} />
             Connect Wallet

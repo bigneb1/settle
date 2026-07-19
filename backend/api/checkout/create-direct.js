@@ -134,7 +134,11 @@ export async function POST(req) {
       // to merchantAddress before a charge is created.
       const financedAmountUSD = totalPriceUSD * result.financeableFraction;
       const downPaymentUSD = totalPriceUSD - financedAmountUSD;
-      approved = result.approved && financedAmountUSD * 1_000_000 <= effectiveLimit;
+      // See checkout/create.js for why this OR is needed: result.approved
+      // reflects only the base 5-signal on-chain score, so without it a
+      // buyer whose credit profile alone has cleared its own approval bar
+      // (a real, non-zero effectiveLimit) could never actually be approved.
+      approved = (result.approved || effectiveLimit > 0n) && financedAmountUSD * 1_000_000 <= effectiveLimit;
       score = result.score;
       explanation = result.explanation || "";
       if (approved) downPaymentInfo = { downPaymentUSD, financedAmountUSD };

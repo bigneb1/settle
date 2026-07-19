@@ -375,7 +375,7 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
         {step > 1 && (
           <button
             onClick={prev}
-            className="flex-1 bg-transparent border border-border text-muted-foreground hover:text-foreground font-medium text-sm py-2.5 rounded-sm transition-colors"
+            className="btn-ghost flex-1 font-medium"
           >
             Back
           </button>
@@ -384,7 +384,7 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
           <button
             onClick={next}
             disabled={!canAdvance(step)}
-            className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+            className="btn-primary flex-1 font-semibold"
           >
             Continue
           </button>
@@ -392,7 +392,7 @@ function OnboardingWizard({ address, onRegistered }: { address: string; onRegist
           <button
             onClick={submit}
             disabled={submitting}
-            className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+            className="btn-primary flex-1 font-semibold"
           >
             {submitting ? 'Broadcasting…' : 'Register Merchant'}
           </button>
@@ -468,7 +468,7 @@ export default function Merchant() {
         <p className="text-sm text-muted-foreground mb-4">Log in to view your merchant dashboard.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In
@@ -523,7 +523,7 @@ export default function Merchant() {
             <button
               onClick={handleTogglePayoutMode}
               disabled={switchingMode}
-              className="flex items-center gap-2 bg-card border border-border text-muted-foreground hover:text-foreground text-xs font-medium px-3 py-2 rounded-sm disabled:opacity-50 transition-colors"
+              className="btn-secondary btn-sm"
               title="Toggles PayoutRouter.configureMerchant on-chain"
             >
               {switchingMode ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}

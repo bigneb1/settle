@@ -56,6 +56,36 @@
   box-sizing: border-box;
 }
 
+/* Shared button styling - smaller, fully pill-shaped (jup.ag-style) instead
+   of the old rounded-sm/larger-padding buttons. Only for buttons that render
+   a visible filled/outlined shape - plain icon-only ghost buttons (nav
+   toggles, copy-address, theme switcher) intentionally don't use these,
+   since there's no shape there to round. */
+@layer components {
+  /* Tailwind v4's @apply can't chain one custom @layer components class into
+     another (only real utilities) - so the shared shape/behavior is declared
+     once across all four variant selectors instead of a base .btn class. */
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full font-medium text-xs px-3.5 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-primary text-black hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground;
+  }
+  .btn-secondary {
+    @apply bg-card border border-border text-foreground hover:border-primary/40;
+  }
+  .btn-ghost {
+    @apply bg-transparent border border-border text-muted-foreground hover:text-foreground;
+  }
+  .btn-danger {
+    @apply bg-border text-muted-foreground hover:text-destructive;
+  }
+  /* Smaller variant for compact contexts (per-connection action rows, etc). */
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-[11px];
+  }
+}
+
 html, body, #root {
   height: 100%;
   background-color: hsl(var(--background));

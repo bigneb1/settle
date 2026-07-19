@@ -153,7 +153,7 @@ export default function Dca() {
         <p className="text-sm text-muted-foreground mb-4">Log in to set up recurring investments.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In
@@ -186,22 +186,15 @@ export default function Dca() {
           <form onSubmit={handleCreatePlan} className="space-y-4">
             <div>
               <label className="block text-xs text-muted-foreground mb-2 uppercase tracking-widest">Asset</label>
-              <div className="flex flex-wrap gap-2">
+              <select
+                value={selectedType}
+                onChange={e => selectType(e.target.value as SUPPORTED_TOKEN_TYPE)}
+                className="w-full bg-background border border-border rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors uppercase"
+              >
                 {tokenTypes.map(type => (
-                  <button
-                    type="button"
-                    key={type}
-                    onClick={() => selectType(type)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-sm border transition-colors uppercase ${
-                      selectedType === type
-                        ? 'bg-primary text-black border-primary'
-                        : 'bg-background text-muted-foreground border-border hover:text-foreground'
-                    }`}
-                  >
-                    {type}
-                  </button>
+                  <option key={type} value={type}>{type.toUpperCase()}</option>
                 ))}
-              </div>
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -265,7 +258,7 @@ export default function Dca() {
             <button
               type="submit"
               disabled={creating}
-              className="w-full bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="btn-primary w-full font-semibold"
             >
               {creating ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />}
               {creating ? 'Creating…' : 'Create Plan'}
@@ -326,7 +319,7 @@ export default function Dca() {
                               <button
                                 onClick={() => handleExecuteBuy(p)}
                                 disabled={executingId === p.id}
-                                className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-primary-subtle text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                className="btn-secondary btn-sm bg-primary-subtle text-primary border-none hover:bg-primary/20"
                                 title="Execute this buy cycle via Universal Account, sourced from whatever chain your balance sits on"
                               >
                                 {executingId === p.id ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
@@ -345,7 +338,7 @@ export default function Dca() {
                             <button
                               onClick={() => handleCancelPlan(p)}
                               disabled={cancellingId === p.id}
-                              className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-border text-muted-foreground hover:text-red-400 disabled:opacity-50 transition-colors"
+                              className="btn-danger btn-sm"
                             >
                               {cancellingId === p.id ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
                               Cancel

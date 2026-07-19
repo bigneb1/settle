@@ -131,12 +131,12 @@ function ConnectExchangeModal({ exchange, onClose, onConnected }: {
             </div>
           )}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 bg-transparent border border-border text-muted-foreground hover:text-foreground font-medium text-sm py-2.5 rounded-sm transition-colors">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1 font-medium">
               Cancel
             </button>
             <button
               type="submit" disabled={submitting}
-              className="flex-1 bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
+              className="btn-primary flex-1 font-semibold"
             >
               {submitting ? 'Connecting…' : 'Connect'}
             </button>
@@ -221,16 +221,16 @@ function ExchangeCard({ exchangeKey, label, icon, accent, connection, onConnect,
             <ExternalLink size={11} /> View Account Details
           </Link>
           <div className="flex gap-2">
-            <button onClick={onSync} disabled={busy} className="flex-1 flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-sm bg-primary-subtle text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors">
+            <button onClick={onSync} disabled={busy} className="btn-secondary btn-sm flex-1 bg-primary-subtle text-primary border-none hover:bg-primary/20">
               {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />} Sync
             </button>
-            <button onClick={onDisconnect} disabled={busy} className="flex-1 flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-sm bg-border text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors">
+            <button onClick={onDisconnect} disabled={busy} className="btn-danger btn-sm flex-1">
               <Unlink size={11} /> Disconnect
             </button>
           </div>
         </div>
       ) : (
-        <button onClick={onConnect} className="w-full text-[10px] font-medium px-2 py-1.5 rounded-sm bg-primary text-black hover:bg-primary-hover transition-colors">
+        <button onClick={onConnect} className="btn-primary btn-sm w-full">
           Connect
         </button>
       )}
@@ -271,11 +271,11 @@ function DevIdentityCard({ label, icon: Icon, accent, connection, onConnect, onD
         <p className="text-xs text-muted-foreground mb-3">Adds developer reputation to your credit profile.</p>
       )}
       {connected ? (
-        <button onClick={onDisconnect} disabled={busy} className="w-full flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-1.5 rounded-sm bg-border text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors">
+        <button onClick={onDisconnect} disabled={busy} className="btn-danger btn-sm w-full">
           <Unlink size={11} /> Disconnect
         </button>
       ) : (
-        <button onClick={onConnect} className="w-full text-[10px] font-medium px-2 py-1.5 rounded-sm bg-primary text-black hover:bg-primary-hover transition-colors">
+        <button onClick={onConnect} className="btn-primary btn-sm w-full">
           Connect {label}
         </button>
       )}
@@ -471,7 +471,7 @@ export default function Profile() {
         <p className="text-sm text-muted-foreground mb-4">Log in to view your profile.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <WalletIcon size={14} />
           Log In
@@ -493,7 +493,7 @@ export default function Profile() {
       <div className="px-6 py-16 text-center">
         <AlertCircle size={32} className="mx-auto mb-3 text-destructive" />
         <p className="text-sm text-destructive mb-4">{error}</p>
-        <button onClick={() => load({ force: true })} className="bg-card border border-border text-foreground text-sm px-4 py-2 rounded-sm hover:border-primary/40 transition-colors">Retry</button>
+        <button onClick={() => load({ force: true })} className="btn-secondary">Retry</button>
       </div>
     )
   }

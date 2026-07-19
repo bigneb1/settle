@@ -109,7 +109,7 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
               <button
                 type="submit"
                 disabled={loading || !email}
-                className="w-full bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="btn-primary w-full font-semibold"
               >
                 <Mail size={14} />
                 {loading ? 'Sending…' : 'Send Code'}
@@ -138,7 +138,7 @@ export default function ConnectWallet({ onClose, onConnected }: Props) {
               <button
                 type="submit"
                 disabled={loading || !code}
-                className="w-full bg-primary text-black font-semibold text-sm py-2.5 rounded-sm hover:bg-primary-hover disabled:bg-border disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="btn-primary w-full font-semibold"
               >
                 <ShieldCheck size={14} />
                 {loading ? 'Verifying…' : 'Verify Code'}

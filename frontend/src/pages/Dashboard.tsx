@@ -223,7 +223,7 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground mb-4">Log in to view your dashboard.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In
@@ -358,7 +358,7 @@ export default function Dashboard() {
                             <button
                               onClick={() => handlePayNow(c)}
                               disabled={payingId === c.id}
-                              className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-sm bg-primary-subtle text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                              className="btn-secondary btn-sm bg-primary-subtle text-primary border-none hover:bg-primary/20"
                               title="Pay this cycle via Universal Account, sourced from whatever chain your balance sits on"
                             >
                               {payingId === c.id ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}

@@ -19,6 +19,7 @@
  */
 import { completeDevIdentityConnect, verifyAndDecodeState } from "../../src/devIdentity.js";
 import { verifyBuyerSignature } from "../../src/buyerAuth.js";
+import { createSession } from "../../src/session.js";
 import { supabaseAdmin } from "../../src/config.js";
 import { computeCreditProfile } from "../../src/creditProfileEngine.js";
 import { safeError } from "../../src/errors.js";
@@ -52,7 +53,7 @@ export async function GET(req) {
 
   let buyer;
   try {
-    ({ buyer } = verifyAndDecodeState(state, provider));
+    ({ buyer } = await verifyAndDecodeState(state, provider));
   } catch (err) {
     return redirect(`/profile?connect_error=${encodeURIComponent(err.message)}`);
   }
@@ -98,11 +99,11 @@ export async function POST(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { buyer: rawBuyer, provider, ts, signature } = body;
+  const { buyer: rawBuyer, provider, ts, signature, sessionToken: incomingSessionToken } = body;
 
   let buyer;
   try {
-    buyer = verifyBuyerSignature({ buyer: rawBuyer, action: "disconnect_dev_identity", ts, signature });
+    buyer = await verifyBuyerSignature({ buyer: rawBuyer, action: "disconnect_dev_identity", ts, signature, sessionToken: incomingSessionToken });
   } catch (err) {
     return json({ error: err.message }, 401);
   }
@@ -124,7 +125,13 @@ export async function POST(req) {
       await supabaseAdmin.from("dev_identity_connections").delete().eq("id", connection.id);
     }
 
-    return json({ ok: true }, 200);
+    let sessionToken;
+    try {
+      sessionToken = incomingSessionToken || await createSession(buyer);
+    } catch {
+      sessionToken = null;
+    }
+    return json({ ok: true, sessionToken }, 200);
   } catch (err) {
     return json(safeError("profile/dev-identity/disconnect", err, "Could not disconnect account"), 500);
   }

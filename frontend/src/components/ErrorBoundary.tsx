@@ -37,7 +37,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               this.setState({ error: null })
               window.location.href = '/'
             }}
-            className="bg-primary text-black font-semibold text-sm px-6 py-2.5 rounded-sm hover:bg-primary-hover transition-colors"
+            className="btn-primary font-semibold"
           >
             Back to Home
           </button>

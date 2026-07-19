@@ -45,7 +45,7 @@ export default function ExchangeDetails() {
         <p className="text-sm text-muted-foreground mb-4">Log in to view exchange account details.</p>
         <button
           onClick={openConnect}
-          className="inline-flex items-center gap-2 bg-primary text-black text-sm font-semibold px-6 py-3 rounded-sm hover:bg-primary-hover transition-colors"
+          className="btn-primary font-semibold"
         >
           <Wallet size={14} />
           Log In

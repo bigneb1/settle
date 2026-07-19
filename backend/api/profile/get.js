@@ -13,6 +13,7 @@
  * POST keeps the signed payload out of server logs/browser history.
  */
 import { verifyBuyerSignature } from "../../src/buyerAuth.js";
+import { createSession } from "../../src/session.js";
 import { supabaseAdmin } from "../../src/config.js";
 import { computeCreditProfile } from "../../src/creditProfileEngine.js";
 import { computeWalletReputation } from "../../src/walletReputation.js";
@@ -29,13 +30,24 @@ export async function POST(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { buyer: rawBuyer, ts, signature } = body;
+  const { buyer: rawBuyer, ts, signature, sessionToken: incomingSessionToken } = body;
 
   let buyer;
   try {
-    buyer = verifyBuyerSignature({ buyer: rawBuyer, action: "get_profile", ts, signature });
+    buyer = await verifyBuyerSignature({ buyer: rawBuyer, action: "get_profile", ts, signature, sessionToken: incomingSessionToken });
   } catch (err) {
     return json({ error: err.message }, 401);
+  }
+
+  // Reuse the incoming session token if that's how this request was
+  // authenticated; otherwise this was a real signature, so mint a fresh one
+  // the caller can reuse for subsequent profile/exchange/identity reads
+  // without prompting Magic again.
+  let sessionToken;
+  try {
+    sessionToken = incomingSessionToken || await createSession(buyer);
+  } catch {
+    sessionToken = null; // non-fatal - the response is still valid without it
   }
 
   try {
@@ -91,6 +103,7 @@ export async function POST(req) {
       walletReputation: walletRep,
       exchangeConnections: exchangeWithSnapshots,
       devIdentityConnections: devWithSnapshots,
+      sessionToken,
     }, 200);
   } catch (err) {
     return json(safeError("profile/get", err, "Could not load profile"), 500);

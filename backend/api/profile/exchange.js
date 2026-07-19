@@ -14,6 +14,7 @@
  * POST /api/profile/exchange/sync        Body: { buyer, exchange, ts, signature }
  */
 import { verifyBuyerSignature } from "../../src/buyerAuth.js";
+import { createSession } from "../../src/session.js";
 import {
   connectExchange,
   disconnectExchange,
@@ -29,6 +30,18 @@ import { checkIpRateLimit } from "../../src/rateLimit.js";
 import { json, corsPreflight } from "../../src/http.js";
 
 export const OPTIONS = corsPreflight;
+
+// Reuses the incoming session token if that's how the request was
+// authenticated; otherwise this was a real signature, so mint a fresh one
+// the caller can reuse for subsequent calls without prompting Magic again.
+// Non-fatal on failure - the rest of the response is still valid without it.
+async function sessionTokenFor(buyer, incomingSessionToken) {
+  try {
+    return incomingSessionToken || await createSession(buyer);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req) {
   const action = new URL(req.url).searchParams.get("action");
@@ -60,11 +73,11 @@ async function handleConnect(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { buyer: rawBuyer, exchange, apiKey, apiSecret, apiPass, ts, signature } = body;
+  const { buyer: rawBuyer, exchange, apiKey, apiSecret, apiPass, ts, signature, sessionToken: incomingSessionToken } = body;
 
   let buyer;
   try {
-    buyer = verifyBuyerSignature({ buyer: rawBuyer, action: "connect_exchange", ts, signature });
+    buyer = await verifyBuyerSignature({ buyer: rawBuyer, action: "connect_exchange", ts, signature, sessionToken: incomingSessionToken });
   } catch (err) {
     return json({ error: err.message }, 401);
   }
@@ -83,7 +96,8 @@ async function handleConnect(req) {
     // one already existed from an earlier /profile visit, and the frontend
     // has nothing new to show right after connecting.
     const profile = await computeCreditProfile(buyer);
-    return json({ ok: true, exchange, profile }, 200);
+    const sessionToken = await sessionTokenFor(buyer, incomingSessionToken);
+    return json({ ok: true, exchange, profile, sessionToken }, 200);
   } catch (err) {
     // Provider auth-rejection messages (e.g. "Invalid OK-ACCESS-KEY") are
     // safe and useful to return directly - they don't leak this app's
@@ -118,11 +132,11 @@ async function handleDetails(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { buyer: rawBuyer, exchange, ts, signature } = body;
+  const { buyer: rawBuyer, exchange, ts, signature, sessionToken: incomingSessionToken } = body;
 
   let buyer;
   try {
-    buyer = verifyBuyerSignature({ buyer: rawBuyer, action: "exchange_account_details", ts, signature });
+    buyer = await verifyBuyerSignature({ buyer: rawBuyer, action: "exchange_account_details", ts, signature, sessionToken: incomingSessionToken });
   } catch (err) {
     return json({ error: err.message }, 401);
   }
@@ -143,7 +157,8 @@ async function handleDetails(req) {
 
   try {
     const details = await fetchExchangeAccountDetails(connection);
-    return json({ ok: true, exchange, details }, 200);
+    const sessionToken = await sessionTokenFor(buyer, incomingSessionToken);
+    return json({ ok: true, exchange, details, sessionToken }, 200);
   } catch (err) {
     return json(safeError("profile/exchange/details", err, "Could not fetch account details"), 500);
   }
@@ -162,11 +177,11 @@ async function handleDisconnect(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { buyer: rawBuyer, exchange, ts, signature } = body;
+  const { buyer: rawBuyer, exchange, ts, signature, sessionToken: incomingSessionToken } = body;
 
   let buyer;
   try {
-    buyer = verifyBuyerSignature({ buyer: rawBuyer, action: "disconnect_exchange", ts, signature });
+    buyer = await verifyBuyerSignature({ buyer: rawBuyer, action: "disconnect_exchange", ts, signature, sessionToken: incomingSessionToken });
   } catch (err) {
     return json({ error: err.message }, 401);
   }
@@ -177,7 +192,8 @@ async function handleDisconnect(req) {
 
   try {
     await disconnectExchange(buyer, exchange);
-    return json({ ok: true }, 200);
+    const sessionToken = await sessionTokenFor(buyer, incomingSessionToken);
+    return json({ ok: true, sessionToken }, 200);
   } catch (err) {
     return json(safeError("profile/exchange/disconnect", err, "Could not disconnect exchange account"), 500);
   }
@@ -197,11 +213,11 @@ async function handleSync(req) {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { buyer: rawBuyer, exchange, ts, signature } = body;
+  const { buyer: rawBuyer, exchange, ts, signature, sessionToken: incomingSessionToken } = body;
 
   let buyer;
   try {
-    buyer = verifyBuyerSignature({ buyer: rawBuyer, action: "sync_exchange", ts, signature });
+    buyer = await verifyBuyerSignature({ buyer: rawBuyer, action: "sync_exchange", ts, signature, sessionToken: incomingSessionToken });
   } catch (err) {
     return json({ error: err.message }, 401);
   }
@@ -235,7 +251,8 @@ async function handleSync(req) {
   try {
     const signals = await syncExchangeConnection(connection);
     const profile = await computeCreditProfile(buyer);
-    return json({ ok: true, signals, profile }, 200);
+    const sessionToken = await sessionTokenFor(buyer, incomingSessionToken);
+    return json({ ok: true, signals, profile, sessionToken }, 200);
   } catch (err) {
     return json(safeError("profile/exchange/sync", err, "Sync failed"), 500);
   }
