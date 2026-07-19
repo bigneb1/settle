@@ -34,6 +34,15 @@ const SCORE_MIN = 300;
 const SCORE_MAX = 850;
 const SCORE_RANGE = SCORE_MAX - SCORE_MIN;
 
+// Credit line is intentionally tiny: this is a demo where charges settle with
+// real USDC, so per-user exposure is capped hard. It scales from $0.10 at the
+// approval threshold up to a $5.00 ceiling at the top of the score range, with
+// cent precision (micro-USDC, not whole dollars). evaluateBNPL's base limit
+// uses the same MIN/MAX so the two paths agree.
+const APPROVAL_SCORE = 500;
+const MIN_CREDIT_USD = 0.10;
+const MAX_CREDIT_USD = 5.00;
+
 const CREDIT_TIERS = [
   { max: 579, tier: "Poor" },
   { max: 669, tier: "Fair" },
@@ -220,12 +229,13 @@ export async function computeCreditProfile(buyerAddress) {
   const overallScore = Math.round(Math.max(pureOnChainScore, blendedScore));
   const creditTier = tierForScore(overallScore);
 
-  // Credit line: same linear mapping as evaluateBNPL's base formula, capped
-  // higher ($5000 vs $2000) since a fuller profile justifies more headroom.
-  // Threshold aligned with evaluateBNPL's BNPL_APPROVAL_SCORE (500) - the old
-  // 580 bar was unreachable for real test wallets even with verified accounts.
-  const creditLineUsdc = overallScore >= 500
-    ? BigInt(Math.round((overallScore - SCORE_MIN) / SCORE_RANGE * 5000)) * 1_000_000n
+  // Credit line: scales from $0.10 at APPROVAL_SCORE up to a hard $5.00 ceiling
+  // at the top of the range, cent-precise. Kept deliberately tiny - real USDC
+  // settles these charges, so exposure per user is capped hard.
+  const creditLineUsdc = overallScore >= APPROVAL_SCORE
+    ? BigInt(Math.round(
+        (MIN_CREDIT_USD + Math.min((overallScore - APPROVAL_SCORE) / (SCORE_MAX - APPROVAL_SCORE), 1) * (MAX_CREDIT_USD - MIN_CREDIT_USD)) * 1_000_000,
+      ))
     : 0n;
 
   const factorsPositive = [];

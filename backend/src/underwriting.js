@@ -130,6 +130,11 @@ const MAX_FINANCEABLE_FRACTION = 0.30;
 // creditProfileEngine's credit-line threshold is aligned to this same value.
 const BNPL_APPROVAL_SCORE = 500;
 const MAX_SCORE = 850;
+// Hard exposure cap: the base credit line scales from $0.10 at the approval
+// threshold up to $5.00 at the top of the range (cent-precise micro-USDC).
+// creditProfileEngine uses the same MIN/MAX so the profile-raised limit agrees.
+const MIN_CREDIT_USD = 0.10;
+const MAX_CREDIT_USD = 5.00;
 
 export function computeFinanceableFraction(score) {
   const t = Math.min(Math.max((score - BNPL_APPROVAL_SCORE) / (MAX_SCORE - BNPL_APPROVAL_SCORE), 0), 1);
@@ -143,7 +148,9 @@ export async function evaluateBNPL(buyerAddress, requestedAmount) {
   const { score, signals, txCount } = await computeCreditScore(buyerAddress);
 
   const approved = score >= BNPL_APPROVAL_SCORE;
-  const limit = approved ? Math.round((score - 300) / 550 * 2000) * 1_000_000 : 0; // max $2000 in USDC 6-dec
+  const limit = approved
+    ? Math.round((MIN_CREDIT_USD + Math.min((score - BNPL_APPROVAL_SCORE) / (MAX_SCORE - BNPL_APPROVAL_SCORE), 1) * (MAX_CREDIT_USD - MIN_CREDIT_USD)) * 1_000_000)
+    : 0; // micro-USDC, $0.10–$5.00
   const financeableFraction = approved ? computeFinanceableFraction(score) : 0;
 
   // Use GLM for plain-language explanation of borderline decisions.
